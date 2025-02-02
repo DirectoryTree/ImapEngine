@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://github.com/directorytree/imapengine/tree/master/art/logo.svg" width="400">
+<img src="https://github.com/directorytree/imapengine/blob/master/art/logo.svg" width="400">
 </p>
 
 <p align="center">Integrate IMAP into your PHP application, without the PHP extension.</p>
