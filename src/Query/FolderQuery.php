@@ -17,35 +17,33 @@ class FolderQuery
     ){}
 
     /**
-     * Get a folder instance by a folder name.
+     * Find a folder.
      */
-    public function find(string $folderName, ?string $delimiter = null): ?Folder
+    public function find(string $nameOrPath, ?string $delimiter = null): ?Folder
     {
         $delimiter ?? $this->mailbox->config('delimiter', '/');
 
-        if (str_contains($folderName, $delimiter)) {
-            return $this->findByPath($folderName);
+        if (str_contains($nameOrPath, $delimiter)) {
+            return $this->findByPath($nameOrPath);
         }
 
-        return $this->findByName($folderName);
+        return $this->findByName($nameOrPath);
     }
 
     /**
      * Get a folder instance by a folder name.
-     *
-     * @param  bool  $softFail  If true, it will return null instead of throwing an exception
      */
-    public function findByName(string $folderName, bool $softFail = false): ?Folder
+    public function findByName(string $name): ?Folder
     {
-        return $this->get(false)->where('name', $folderName)->first();
+        return $this->get(false)->where('name', $name)->first();
     }
 
     /**
      * Find a folder by the given path.
      */
-    public function findByPath(string $folderPath): Folder
+    public function findByPath(string $path): Folder
     {
-        return $this->get()->where('path', $folderPath)->first();
+        return $this->get()->where('path', $path)->first();
     }
 
     /**
@@ -77,147 +75,30 @@ class FolderQuery
     }
 
     /**
-     * Get folders list.
-     *
-     * If hierarchical order is set to true, it will make a tree of folders, otherwise it will return flat array.
-     *
-     * @param  bool  $softFail  If true, it will return an empty collection instead of throwing an exception
+     * Create a new folder.
      */
-    public function getFoldersWithStatus(bool $hierarchical = true, ?string $parentFolder = null, bool $softFail = false): FolderCollection
+    public function create(string $folderPath, bool $expunge = true): Folder
     {
-        $this->checkConnection();
-
-        $folders = FolderCollection::make();
-
-        $pattern = $parentFolder.($hierarchical ? '%' : '*');
-
-        $items = $this->connection->folders('', $pattern)->getValidatedData();
-
-        if (! empty($items)) {
-            foreach ($items as $folderName => $item) {
-                $folder = new Folder($this, $folderName, $item['delimiter'], $item['flags']);
-
-                if ($hierarchical && $folder->hasChildren()) {
-                    $pattern = $folder->fullName.$folder->delimiter.'%';
-
-                    $children = $this->getFoldersWithStatus(true, $pattern, true);
-
-                    $folder->setChildren($children);
-                }
-
-                $folder->loadStatus();
-
-                $folders->push($folder);
-            }
-
-            return $folders;
-        } elseif (! $softFail) {
-            throw new FolderFetchingException('Failed to fetch any folders');
-        }
-
-        return $folders;
-    }
-
-    /**
-     * Open a given folder.
-     */
-    public function openFolder(string $folderPath, bool $forceSelect = false): array
-    {
-        if ($this->activeFolder == $folderPath && $this->isConnected() && ! $forceSelect) {
-            return [];
-        }
-
-        $this->checkConnection();
-
-        $this->activeFolder = $folderPath;
-
-        return $this->connection->selectFolder($folderPath)->getValidatedData();
-    }
-
-    /**
-     * Set active folder.
-     */
-    public function setActiveFolder(?string $folderPath = null): void
-    {
-        $this->activeFolder = $folderPath;
-    }
-
-    /**
-     * Get active folder.
-     */
-    public function getActiveFolder(): ?string
-    {
-        return $this->activeFolder;
-    }
-
-    /**
-     * Create a new Folder.
-     */
-    public function createFolder(string $folderPath, bool $expunge = true, bool $utf7 = false): Folder
-    {
-        $this->checkConnection();
-
-        if (! $utf7) {
-            $folderPath = EncodingAliases::convert($folderPath, 'utf-8', 'UTF7-IMAP');
-        }
-
-        $status = $this->connection->createFolder($folderPath)->getValidatedData();
+        $this->mailbox->connection()
+            ->createFolder($folderPath)
+            ->getValidatedData();
 
         if ($expunge) {
             $this->expunge();
         }
 
-        $folder = $this->findByPath($folderPath, true);
-
-        if ($status && $folder) {
-            $this->dispatch('folder', 'new', $folder);
-        }
-
-        return $folder;
+        return $this->findByPath($folderPath);
     }
 
     /**
-     * Delete a given folder.
+     * Execute an EXPUNGE command.
      */
-    public function deleteFolder(string $folderPath, bool $expunge = true): array
+    public function expunge(): array
     {
-        $this->checkConnection();
-
-        $folder = $this->findByPath($folderPath);
-
-        if ($this->activeFolder == $folder->path) {
-            $this->activeFolder = null;
-        }
-
-        $status = $this->getConnection()->deleteFolder($folder->path)->getValidatedData();
-
-        if ($expunge) {
-            $this->expunge();
-        }
-
-        $this->dispatch('folder', 'deleted', $folder);
-
-        return $status;
+        return $this->mailbox->connection()
+            ->expunge()
+            ->getValidatedData();
     }
-
-    /**
-     * Check a given folder.
-     */
-    public function checkFolder(string $folderPath): array
-    {
-        $this->checkConnection();
-
-        return $this->connection->examineFolder($folderPath)->getValidatedData();
-    }
-
-    /**
-     * Get the current active folder.
-     */
-    public function getFolderPath(): ?string
-    {
-        return $this->activeFolder;
-    }
-
 
     /**
      * Retrieve the quota level settings, and usage statics per mailbox.

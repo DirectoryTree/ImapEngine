@@ -36,6 +36,11 @@ class Mailbox
     ];
 
     /**
+     * The selected folder.
+     */
+    protected ?Folder $selected = null;
+
+    /**
      * The mailbox connection.
      */
     protected ?ConnectionInterface $connection = null;
@@ -183,6 +188,18 @@ class Mailbox
     }
 
     /**
+     * Select the given folder.
+     */
+    public function select(Folder $folder): void
+    {
+        if (! $this->selected?->is($folder)) {
+            $this->connection->selectFolder($folder->path);
+        }
+
+        $this->selected = $folder;
+    }
+
+    /**
      * Exchange identification information
      *
      * @see https://datatracker.ietf.org/doc/html/rfc2971
@@ -192,16 +209,6 @@ class Mailbox
         //$this->checkConnection();
 
         return $this->connection->id($ids)->getValidatedData();
-    }
-
-    /**
-     * Delete all messages marked for deletion.
-     */
-    public function expunge(): array
-    {
-        // $this->checkConnection();
-
-        return $this->connection->expunge()->getValidatedData();
     }
 
     /**
