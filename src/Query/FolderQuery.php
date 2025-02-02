@@ -93,7 +93,7 @@ class FolderQuery
     }
 
     /**
-     * Execute an EXPUNGE command.
+     * Expunge the mailbox.
      */
     public function expunge(): array
     {

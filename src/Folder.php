@@ -175,7 +175,7 @@ class Folder
     }
 
     /**
-     * Execute an EXPUNGE command.
+     * Expunge the mailbox.
      */
     public function expunge(): array
     {
