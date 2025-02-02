@@ -18,6 +18,7 @@ use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Message;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
 
@@ -64,8 +65,10 @@ class Builder
 
     /**
      * The fetch options.
+     *
+     * Leave messages unread by default.
      */
-    protected ?int $fetchOptions = null;
+    protected int $fetchOptions = Imap::FT_PEEK;
 
     /**
      * The fetch order.
@@ -76,6 +79,8 @@ class Builder
      * @var mixed|int
      */
     protected mixed $sequence = Imap::NIL;
+
+    protected array $options = [];
 
     /**
      * The errors that occurred while fetching messages.
@@ -100,27 +105,17 @@ class Builder
     /**
      * Constructor.
      */
-    public function __construct(Mailbox $mailbox, array $extensions = [])
+    public function __construct(Mailbox $mailbox, array $options = [], array $extensions = [])
     {
-        $this->sequence = $mailbox->config('options.sequence', Imap::ST_MSGN);
+        $this->mailbox = $mailbox;
 
-        if ($mailbox->config('options.fetch') === Imap::FT_PEEK) {
-            $this->leaveUnread();
-        }
+        $this->sequence = Arr::get($options, 'sequence', Imap::ST_MSGN);
 
         $this->setExtensions($extensions);
     }
 
     /**
-     * Register search parameters.
-     *
-     * Examples:
-     * $query->from("someone@email.tld")->seen();
-     * $query->whereFrom("someone@email.tld")->whereSeen();
-     * $query->where([["FROM" => "someone@email.tld"], ["SEEN"]]);
-     * $query->where(["FROM" => "someone@email.tld"])->where(["SEEN"]);
-     * $query->where(["FROM" => "someone@email.tld", "SEEN"]);
-     * $query->where("FROM", "someone@email.tld")->where("SEEN");
+     * Add a where clause to the query.
      */
     public function where(mixed $criteria, mixed $value = null): static
     {
@@ -556,7 +551,9 @@ class Builder
 
         $headers = $this->mailbox->connection()->headers($uids, 'RFC822', $this->sequence)->getValidatedData();
 
-        $extensions = $this->mailbox->connection()->fetch($this->getExtensions(), $uids, null, $this->sequence)->getValidatedData();
+        if (! empty($extensions = $this->getExtensions())) {
+            $extensions = $this->mailbox->connection()->fetch($this->getExtensions(), $uids, null, $this->sequence)->getValidatedData();
+        }
 
         $contents = [];
 
@@ -578,15 +575,16 @@ class Builder
     /**
      * Make a new message from given raw components.
      */
-    protected function make(int $uid, int $msglist, string $header, string $content, array $flags): ?Message
+    protected function make(int $uid, int $msglist, string $headers, string $contents, array $flags): ?Message
     {
         try {
+            // TODO: Replace with factory.
             return Message::make(
                 $uid,
                 $msglist,
                 $this->mailbox,
-                $header,
-                $content,
+                $headers,
+                $contents,
                 $flags,
                 $this->getFetchOptions(),
                 $this->sequence
@@ -646,12 +644,12 @@ class Builder
 
         $msglist = 0;
 
-        foreach ($rawMessages['headers'] as $uid => $header) {
-            $content = $rawMessages['contents'][$uid] ?? '';
-            $flag = $rawMessages['flags'][$uid] ?? [];
+        foreach ($rawMessages['headers'] as $uid => $headers) {
+            $flags = $rawMessages['flags'][$uid] ?? [];
+            $contents = $rawMessages['contents'][$uid] ?? '';
             $extensions = $rawMessages['extensions'][$uid] ?? [];
 
-            $message = $this->make($uid, $msglist, $header, $content, $flag);
+            $message = $this->make($uid, $msglist, $headers, $contents, $flags);
 
             foreach ($extensions as $key => $extension) {
                 $message->getHeader()->set($key, $extension);

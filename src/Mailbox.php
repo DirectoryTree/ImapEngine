@@ -42,17 +42,6 @@ class Mailbox
             'message_key' => 'list',
             'fetch_order' => 'asc',
             'dispositions' => ['attachment', 'inline'],
-            'common_folders' => [
-                'root' => 'INBOX',
-                'junk' => 'INBOX/Junk',
-                'draft' => 'INBOX/Drafts',
-                'sent' => 'INBOX/Sent',
-                'trash' => 'INBOX/Trash',
-            ],
-            'decoder' => [
-                'message' => 'utf-8', // mimeheader
-                'attachment' => 'utf-8', // mimeheader
-            ],
             'open' => [
                 // 'DISABLE_AUTHENTICATOR' => 'GSSAPI'
             ],

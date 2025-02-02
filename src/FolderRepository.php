@@ -33,7 +33,9 @@ class FolderRepository
      */
     public function findByName(string $name): ?Folder
     {
-        return $this->get(false)->where('name', $name)->first();
+        return $this->get()->filter(
+            fn (Folder $folder) => $folder->name() === $name
+        )->first();
     }
 
     /**
@@ -41,7 +43,9 @@ class FolderRepository
      */
     public function findByPath(string $path): Folder
     {
-        return $this->get()->where('path', $path)->first();
+        return $this->get()->filter(
+            fn (Folder $folder) => $folder->path() === $path
+        )->first();
     }
 
     /**

@@ -90,7 +90,7 @@ class Folder
             // known to the current remote session.
             $this->select(true);
 
-            $message = $this->query()->getMessageByMsgn($msgn);
+            $message = $this->messages()->getMessageByMsgn($msgn);
 
             $message->setSequence($sequence);
 
@@ -156,6 +156,14 @@ class Folder
     }
 
     /**
+     * Select the current folder.
+     */
+    public function select(bool $force = false): void
+    {
+        $this->mailbox->select($this, $force);
+    }
+
+    /**
      * Get the folder's flags.
      */
     public function status(): array
@@ -173,14 +181,6 @@ class Folder
         return $this->mailbox->connection()
             ->examineFolder($this->path)
             ->getValidatedData();
-    }
-
-    /**
-     * Select the current folder.
-     */
-    public function select(bool $force = false): void
-    {
-        $this->mailbox->select($this, $force);
     }
 
     /**
