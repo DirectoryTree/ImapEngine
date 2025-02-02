@@ -1,0 +1,53 @@
+{
+    "name": "directorytree/imapengine",
+    "type": "library",
+    "description": "A PHP IMAP client",
+    "keywords": [
+        "imap",
+        "mail",
+        "engine"
+    ],
+    "homepage": "https://github.com/directorytree/imapengine",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Steve Bauman",
+            "email": "steven_bauman@outlook.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "ext-zip": "*",
+        "ext-json": "*",
+        "ext-iconv": "*",
+        "ext-libxml": "*",
+        "ext-openssl": "*",
+        "ext-mbstring": "*",
+        "ext-fileinfo": "*",
+        "symfony/mime": ">=6.0",
+        "nesbot/carbon": ">=2.0",
+        "illuminate/support": ">=9.0",
+        "illuminate/pagination": ">=9.0",
+        "zbateson/mail-mime-parser": "^3.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "pestphp/pest": "^3.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "DirectoryTree\\ImapEngine\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
