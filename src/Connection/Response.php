@@ -2,8 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use Illuminate\Support\Arr;
 use DirectoryTree\ImapEngine\Exceptions\ResponseException;
+use Illuminate\Support\Arr;
 
 class Response
 {

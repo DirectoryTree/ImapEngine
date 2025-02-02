@@ -2,8 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-use Exception;
 use DirectoryTree\ImapEngine\Connection\Response;
+use Exception;
 
 class ResponseException extends Exception
 {

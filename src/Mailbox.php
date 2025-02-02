@@ -7,7 +7,6 @@ use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Query\FolderQuery;
 use ErrorException;
 
 class Mailbox
@@ -32,6 +31,31 @@ class Mailbox
             'request_fulluri' => false,
             'username' => null,
             'password' => null,
+        ],
+        'options' => [
+            'fetch' => Imap::FT_PEEK,
+            'sequence' => Imap::ST_UID,
+            'fetch_body' => true,
+            'fetch_flags' => true,
+            'rfc822' => true,
+            // 'fallback_date' => "01.01.1970 00:00:00",
+            'message_key' => 'list',
+            'fetch_order' => 'asc',
+            'dispositions' => ['attachment', 'inline'],
+            'common_folders' => [
+                'root' => 'INBOX',
+                'junk' => 'INBOX/Junk',
+                'draft' => 'INBOX/Drafts',
+                'sent' => 'INBOX/Sent',
+                'trash' => 'INBOX/Trash',
+            ],
+            'decoder' => [
+                'message' => 'utf-8', // mimeheader
+                'attachment' => 'utf-8', // mimeheader
+            ],
+            'open' => [
+                // 'DISABLE_AUTHENTICATOR' => 'GSSAPI'
+            ],
         ],
     ];
 
@@ -134,7 +158,7 @@ class Mailbox
             return;
         }
 
-        $this->connection = $connection ?? new ImapConnection();
+        $this->connection = $connection ?? new ImapConnection;
 
         $this->connection->setProxy($this->config('proxy'));
         $this->connection->setDebug($this->config('debug'));
@@ -188,9 +212,9 @@ class Mailbox
     /**
      * Begin querying for mailbox folders.
      */
-    public function folders(): FolderQuery
+    public function folders(): FolderRepository
     {
-        return new FolderQuery(
+        return new FolderRepository(
             tap($this)->connection()
         );
     }

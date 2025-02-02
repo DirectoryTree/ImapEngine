@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Exceptions\ResponseException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Query\Builder;
 
 class Folder
 {
@@ -15,7 +16,7 @@ class Folder
         protected string $path,
         protected string $delimiter = '/',
         protected array $flags = [],
-    ){}
+    ) {}
 
     /**
      * Get the folder's mailbox.
@@ -64,6 +65,14 @@ class Folder
     {
         return $this->path === $folder->path
             && $this->mailbox->config('host') === $folder->mailbox->config('host');
+    }
+
+    /**
+     * Begin querying for messages.
+     */
+    public function messages(): Builder
+    {
+        return new Builder($this->mailbox);
     }
 
     /**

@@ -2,8 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use RuntimeException;
 use DirectoryTree\ImapEngine\Imap;
+use RuntimeException;
 
 /**
  * Example usage:

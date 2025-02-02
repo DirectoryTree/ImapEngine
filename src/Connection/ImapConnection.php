@@ -2,9 +2,6 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use Exception;
-use Illuminate\Support\Arr;
-use Throwable;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
@@ -16,6 +13,9 @@ use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Header;
 use DirectoryTree\ImapEngine\Imap;
 use DirectoryTree\ImapEngine\Support\Escape;
+use Exception;
+use Illuminate\Support\Arr;
+use Throwable;
 
 /**
  * @see https://www.rfc-editor.org/rfc/rfc2087.txt
@@ -1072,7 +1072,8 @@ class ImapConnection extends Connection
             try {
                 // Set cache for this folder.
                 $this->setUidCache((array) $this->fetch('UID', 1, INF)->data());
-            } catch (RuntimeException) {}
+            } catch (RuntimeException) {
+            }
         }
 
         $uids = $this->uidCache;

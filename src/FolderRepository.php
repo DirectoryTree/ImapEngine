@@ -1,20 +1,18 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Query;
+namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Mailbox;
-use DirectoryTree\ImapEngine\Folder;
 
-class FolderQuery
+class FolderRepository
 {
     /**
      * Constructor.
      */
     public function __construct(
         protected Mailbox $mailbox
-    ){}
+    ) {}
 
     /**
      * Find a folder.
@@ -59,7 +57,7 @@ class FolderQuery
 
         if (empty($items)) {
             throw new RuntimeException('Failed to fetch any folders');
-            //throw new FolderFetchingException('Failed to fetch any folders');
+            // throw new FolderFetchingException('Failed to fetch any folders');
         }
 
         foreach ($items as $folderName => $item) {
