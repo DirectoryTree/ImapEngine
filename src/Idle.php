@@ -24,7 +24,7 @@ class Idle
      */
     public function __destruct()
     {
-        $this->client->disconnect();
+        $this->mailbox->disconnect();
     }
 
     /**
@@ -38,7 +38,7 @@ class Idle
 
         $ttl = $this->getNextTimeout();
 
-        $sequence = ClientContainer::get('options.sequence', Imap::ST_MSGN);
+        $sequence = $this->mailbox->config('options.sequence', Imap::ST_MSGN);
 
         while (true) {
             try {
@@ -91,7 +91,7 @@ class Idle
      */
     protected function reconnect(): void
     {
-        $this->client->getConnection()->reset();
+        $this->mailbox->disconnect();
 
         $this->connect();
     }
@@ -101,11 +101,19 @@ class Idle
      */
     protected function connect(): void
     {
-        $this->client->connect();
+        $this->mailbox->connect();
 
-        $this->client->openFolder($this->folder, true);
+        $this->mailbox->select($this->folder(), true);
 
-        $this->client->getConnection()->setStreamTimeout($this->timeout);
+        $this->mailbox->connection()->setStreamTimeout($this->timeout);
+    }
+
+    /**
+     * Get the folder to idle.
+     */
+    protected function folder(): Folder
+    {
+        return $this->mailbox->folders()->findByPath($this->folder);
     }
 
     /**
@@ -127,7 +135,7 @@ class Idle
      */
     protected function done(): void
     {
-        $this->client->getConnection()->done();
+        $this->mailbox->connection()->done();
     }
 
     /**
@@ -135,7 +143,7 @@ class Idle
      */
     protected function idle(): void
     {
-        $this->client->getConnection()->idle();
+        $this->mailbox->connection()->idle();
     }
 
     /**
@@ -145,7 +153,7 @@ class Idle
      */
     protected function getNextLine(): string
     {
-        return $this->client->getConnection()->nextLine(Response::empty());
+        return $this->mailbox->connection()->nextLine(Response::empty());
     }
 
     /**

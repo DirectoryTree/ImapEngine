@@ -84,8 +84,12 @@ class Mailbox
     /**
      * Get the mailbox connection.
      */
-    public function connection(): ?ConnectionInterface
+    public function connection(): ConnectionInterface
     {
+        if (! $this->connection) {
+            $this->connect();
+        }
+
         return $this->connection;
     }
 
@@ -177,6 +181,8 @@ class Mailbox
         if ($this->isConnected()) {
             $this->connection->logout();
         }
+
+        $this->connection = null;
     }
 
     /**
@@ -184,7 +190,9 @@ class Mailbox
      */
     public function folders(): FolderQuery
     {
-        return new FolderQuery($this);
+        return new FolderQuery(
+            tap($this)->connection()
+        );
     }
 
     /**
@@ -193,22 +201,10 @@ class Mailbox
     public function select(Folder $folder, bool $force = false): void
     {
         if (! $this->selected?->is($folder) || $force) {
-            $this->connection->selectFolder($folder->path());
+            $this->connection()->selectFolder($folder->path());
         }
 
         $this->selected = $folder;
-    }
-
-    /**
-     * Exchange identification information
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc2971
-     */
-    public function id(?array $ids = null): array
-    {
-        //$this->checkConnection();
-
-        return $this->connection->id($ids)->getValidatedData();
     }
 
     /**

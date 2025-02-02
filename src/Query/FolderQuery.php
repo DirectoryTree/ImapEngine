@@ -53,7 +53,9 @@ class FolderQuery
     {
         $folders = FolderCollection::make();
 
-        $items = $this->mailbox->connection()->folders('', $parentFolder.'*')->getValidatedData();
+        $items = $this->mailbox->connection()
+            ->folders('', $parentFolder.'*')
+            ->getValidatedData();
 
         if (empty($items)) {
             throw new RuntimeException('Failed to fetch any folders');
@@ -98,25 +100,5 @@ class FolderQuery
         return $this->mailbox->connection()
             ->expunge()
             ->getValidatedData();
-    }
-
-    /**
-     * Retrieve the quota level settings, and usage statics per mailbox.
-     */
-    public function getQuota(): array
-    {
-        //$this->checkConnection();
-
-        return $this->connection->getQuota($this->config('username'))->getValidatedData();
-    }
-
-    /**
-     * Retrieve the quota settings per user.
-     */
-    public function getQuotaRoot(string $quotaRoot = 'INBOX'): array
-    {
-        $this->checkConnection();
-
-        return $this->connection->getQuotaRoot($quotaRoot)->getValidatedData();
     }
 }
