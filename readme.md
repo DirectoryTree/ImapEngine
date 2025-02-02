@@ -1,6 +1,6 @@
 <h1 align="center">ImapEngine</h1>
     
-<p align="center">Integrate IMAP into your PHP application.</p>
+<p align="center">Integrate IMAP into your PHP application, without the PHP extension.</p>
 
 <p align="center">
 <a href="https://github.com/directorytree/imapengine/actions"><img src="https://img.shields.io/github/actions/workflow/status/directorytree/imapengine/run-tests.yml?branch=master&style=flat-square"></a>
