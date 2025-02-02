@@ -188,10 +188,10 @@ interface ConnectionInterface
     /**
      * Rename an existing folder.
      *
-     * @param  string  $old  old name
-     * @param  string  $new  new name
+     * @param  string  $oldPath  old name
+     * @param  string  $newPath  new name
      */
-    public function renameFolder(string $old, string $new): Response;
+    public function renameFolder(string $oldPath, string $newPath): Response;
 
     /**
      * Delete a folder.

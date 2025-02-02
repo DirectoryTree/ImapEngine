@@ -2,6 +2,9 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Exceptions\ResponseException;
+use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+
 class Folder
 {
     /**
@@ -64,6 +67,86 @@ class Folder
     }
 
     /**
+     * Begin idling on the current folder.
+     */
+    public function idle(callable $callback, int $timeout = 300): void
+    {
+        if (! $this->hasIdleSupport()) {
+            throw new \RuntimeException('IMAP server does not support IDLE');
+        }
+
+        $fetch = function (int $msgn, int $sequence) {
+            // Always reopen the folder on the main client.
+            // Otherwise, the new message number isn't
+            // known to the current remote session.
+            $this->select(true);
+
+            $message = $this->query()->getMessageByMsgn($msgn);
+
+            $message->setSequence($sequence);
+
+            return $message;
+        };
+
+        (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
+            function (int $msgn, int $sequence) use ($callback, $fetch) {
+                // Connect the client if the connection is closed.
+                if ($this->mailbox->isClosed()) {
+                    $this->mailbox->connect();
+                }
+
+                try {
+                    $message = $fetch($msgn, $sequence);
+                } catch (RuntimeException|ResponseException) {
+                    // If fetching the message fails, we'll attempt
+                    // reconnecting and re-fetching the message.
+                    $this->mailbox->reconnect();
+
+                    $message = $fetch($msgn, $sequence);
+                }
+
+                $callback($message);
+            }
+        );
+    }
+
+    /**
+     * Move or rename the current folder.
+     */
+    public function move(string $newPath, bool $expunge = true): array
+    {
+        $status = $this->mailbox->connection()
+            ->renameFolder($this->path, $newPath)
+            ->getValidatedData();
+
+        if ($expunge) {
+            $this->expunge();
+        }
+
+        $this->path = $newPath;
+
+        return $status;
+    }
+
+    /**
+     * Delete the current folder.
+     */
+    public function delete(bool $expunge = true): array
+    {
+        $this->select();
+
+        $status = $this->mailbox->connection()
+            ->deleteFolder($this->path)
+            ->getValidatedData();
+
+        if ($expunge) {
+            $this->expunge();
+        }
+
+        return $status;
+    }
+
+    /**
      * Get the folder's flags.
      */
     public function status(): array
@@ -86,27 +169,9 @@ class Folder
     /**
      * Select the current folder.
      */
-    public function select(): void
+    public function select(bool $force = false): void
     {
-        $this->mailbox->select($this);
-    }
-
-    /**
-     * Delete the current folder.
-     */
-    public function delete(bool $expunge = true): array
-    {
-        $this->select();
-
-        $status = $this->mailbox->connection()
-            ->deleteFolder($this->path)
-            ->getValidatedData();
-
-        if ($expunge) {
-            $this->expunge();
-        }
-
-        return $status;
+        $this->mailbox->select($this, $force);
     }
 
     /**

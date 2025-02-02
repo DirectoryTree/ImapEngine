@@ -264,7 +264,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $old, string $new): Response
+    public function renameFolder(string $oldPath, string $newPath): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }

@@ -190,10 +190,10 @@ class Mailbox
     /**
      * Select the given folder.
      */
-    public function select(Folder $folder): void
+    public function select(Folder $folder, bool $force = false): void
     {
-        if (! $this->selected?->is($folder)) {
-            $this->connection->selectFolder($folder->path);
+        if (! $this->selected?->is($folder) || $force) {
+            $this->connection->selectFolder($folder->path());
         }
 
         $this->selected = $folder;

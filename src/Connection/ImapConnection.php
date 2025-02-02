@@ -908,9 +908,9 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $old, string $new): Response
+    public function renameFolder(string $oldPath, string $newPath): Response
     {
-        return $this->requestAndResponse('RENAME', $this->escapeString($old, $new), false);
+        return $this->requestAndResponse('RENAME', $this->escapeString($oldPath, $newPath), false);
     }
 
     /**
