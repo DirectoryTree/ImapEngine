@@ -8,6 +8,7 @@ use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
+use ZBateson\MailMimeParser\Message\MimePart;
 
 class Message implements Stringable
 {
@@ -81,6 +82,22 @@ class Message implements Stringable
     }
 
     /**
+     * Get the message's message-id.
+     */
+    public function messageId(): ?string
+    {
+        return $this->header(HeaderConsts::MESSAGE_ID)?->getValue();
+    }
+
+    /**
+     * Get the message's subject.
+     */
+    public function subject(): ?string
+    {
+        return $this->header(HeaderConsts::SUBJECT)?->getValue();
+    }
+
+    /**
      * Get the FROM address.
      */
     public function from(): ?Address
@@ -105,7 +122,17 @@ class Message implements Stringable
     }
 
     /**
+     * Get the IN-REPLY-TO address.
+     */
+    public function inReplyTo(): ?Address
+    {
+        return head($this->addresses(HeaderConsts::IN_REPLY_TO));
+    }
+
+    /**
      * Get the TO addresses.
+     *
+     * @return Address[]
      */
     public function to(): array
     {
@@ -114,6 +141,8 @@ class Message implements Stringable
 
     /**
      * Get the CC addresses.
+     *
+     * @return Address[]
      */
     public function cc(): array
     {
@@ -122,6 +151,8 @@ class Message implements Stringable
 
     /**
      * Get the BCC addresses.
+     *
+     * @return Address[]
      */
     public function bcc(): array
     {
@@ -129,13 +160,47 @@ class Message implements Stringable
     }
 
     /**
-     * Get addresses from the given header.
+     * Get the message's attachments.
+     *
+     * @return Attachment[]
      */
-    protected function addresses(string $header): array
+    public function attachments(): array
+    {
+        return array_map(function (MimePart $part) {
+            return new Attachment(
+                $part->getFilename(),
+                $part->getContentType(),
+                $part->getContentStream(),
+            );
+        }, $this->parse()->getAllAttachmentParts());
+    }
+
+    /**
+     * Determine if the message has attachments.
+     */
+    public function hasAttachments(): bool
+    {
+        return $this->attachmentCount() > 0;
+    }
+
+    /**
+     * Get the count of attachments.
+     */
+    public function attachmentCount(): int
+    {
+        return $this->parse()->getAttachmentCount();
+    }
+
+    /**
+     * Get addresses from the given header.
+     *
+     * @return Address[]
+     */
+    public function addresses(string $header): array
     {
         return array_map(function (AddressPart $part) {
             return new Address($part->getEmail(), $part->getName());
-        }, $this->header($header)->getParts());
+        }, $this->header($header)?->getParts() ?? []);
     }
 
     /**
@@ -175,6 +240,9 @@ class Message implements Stringable
      */
     public function __toString(): string
     {
-        return rtrim($this->headers)."\r\n\r\n".ltrim($this->contents);
+        return implode("\r\n\r\n", array_filter([
+            rtrim($this->headers),
+            ltrim($this->contents),
+        ]));
     }
 }

@@ -5,11 +5,7 @@ namespace DirectoryTree\ImapEngine\Support;
 class Escape
 {
     /**
-     * Escape one or more literals i.e. for sendRequest.
-     *
-     * @param  array|string  $string  the literal/-s
-     * @return string|array escape literals, literals with newline ar returned
-     *                      as array('{size}', 'string');
+     * Escape one or more literals.
      */
     public static function string(array|string $string): array|string
     {
@@ -32,9 +28,6 @@ class Escape
 
     /**
      * Escape a list with literals or lists.
-     *
-     * @param  array  $list  list with literals or lists as PHP array
-     * @return string escaped list for imap
      */
     public static function list(array $list): string
     {

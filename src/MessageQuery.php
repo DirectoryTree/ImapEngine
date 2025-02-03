@@ -50,7 +50,7 @@ class MessageQuery
     /**
      * Whether to fetch the message body.
      */
-    protected bool $fetchBody = true;
+    protected bool $fetchBody = false;
 
     /**
      * Whether to fetch the message flags.
@@ -90,10 +90,20 @@ class MessageQuery
      * The available search criteria.
      */
     protected array $criteria = [
-        'OR', 'AND',
-        'ALL', 'ANSWERED', 'BCC', 'BEFORE', 'BODY', 'CC', 'DELETED', 'FLAGGED', 'FROM', 'KEYWORD',
-        'NEW', 'NOT', 'OLD', 'ON', 'RECENT', 'SEEN', 'SINCE', 'SUBJECT', 'TEXT', 'TO',
-        'UNANSWERED', 'UNDELETED', 'UNFLAGGED', 'UNKEYWORD', 'UNSEEN', 'UID',
+        // Identifiers
+        'ALL', 'UID',
+
+        // Logical Operators
+        'AND', 'OR', 'NOT',
+
+        // Dates
+        'SINCE', 'BEFORE', 'ON',
+
+        // Headers / Fields
+        'SUBJECT', 'TEXT', 'BODY', 'TO', 'FROM', 'CC', 'BCC', 'KEYWORD', 'UNKEYWORD',
+
+        // Flags
+        'ANSWERED', 'DELETED', 'FLAGGED', 'SEEN', 'UNANSWERED', 'UNDELETED', 'UNFLAGGED', 'UNSEEN', 'NEW', 'OLD', 'RECENT',
     ];
 
     /**
@@ -154,6 +164,7 @@ class MessageQuery
         if ($page >= 1) {
             $this->page = $page;
         }
+
         $this->limit = $limit;
 
         return $this;
@@ -458,9 +469,7 @@ class MessageQuery
      */
     public function whereBefore(mixed $value): static
     {
-        $date = $this->parseDate($value);
-
-        return $this->where('BEFORE', $date);
+        return $this->where('BEFORE', $this->parseDate($value));
     }
 
     /**
@@ -540,9 +549,7 @@ class MessageQuery
      */
     public function whereOn(mixed $value): static
     {
-        $date = $this->parseDate($value);
-
-        return $this->where('ON', $date);
+        return $this->where('ON', $this->parseDate($value));
     }
 
     /**
@@ -566,9 +573,7 @@ class MessageQuery
      */
     public function whereSince(mixed $value): static
     {
-        $date = $this->parseDate($value);
-
-        return $this->where('SINCE', $date);
+        return $this->where('SINCE', $this->parseDate($value));
     }
 
     /**
@@ -762,7 +767,7 @@ class MessageQuery
     }
 
     /**
-     * Execute an imap search request.
+     * Execute an IMAP search request.
      */
     protected function search(): Collection
     {
@@ -912,7 +917,15 @@ class MessageQuery
     }
 
     /**
-     * Fetch the current query and return all found messages.
+     * Get the first message in the resulting collection.
+     */
+    public function first(): ?Message
+    {
+        return $this->get()->first();
+    }
+
+    /**
+     * Get all found messages.
      */
     public function get(): MessageCollection
     {
