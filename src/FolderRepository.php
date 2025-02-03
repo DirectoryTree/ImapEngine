@@ -69,8 +69,8 @@ class FolderRepository
                 new Folder(
                     $this->mailbox,
                     $folderName,
-                    $item['delimiter'],
                     $item['flags'],
+                    $item['delimiter'],
                 )
             );
         }

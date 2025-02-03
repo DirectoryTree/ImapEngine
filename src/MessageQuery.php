@@ -1,35 +1,29 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Query;
+namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use Closure;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\GetMessagesFailedException;
-use DirectoryTree\ImapEngine\Exceptions\InvalidMessageDateException;
 use DirectoryTree\ImapEngine\Exceptions\InvalidWhereQueryCriteriaException;
-use DirectoryTree\ImapEngine\Exceptions\MessageContentFetchingException;
-use DirectoryTree\ImapEngine\Exceptions\MessageFlagException;
 use DirectoryTree\ImapEngine\Exceptions\MessageSearchValidationException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Imap;
-use DirectoryTree\ImapEngine\Mailbox;
-use DirectoryTree\ImapEngine\Message;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
 
-class Builder
+class MessageQuery
 {
     use Conditionable;
 
     /**
-     * The mailbox to query.
+     * The folder to search in.
      */
-    protected Mailbox $mailbox;
+    protected Folder $folder;
 
     /**
      * The added search filters.
@@ -105,13 +99,244 @@ class Builder
     /**
      * Constructor.
      */
-    public function __construct(Mailbox $mailbox, array $options = [], array $extensions = [])
+    public function __construct(Folder $folder, array $options = [], array $extensions = [])
     {
-        $this->mailbox = $mailbox;
+        $this->folder = $folder;
 
         $this->sequence = Arr::get($options, 'sequence', Imap::ST_MSGN);
 
         $this->setExtensions($extensions);
+    }
+
+    /**
+     * Don't mark messages as read when fetching.
+     */
+    public function leaveUnread(): static
+    {
+        $this->setFetchOptions(Imap::FT_PEEK);
+
+        return $this;
+    }
+
+    /**
+     * Mark all messages as read when fetching.
+     */
+    public function markAsRead(): static
+    {
+        $this->setFetchOptions(Imap::FT_UID);
+
+        return $this;
+    }
+
+    /**
+     * Set the sequence type.
+     */
+    public function setSequence(int $sequence): static
+    {
+        $this->sequence = $sequence;
+
+        return $this;
+    }
+
+    /**
+     * Get the sequence type.
+     */
+    public function getSequence(): int|string
+    {
+        return $this->sequence;
+    }
+
+    /**
+     * Set the limit and page for the current query.
+     */
+    public function limit(int $limit, int $page = 1): static
+    {
+        if ($page >= 1) {
+            $this->page = $page;
+        }
+        $this->limit = $limit;
+
+        return $this;
+    }
+
+    /**
+     * Get all applied extensions.
+     *
+     * @return string[]
+     */
+    public function getExtensions(): array
+    {
+        return $this->extensions;
+    }
+
+    /**
+     * Set all extensions that should be used.
+     *
+     * @param  string[]  $extensions
+     */
+    public function setExtensions(array $extensions): static
+    {
+        $this->extensions = $extensions;
+
+        if (count($this->extensions) > 0) {
+            if (in_array('UID', $this->extensions) === false) {
+                $this->extensions[] = 'UID';
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the set fetch limit.
+     */
+    public function getLimit(): ?int
+    {
+        return $this->limit;
+    }
+
+    /**
+     * Set the fetch limit.
+     */
+    public function setLimit(int $limit): static
+    {
+        $this->limit = max($limit, 1);
+
+        return $this;
+    }
+
+    /**
+     * Get the set page.
+     */
+    public function getPage(): int
+    {
+        return $this->page;
+    }
+
+    /**
+     * Set the page.
+     */
+    public function setPage(int $page): static
+    {
+        $this->page = $page;
+
+        return $this;
+    }
+
+    /**
+     * Set the fetch option flag.
+     */
+    public function setFetchOptions(int $fetchOptions): static
+    {
+        $this->fetchOptions = $fetchOptions;
+
+        return $this;
+    }
+
+    /**
+     * Set the fetch option flag.
+     */
+    public function fetchOptions(int $fetchOptions): static
+    {
+        return $this->setFetchOptions($fetchOptions);
+    }
+
+    /**
+     * Get the fetch option flag.
+     */
+    public function getFetchOptions(): ?int
+    {
+        return $this->fetchOptions;
+    }
+
+    /**
+     * Determine if the body of messages is being fetched.
+     */
+    public function isFetchingBody(): bool
+    {
+        return $this->fetchBody;
+    }
+
+    /**
+     * Fetch the body of messages.
+     */
+    public function withBody(): static
+    {
+        return $this->setFetchBody(true);
+    }
+
+    /**
+     * Don't fetch the body of messages.
+     */
+    public function withoutBody(): static
+    {
+        return $this->setFetchBody(false);
+    }
+
+    /**
+     * Set the fetch body flag.
+     */
+    public function setFetchBody(bool $fetchBody): static
+    {
+        $this->fetchBody = $fetchBody;
+
+        return $this;
+    }
+
+    /**
+     * Get the fetch body flag.
+     */
+    public function getFetchFlags(): bool
+    {
+        return $this->fetchFlags;
+    }
+
+    /**
+     * Set the fetch flag.
+     */
+    public function setFetchFlags(bool $fetchFlags): static
+    {
+        $this->fetchFlags = $fetchFlags;
+
+        return $this;
+    }
+
+    /**
+     * Set the fetch order.
+     */
+    public function setFetchOrder(string $fetchOrder): static
+    {
+        $fetchOrder = strtolower($fetchOrder);
+
+        if (in_array($fetchOrder, ['asc', 'desc'])) {
+            $this->fetchOrder = $fetchOrder;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the fetch order.
+     */
+    public function getFetchOrder(): string
+    {
+        return $this->fetchOrder;
+    }
+
+    /**
+     * Set the fetch order to 'ascending'.
+     */
+    public function setFetchOrderAsc(): static
+    {
+        return $this->setFetchOrder('asc');
+    }
+
+    /**
+     * Set the fetch order to 'descending'.
+     */
+    public function setFetchOrderDesc(): static
+    {
+        return $this->setFetchOrder('desc');
     }
 
     /**
@@ -509,7 +734,31 @@ class Builder
      */
     public function getQuery(): string
     {
-        return (new Grammar($this->filters))->compile();
+        $query = '';
+
+        foreach ($this->filters as $statement) {
+            if (count($statement) === 1) {
+                $query .= $statement[0].' ';
+
+                continue;
+            }
+
+            if (is_null($statement[1])) {
+                $query .= $statement[0].' ';
+
+                continue;
+            }
+
+            if (is_numeric($statement[1])) {
+                $query .= $statement[0].' '.$statement[1].' ';
+
+                continue;
+            }
+
+            $query .= $statement[0].' "'.$statement[1].'" ';
+        }
+
+        return trim($query);
     }
 
     /**
@@ -518,7 +767,8 @@ class Builder
     protected function search(): Collection
     {
         try {
-            $messages = $this->mailbox->connection()
+            $messages = $this->folder->mailbox()
+                ->connection()
                 ->search([$this->getQuery()], $this->sequence)
                 ->getValidatedData();
 
@@ -547,18 +797,28 @@ class Builder
 
         $uids = $messages->forPage($this->page, $this->limit)->toArray();
 
-        $flags = $this->mailbox->connection()->flags($uids, $this->sequence)->getValidatedData();
+        $flags = $this->folder->mailbox()
+            ->connection()
+            ->flags($uids, $this->sequence)
+            ->getValidatedData();
 
-        $headers = $this->mailbox->connection()->headers($uids, 'RFC822', $this->sequence)->getValidatedData();
+        $headers = $this->folder->mailbox()
+            ->connection()
+            ->headers($uids, 'RFC822', $this->sequence)
+            ->getValidatedData();
 
         if (! empty($extensions = $this->getExtensions())) {
-            $extensions = $this->mailbox->connection()->fetch($this->getExtensions(), $uids, null, $this->sequence)->getValidatedData();
+            $extensions = $this->folder->mailbox()
+                ->connection()
+                ->fetch($this->getExtensions(), $uids, null, $this->sequence)
+                ->getValidatedData();
         }
 
         $contents = [];
 
-        if ($this->getFetchBody()) {
-            $contents = $this->mailbox->connection()
+        if ($this->isFetchingBody()) {
+            $contents = $this->folder->mailbox()
+                ->connection()
                 ->content($uids, 'RFC822', $this->sequence)
                 ->getValidatedData();
         }
@@ -575,27 +835,15 @@ class Builder
     /**
      * Make a new message from given raw components.
      */
-    protected function make(int $uid, int $msglist, string $headers, string $contents, array $flags): ?Message
+    protected function newMessage(int $uid, array $flags, string $headers, string $contents): Message
     {
-        try {
-            // TODO: Replace with factory.
-            return Message::make(
-                $uid,
-                $msglist,
-                $this->mailbox,
-                $headers,
-                $contents,
-                $flags,
-                $this->getFetchOptions(),
-                $this->sequence
-            );
-        } catch (RuntimeException|MessageFlagException|InvalidMessageDateException|MessageContentFetchingException $e) {
-            $this->setError($uid, $e);
-        }
-
-        $this->handleException($uid);
-
-        return null;
+        return new Message(
+            $this->folder,
+            $uid,
+            $flags,
+            $headers,
+            $contents,
+        );
     }
 
     /**
@@ -616,17 +864,13 @@ class Builder
     /**
      * Process the collection of messages.
      */
-    public function process(Collection $messages): MessageCollection
+    protected function process(Collection $messages): MessageCollection
     {
-        try {
-            if ($messages->isNotEmpty()) {
-                return $this->populate($messages);
-            }
-
-            return MessageCollection::make();
-        } catch (Exception $e) {
-            throw new GetMessagesFailedException($e->getMessage(), 0, $e);
+        if ($messages->isNotEmpty()) {
+            return $this->populate($messages);
         }
+
+        return MessageCollection::make();
     }
 
     /**
@@ -638,7 +882,7 @@ class Builder
 
         $messages->total($availableMessages->count());
 
-        $messageKey = $this->mailbox->config('options.message_key');
+        $messageKey = $this->folder->mailbox()->config('options.message_key');
 
         $rawMessages = $this->fetch($availableMessages);
 
@@ -649,17 +893,17 @@ class Builder
             $contents = $rawMessages['contents'][$uid] ?? '';
             $extensions = $rawMessages['extensions'][$uid] ?? [];
 
-            $message = $this->make($uid, $msglist, $headers, $contents, $flags);
+            $message = $this->newMessage($uid, $flags, $headers, $contents);
 
-            foreach ($extensions as $key => $extension) {
-                $message->getHeader()->set($key, $extension);
-            }
+            //            dd($extensions);
+            //
+            //            foreach ($extensions as $key => $extension) {
+            //                $message->getHeader()->set($key, $extension);
+            //            }
 
-            if ($message !== null) {
-                $key = $this->getMessageKey($messageKey, $msglist, $message);
+            $key = $this->getMessageKey($messageKey, $msglist, $message);
 
-                $messages->put("$key", $message);
-            }
+            $messages->put("$key", $message);
 
             $msglist++;
         }
@@ -746,7 +990,7 @@ class Builder
             $msglist,
             $this->getMailbox,
             $this->getFetchOptions(),
-            $this->getFetchBody(),
+            $this->isFetchingBody(),
             $this->getFetchFlags(),
             $sequence ?: $this->sequence
         );
@@ -768,390 +1012,5 @@ class Builder
     public function getMessageByUid($uid): Message
     {
         return $this->getMessage($uid, null, Imap::ST_UID);
-    }
-
-    /**
-     * Filter all available uids by a given closure and get a curated list of messages.
-     */
-    public function filter(callable $closure): MessageCollection
-    {
-        $uids = $this->mailbox->connection()
-            ->getUid()
-            ->getValidatedData();
-
-        $availableMessages = new Collection;
-
-        if (is_array($uids)) {
-            foreach ($uids as $id) {
-                if ($closure($id)) {
-                    $availableMessages->push($id);
-                }
-            }
-        }
-
-        return $this->process($availableMessages);
-    }
-
-    /**
-     * Get all messages with an uid greater or equal to a given UID.
-     */
-    public function getByUidGreaterOrEqual(int $uid): MessageCollection
-    {
-        return $this->filter(fn ($id) => $id >= $uid);
-    }
-
-    /**
-     * Get all messages with an uid greater than a given UID.
-     */
-    public function getByUidGreater(int $uid): MessageCollection
-    {
-        return $this->filter(fn ($id) => $id > $uid);
-    }
-
-    /**
-     * Get all messages with an uid lower than a given UID.
-     */
-    public function getByUidLower(int $uid): MessageCollection
-    {
-        return $this->filter(fn ($id) => $id < $uid);
-    }
-
-    /**
-     * Get all messages with an uid lower or equal to a given UID.
-     */
-    public function getByUidLowerOrEqual(int $uid): MessageCollection
-    {
-        return $this->filter(fn ($id) => $id <= $uid);
-    }
-
-    /**
-     * Get all messages with an uid greater than a given UID.
-     */
-    public function getByUidLowerThan(int $uid): MessageCollection
-    {
-        return $this->filter(fn ($id) => $id < $uid);
-    }
-
-    /**
-     * Don't mark messages as read when fetching.
-     */
-    public function leaveUnread(): static
-    {
-        $this->setFetchOptions(Imap::FT_PEEK);
-
-        return $this;
-    }
-
-    /**
-     * Mark all messages as read when fetching.
-     */
-    public function markAsRead(): static
-    {
-        $this->setFetchOptions(Imap::FT_UID);
-
-        return $this;
-    }
-
-    /**
-     * Set the sequence type.
-     */
-    public function setSequence(int $sequence): static
-    {
-        $this->sequence = $sequence;
-
-        return $this;
-    }
-
-    /**
-     * Get the sequence type.
-     */
-    public function getSequence(): int|string
-    {
-        return $this->sequence;
-    }
-
-    /**
-     * Set the limit and page for the current query.
-     */
-    public function limit(int $limit, int $page = 1): static
-    {
-        if ($page >= 1) {
-            $this->page = $page;
-        }
-        $this->limit = $limit;
-
-        return $this;
-    }
-
-    /**
-     * Get all applied extensions.
-     *
-     * @return string[]
-     */
-    public function getExtensions(): array
-    {
-        return $this->extensions;
-    }
-
-    /**
-     * Set all extensions that should be used.
-     *
-     * @param  string[]  $extensions
-     */
-    public function setExtensions(array $extensions): static
-    {
-        $this->extensions = $extensions;
-
-        if (count($this->extensions) > 0) {
-            if (in_array('UID', $this->extensions) === false) {
-                $this->extensions[] = 'UID';
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the set fetch limit.
-     */
-    public function getLimit(): ?int
-    {
-        return $this->limit;
-    }
-
-    /**
-     * Set the fetch limit.
-     */
-    public function setLimit(int $limit): static
-    {
-        $this->limit = max($limit, 1);
-
-        return $this;
-    }
-
-    /**
-     * Get the set page.
-     */
-    public function getPage(): int
-    {
-        return $this->page;
-    }
-
-    /**
-     * Set the page.
-     */
-    public function setPage(int $page): static
-    {
-        $this->page = $page;
-
-        return $this;
-    }
-
-    /**
-     * Set the fetch option flag.
-     */
-    public function setFetchOptions(int $fetchOptions): static
-    {
-        $this->fetchOptions = $fetchOptions;
-
-        return $this;
-    }
-
-    /**
-     * Set the fetch option flag.
-     */
-    public function fetchOptions(int $fetchOptions): static
-    {
-        return $this->setFetchOptions($fetchOptions);
-    }
-
-    /**
-     * Get the fetch option flag.
-     */
-    public function getFetchOptions(): ?int
-    {
-        return $this->fetchOptions;
-    }
-
-    /**
-     * Get the fetch body flag.
-     */
-    public function getFetchBody(): bool
-    {
-        return $this->fetchBody;
-    }
-
-    /**
-     * Set the fetch body flag.
-     */
-    public function setFetchBody(bool $fetchBody): static
-    {
-        $this->fetchBody = $fetchBody;
-
-        return $this;
-    }
-
-    /**
-     * Set the fetch body flag.
-     */
-    public function fetchBody(bool $fetchBody): static
-    {
-        return $this->setFetchBody($fetchBody);
-    }
-
-    /**
-     * Get the fetch body flag.
-     */
-    public function getFetchFlags(): bool
-    {
-        return $this->fetchFlags;
-    }
-
-    /**
-     * Set the fetch flag.
-     */
-    public function setFetchFlags(bool $fetchFlags): static
-    {
-        $this->fetchFlags = $fetchFlags;
-
-        return $this;
-    }
-
-    /**
-     * Set the fetch order.
-     */
-    public function setFetchOrder(string $fetchOrder): static
-    {
-        $fetchOrder = strtolower($fetchOrder);
-
-        if (in_array($fetchOrder, ['asc', 'desc'])) {
-            $this->fetchOrder = $fetchOrder;
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the fetch order.
-     */
-    public function fetchOrder(string $fetchOrder): static
-    {
-        return $this->setFetchOrder($fetchOrder);
-    }
-
-    /**
-     * Get the fetch order.
-     */
-    public function getFetchOrder(): string
-    {
-        return $this->fetchOrder;
-    }
-
-    /**
-     * Set the fetch order to 'ascending'.
-     */
-    public function setFetchOrderAsc(): static
-    {
-        return $this->setFetchOrder('asc');
-    }
-
-    /**
-     * Set the fetch order to 'ascending'.
-     */
-    public function fetchOrderAsc(): static
-    {
-        return $this->setFetchOrderAsc();
-    }
-
-    /**
-     * Set the fetch order to 'descending'.
-     */
-    public function setFetchOrderDesc(): static
-    {
-        return $this->setFetchOrder('desc');
-    }
-
-    /**
-     * Set the fetch order to 'descending'.
-     */
-    public function fetchOrderDesc(): static
-    {
-        return $this->setFetchOrderDesc();
-    }
-
-    /**
-     * Handle the exception for a given uid.
-     */
-    protected function handleException(int $uid): void
-    {
-        if ($this->hasError($uid)) {
-            $error = $this->getError($uid);
-
-            throw new GetMessagesFailedException($error->getMessage(), 0, $error);
-        }
-    }
-
-    /**
-     * Add a new error to the error holder.
-     */
-    protected function setError(int $uid, Exception $error): void
-    {
-        $this->errors[$uid] = $error;
-    }
-
-    /**
-     * Check if there are any errors / exceptions present.
-     */
-    public function hasErrors(?int $uid = null): bool
-    {
-        if ($uid !== null) {
-            return $this->hasError($uid);
-        }
-
-        return count($this->errors) > 0;
-    }
-
-    /**
-     * Check if there is an error / exception present.
-     */
-    public function hasError(int $uid): bool
-    {
-        return isset($this->errors[$uid]);
-    }
-
-    /**
-     * Get all available errors / exceptions.
-     */
-    public function errors(): array
-    {
-        return $this->getErrors();
-    }
-
-    /**
-     * Get all available errors / exceptions.
-     */
-    public function getErrors(): array
-    {
-        return $this->errors;
-    }
-
-    /**
-     * Get a specific error / exception.
-     */
-    public function error(int $uid): ?Exception
-    {
-        return $this->getError($uid);
-    }
-
-    /**
-     * Get a specific error / exception.
-     */
-    public function getError(int $uid): ?Exception
-    {
-        if ($this->hasError($uid)) {
-            return $this->errors[$uid];
-        }
-
-        return null;
     }
 }

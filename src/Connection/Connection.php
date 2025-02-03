@@ -18,11 +18,6 @@ abstract class Connection implements ConnectionInterface
     protected bool $debug = false;
 
     /**
-     * The UID cache of active folder.
-     */
-    protected array $uidCache = [];
-
-    /**
      * Connection encryption method.
      */
     protected ?string $encryption = null;
@@ -148,7 +143,7 @@ abstract class Connection implements ConnectionInterface
             ];
         }
 
-        if ($this->proxy['socket'] != null) {
+        if ($this->proxy['socket']) {
             $options[$transport]['proxy'] = $this->proxy['socket'];
             $options[$transport]['request_fulluri'] = $this->proxy['request_fulluri'];
 
@@ -216,28 +211,6 @@ abstract class Connection implements ConnectionInterface
     public function buildUidCommand(string $command, int|string $uid): string
     {
         return trim($this->getUidKey($uid).' '.$command);
-    }
-
-    /**
-     * Set the uid cache of current active folder.
-     */
-    public function setUidCache(?array $uids): void
-    {
-        if (is_null($uids)) {
-            $this->uidCache = [];
-
-            return;
-        }
-
-        $messageNumber = 1;
-
-        $uidCache = [];
-
-        foreach ($uids as $uid) {
-            $uidCache[$messageNumber++] = (int) $uid;
-        }
-
-        $this->uidCache = $uidCache;
     }
 
     /**

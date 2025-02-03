@@ -219,20 +219,4 @@ class Mailbox
 
         $this->selected = $folder;
     }
-
-    /**
-     * Set the connection timeout.
-     */
-    public function setTimeout(int $timeout): ConnectionInterface
-    {
-        $this->timeout = $timeout;
-
-        if ($this->isConnected()) {
-            $this->connection->setConnectionTimeout($timeout);
-
-            $this->reconnect();
-        }
-
-        return $this->connection;
-    }
 }

@@ -8,9 +8,7 @@ use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapBadRequestException;
 use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
-use DirectoryTree\ImapEngine\Exceptions\MessageNotFoundException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Header;
 use DirectoryTree\ImapEngine\Imap;
 use DirectoryTree\ImapEngine\Support\Escape;
 use Exception;
@@ -942,8 +940,6 @@ class ImapConnection extends Connection
      */
     public function expunge(): Response
     {
-        $this->uidCache = [];
-
         return $this->requestAndResponse('EXPUNGE');
     }
 
@@ -1016,35 +1012,17 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function overview(string $sequence, int|string $uid = Imap::ST_UID): Response
+    public function capability(): Response
     {
-        $result = [];
+        $response = $this->requestAndResponse('CAPABILITY');
 
-        [$from, $to] = explode(':', $sequence);
-
-        $response = $this->getUid();
-
-        $ids = [];
-
-        foreach ($response->data() as $msgn => $value) {
-            $id = $uid === Imap::ST_UID ? $value : $msgn;
-
-            if (($to >= $id && $from <= $id) || ($to === '*' && $from <= $id)) {
-                $ids[] = $id;
-            }
+        if (! $response->getResponse()) {
+            return $response;
         }
 
-        if (! empty($ids)) {
-            $headers = $this->headers($ids, 'RFC822', $uid);
-
-            $response->addResponse($headers);
-
-            foreach ($headers->data() as $id => $rawHeader) {
-                $result[$id] = (new Header($rawHeader))->getAttributes();
-            }
-        }
-
-        return $response->setResult($result)->setCanBeEmpty(true);
+        return $response->setResult(
+            $response->getValidatedData()[0]
+        );
     }
 
     /**
@@ -1061,71 +1039,6 @@ class ImapConnection extends Connection
     public function getQuotaRoot(string $quotaRoot = 'INBOX'): Response
     {
         return $this->requestAndResponse('GETQUOTAROOT', [$quotaRoot]);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getUid(?int $id = null): Response
-    {
-        if (empty($this->uidCache) || count($this->uidCache) <= 0) {
-            try {
-                // Set cache for this folder.
-                $this->setUidCache((array) $this->fetch('UID', 1, INF)->data());
-            } catch (RuntimeException) {
-            }
-        }
-
-        $uids = $this->uidCache;
-
-        if ($id == null) {
-            return Response::empty($this->debug)->setResult($uids);
-        }
-
-        foreach ($uids as $key => $value) {
-            if ($key == $id) {
-                return Response::empty($this->debug)->setResult($value);
-            }
-        }
-
-        // Clear uid cache and run method again.
-        if ($this->uidCache) {
-            $this->setUidCache(null);
-
-            return $this->getUid($id);
-        }
-
-        throw new MessageNotFoundException('Unique id not found');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getCapabilities(): Response
-    {
-        $response = $this->requestAndResponse('CAPABILITY');
-
-        if (! $response->getResponse()) {
-            return $response;
-        }
-
-        return $response->setResult(
-            $response->getValidatedData()[0]
-        );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getMessageNumber(string $id): Response
-    {
-        foreach ($this->getUid()->data() as $key => $value) {
-            if ($value == $id) {
-                return Response::empty($this->debug)->setResult((int) $key);
-            }
-        }
-
-        throw new MessageNotFoundException('Message number not found: '.$id);
     }
 
     /**

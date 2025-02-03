@@ -230,6 +230,13 @@ interface ConnectionInterface
     public function expunge(): Response;
 
     /**
+     * Get an array of available capabilities.
+     *
+     * @return Response containing a list of capabilities
+     */
+    public function capability(): Response;
+
+    /**
      * Retrieve the quota level settings, and usage statics per mailbox.
      */
     public function getQuota(string $username): Response;
@@ -238,29 +245,6 @@ interface ConnectionInterface
      * Retrieve the quota settings per user.
      */
     public function getQuotaRoot(string $quotaRoot = 'INBOX'): Response;
-
-    /**
-     * Get uid for a given id.
-     *
-     * @param  int|null  $id  message number
-     * @return Response containing a message number for given message or all messages as array
-     */
-    public function getUid(?int $id = null): Response;
-
-    /**
-     * Get an array of available capabilities.
-     *
-     * @return Response containing a list of capabilities
-     */
-    public function getCapabilities(): Response;
-
-    /**
-     * Get a message number for a uid.
-     *
-     * @param  string  $id  uid
-     * @return Response containing the message number
-     */
-    public function getMessageNumber(string $id): Response;
 
     /**
      * Send noop command.
@@ -275,13 +259,4 @@ interface ConnectionInterface
      * @return Response containing the message ids
      */
     public function search(array $params, int|string $uid = Imap::ST_UID): Response;
-
-    /**
-     * Get a message overview.
-     *
-     * @param  string  $sequence  uid sequence
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
-     */
-    public function overview(string $sequence, int|string $uid = Imap::ST_UID): Response;
 }

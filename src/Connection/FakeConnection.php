@@ -112,7 +112,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function getCapabilities(): Response
+    public function capability(): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -169,22 +169,6 @@ class FakeConnection extends Connection
      * {@inheritDoc}
      */
     public function sizes(array|int $uids, int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getUid(?int $id = null): Response
-    {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getMessageNumber(string $id): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }

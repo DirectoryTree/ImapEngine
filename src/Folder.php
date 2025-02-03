@@ -4,7 +4,6 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Exceptions\ResponseException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Query\Builder;
 
 class Folder
 {
@@ -14,8 +13,8 @@ class Folder
     public function __construct(
         protected Mailbox $mailbox,
         protected string $path,
-        protected string $delimiter = '/',
         protected array $flags = [],
+        protected string $delimiter = '/',
     ) {}
 
     /**
@@ -35,19 +34,19 @@ class Folder
     }
 
     /**
-     * Get the folder delimiter.
-     */
-    public function delimiter(): string
-    {
-        return $this->delimiter;
-    }
-
-    /**
      * Get the folder flags.
      */
     public function flags(): array
     {
         return $this->flags;
+    }
+
+    /**
+     * Get the folder delimiter.
+     */
+    public function delimiter(): string
+    {
+        return $this->delimiter;
     }
 
     /**
@@ -64,15 +63,16 @@ class Folder
     public function is(Folder $folder): bool
     {
         return $this->path === $folder->path
-            && $this->mailbox->config('host') === $folder->mailbox->config('host');
+            && $this->mailbox->config('host') === $folder->mailbox->config('host')
+            && $this->mailbox->config('username') === $folder->mailbox->config('username');
     }
 
     /**
      * Begin querying for messages.
      */
-    public function messages(): Builder
+    public function messages(): MessageQuery
     {
-        return new Builder($this->mailbox);
+        return new MessageQuery($this);
     }
 
     /**
@@ -81,7 +81,7 @@ class Folder
     public function idle(callable $callback, int $timeout = 300): void
     {
         if (! $this->hasIdleSupport()) {
-            throw new \RuntimeException('IMAP server does not support IDLE');
+            throw new RuntimeException('IMAP server does not support IDLE');
         }
 
         $fetch = function (int $msgn, int $sequence) {
@@ -142,8 +142,6 @@ class Folder
      */
     public function delete(bool $expunge = true): array
     {
-        $this->select();
-
         $status = $this->mailbox->connection()
             ->deleteFolder($this->path)
             ->getValidatedData();
@@ -207,7 +205,7 @@ class Folder
     protected function capabilities(): array
     {
         return $this->capabilities ??= $this->mailbox->connection()
-            ->getCapabilities()
+            ->capability()
             ->getValidatedData();
     }
 }
