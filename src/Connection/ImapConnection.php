@@ -464,24 +464,18 @@ class ImapConnection extends Connection
      */
     public function logout(): Response
     {
-        if (! $this->stream->isOpen()) {
-            $this->reset();
-
-            return new Response(0, $this->debug);
-        } elseif ($this->meta()['timed_out']) {
+        if (! $this->stream->isOpen() || ($this->meta()['timed_out'] ?? false)) {
             $this->reset();
 
             return new Response(0, $this->debug);
         }
-
-        $result = null;
 
         try {
             $result = $this->requestAndResponse('LOGOUT', [], false);
 
             $this->stream->close();
         } catch (Throwable) {
-            // Do nothing.
+            $result = null;
         }
 
         $this->reset();
