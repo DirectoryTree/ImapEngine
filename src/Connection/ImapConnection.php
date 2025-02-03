@@ -335,30 +335,48 @@ class ImapConnection extends Connection
      */
     public function sendRequest(string $command, array $tokens = [], ?string &$tag = null): Response
     {
+        $imapCommand = new ImapCommand($command, $tokens);
+
         if (! $tag) {
             $this->sequence++;
+
             $tag = 'TAG'.$this->sequence;
         }
 
-        $line = $tag.' '.$command;
+        $imapCommand->setTag($tag);
+
+        return $this->sendCommand($imapCommand);
+    }
+
+    /**
+     * Dispatch the given IMAP command.
+     */
+    protected function sendCommand(ImapCommand $command): Response
+    {
+        if (! $command->getTag()) {
+            $this->sequence++;
+
+            $command->setTag('TAG'.$this->sequence);
+        }
 
         $response = new Response($this->sequence, $this->debug);
 
-        foreach ($tokens as $token) {
-            if (is_array($token)) {
-                $this->write($response, $line.' '.$token[0]);
+        foreach ($command->compile() as $line) {
+            $this->write($response, $line);
 
-                if (! $this->assumedNextLine($response, '+ ')) {
-                    throw new RuntimeException('Failed to send literal string');
-                }
-
-                $line = $token[1];
-            } else {
-                $line .= ' '.$token;
+            // If the line doesn't end with a literal marker, move on.
+            if (! str_ends_with($line, '}')) {
+                continue;
             }
-        }
 
-        $this->write($response, $line);
+            // If the line does end with a literal marker, check for the expected continuation.
+            if ($this->assumedNextLine($response, '+ ')) {
+                continue;
+            }
+
+            // Early return: if we didn't get the continuation, throw immediately.
+            throw new RuntimeException('Failed to send literal string');
+        }
 
         return $response;
     }
