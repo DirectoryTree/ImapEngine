@@ -2,7 +2,9 @@
 <img src="https://github.com/directorytree/imapengine/blob/master/art/logo.svg" width="300">
 </p>
 
-<p align="center">Integrate IMAP into your PHP application, without the PHP extension.</p>
+<p align="center">Working with IMAP doesn't need to be hard.</p>
+
+<p align="center">ImapEngine provides a simple API for managing mailboxes, messages, and attachments, without the extension.</p>
 
 <p align="center">
 <a href="https://github.com/directorytree/imapengine/actions"><img src="https://img.shields.io/github/actions/workflow/status/directorytree/imapengine/run-tests.yml?branch=master&style=flat-square"></a>
@@ -10,10 +12,6 @@
 <a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/v/directorytree/imapengine.svg?style=flat-square"></a>
 <a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/l/directorytree/imapengine.svg?style=flat-square"></a>
 </p>
-
-## Description
-
-ImapEngine provides a simple and intuitive API for managing mailboxes, messages, and attachments, over IMAP.
 
 ## Requirements
 
