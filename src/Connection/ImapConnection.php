@@ -151,143 +151,25 @@ class ImapConnection extends Connection
     }
 
     /**
-     * Split a given line in values. A value is a literal of any form or a list.
+     * Flatten/transform the tokens into the old array-based format if desired.
+     * Otherwise, you can skip this and return $tokens directly.
      */
-    protected function decodeLine(Response $response, string $line): array
+    protected function flattenTokens(array $tokens): array
     {
-        $tokens = [];
-        $stack = [];
+        $result = [];
 
-        // Replace any trailing <NL> including spaces with a single space.
-        $line = rtrim($line).' ';
-
-        while (($pos = strpos($line, ' ')) !== false) {
-            $token = substr($line, 0, $pos);
-
-            if (! strlen($token)) {
-                $line = substr($line, $pos + 1);
-
-                continue;
+        /** @var ImapToken $token */
+        foreach ($tokens as $token) {
+            if ($token->type() === ImapToken::TYPE_LIST) {
+                // Recursively flatten sub-lists.
+                $result[] = $this->flattenTokens($token->value());
+            } else {
+                // Just the raw token value.
+                $result[] = $token->value();
             }
-
-            // Handle opening parentheses by pushing current tokens to stack.
-            while ($token[0] == '(') {
-                $stack[] = $tokens;
-
-                $tokens = [];
-
-                $token = substr($token, 1);
-            }
-
-            if ($token[0] == '"') {
-                if (preg_match('%^\(*\"((.|\\\|\")*?)\"( |$)%', $line, $matches)) {
-                    $tokens[] = $matches[1];
-
-                    $line = substr($line, strlen($matches[0]));
-
-                    continue;
-                }
-            }
-
-            if ($token[0] == '{') {
-                // Extract the byte count from the literal (e.g., {20}).
-                $endPos = strpos($token, '}');
-                $chars = substr($token, 1, $endPos - 1);
-
-                if (is_numeric($chars)) {
-                    $token = '';
-
-                    // Read exactly the number of bytes specified by the literal.
-                    while (strlen($token) < $chars) {
-                        $token .= $this->nextLine($response);
-                    }
-
-                    $line = '';
-
-                    // If more bytes are read than required, split the excess.
-                    if (strlen($token) > $chars) {
-                        $line = substr($token, $chars);
-                        $token = substr($token, 0, $chars);
-                    } else {
-                        // Continue reading the next line if exact bytes are read.
-                        $line .= $this->nextLine($response);
-                    }
-
-                    // Add the exact literal data to the tokens array.
-                    $tokens[] = $token;
-
-                    // Trim any trailing spaces for further processing.
-                    $line = trim($line).' ';
-
-                    continue;
-                }
-            }
-
-            // Handle closing parentheses and manage stack.
-            if ($stack && $token[strlen($token) - 1] == ')') {
-                // Closing braces are not separated by spaces, so we need to count them.
-                $braces = strlen($token);
-
-                $token = rtrim($token, ')');
-
-                // Only count braces if more than one.
-                $braces -= strlen($token) + 1;
-
-                // Only add if token had more than just closing braces.
-                if (rtrim($token) != '') {
-                    $tokens[] = rtrim($token);
-                }
-
-                $token = $tokens;
-
-                $tokens = array_pop($stack);
-
-                // Special handling if more than one closing brace.
-                while ($braces-- > 0) {
-                    $tokens[] = $token;
-                    $token = $tokens;
-                    $tokens = array_pop($stack);
-                }
-            }
-
-            // Add the current token to the tokens array
-            $tokens[] = $token;
-
-            // Move to the next part of the line.
-            $line = substr($line, $pos + 1);
         }
 
-        // Maybe the server forgot to send some closing braces.
-        while ($stack) {
-            $child = $tokens;
-
-            $tokens = array_pop($stack);
-
-            $tokens[] = $child;
-        }
-
-        return $tokens;
-    }
-
-    /**
-     * Read and optionally parse a response "line".
-     *
-     * @param  array|string  $tokens  to decode
-     * @param  string  $wantedTag  targeted tag
-     * @param  bool  $parse  if true, line is decoded into tokens; if false, the unparsed line is returned
-     */
-    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
-    {
-        $line = $this->nextTaggedLine($response, $tag); // Get next tag.
-
-        if ($parse) {
-            $tokens = $this->decodeLine($response, $line);
-        } else {
-            $tokens = $line;
-        }
-
-        // If tag is wanted tag we might be at the end of a multiline response.
-        return $tag == $wantedTag;
+        return $result;
     }
 
     /**
@@ -303,6 +185,7 @@ class ImapConnection extends Connection
 
         do {
             $readAll = $this->readLine($response, $tokens, $tag, $parse);
+
             $lines[] = $tokens;
         } while (! $readAll);
 
@@ -325,6 +208,39 @@ class ImapConnection extends Connection
         }
 
         throw ImapBadRequestException::fromResponseTokens($original);
+    }
+
+    /**
+     * Read and optionally parse a response "line".
+     *
+     * @param  array|string  $tokens  to decode
+     * @param  string  $wantedTag  targeted tag
+     * @param  bool  $parse  if true, line is decoded into tokens; if false, the unparsed line is returned
+     */
+    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
+    {
+        $line = $this->nextTaggedLine($response, $tag); // Get next tag.
+
+        if ($parse) {
+            $tokens = $this->tokenize($line);
+        } else {
+            $tokens = $line;
+        }
+
+        // If tag is wanted tag we might be at the end of a multiline response.
+        return $tag == $wantedTag;
+    }
+
+    /**
+     * Parse the given line into tokens.
+     */
+    protected function tokenize(string $line): array
+    {
+        $tokens = (new ImapStreamTokenizer)->tokenize($this->stream, $line);
+
+        ray($line, $tokens);
+
+        return $this->flattenTokens($tokens);
     }
 
     /**
@@ -668,6 +584,10 @@ class ImapConnection extends Connection
         $tokens = [];
 
         while (! $this->readLine($response, $tokens, $tag)) {
+            if (! isset($tokens[1])) {
+                continue;
+            }
+
             // Ignore other responses.
             if ($tokens[1] != 'FETCH') {
                 continue;
