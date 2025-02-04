@@ -30,9 +30,9 @@ class MessageQuery
     protected int $page = 1;
 
     /**
-     * The added search filters.
+     * The added search conditions.
      */
-    protected array $filters = [];
+    protected array $conditions = [];
 
     /**
      * The fetch limit.
@@ -284,7 +284,7 @@ class MessageQuery
                     : $this->where($key, $value);
             }
         } else {
-            $this->addFilter($criteria, $this->prepareWhereValue($value));
+            $this->addCondition($criteria, $this->prepareWhereValue($value));
         }
 
         return $this;
@@ -293,16 +293,16 @@ class MessageQuery
     /**
      * Push a given search criteria and value pair to the search query.
      */
-    protected function addFilter(string $criteria, mixed $value): void
+    protected function addCondition(string $criteria, mixed $value): void
     {
         if (! str_starts_with('CUSTOM', $criteria) && ! in_array($criteria, $this->criteria)) {
             throw new InvalidWhereQueryCriteriaException("Invalid IMAP search criteria: $criteria");
         }
 
         if (empty($value)) {
-            $this->filters[] = [$criteria];
+            $this->conditions[] = [$criteria];
         } else {
-            $this->filters[] = [$criteria, $value];
+            $this->conditions[] = [$criteria, $value];
         }
     }
 
@@ -323,7 +323,7 @@ class MessageQuery
      */
     public function orWhere(?Closure $closure = null): static
     {
-        $this->addFilter('OR', null);
+        $this->addCondition('OR', null);
 
         if ($closure) {
             $closure($this);
@@ -337,7 +337,7 @@ class MessageQuery
      */
     public function andWhere(?Closure $closure = null): static
     {
-        $this->addFilter('AND', null);
+        $this->addCondition('AND', null);
 
         if ($closure) {
             $closure($this);
@@ -627,7 +627,7 @@ class MessageQuery
     {
         $query = '';
 
-        foreach ($this->filters as $statement) {
+        foreach ($this->conditions as $statement) {
             if (count($statement) === 1) {
                 $query .= $statement[0].' ';
 
@@ -773,10 +773,14 @@ class MessageQuery
     }
 
     /**
-     * Get all found messages.
+     * Get the messages matching the current query.
      */
     public function get(): MessageCollection
     {
+        if (empty($this->conditions)) {
+            $this->all();
+        }
+
         return $this->process($this->search());
     }
 
