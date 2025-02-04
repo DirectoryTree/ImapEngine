@@ -335,7 +335,7 @@ class ImapConnection extends Connection
      */
     public function sendRequest(string $command, array $tokens = [], ?string &$tag = null): Response
     {
-        $imapCommand = new ImapCommand($command, $tokens);
+        $command = new ImapCommand($command, $tokens);
 
         if (! $tag) {
             $this->sequence++;
@@ -343,9 +343,9 @@ class ImapConnection extends Connection
             $tag = 'TAG'.$this->sequence;
         }
 
-        $imapCommand->setTag($tag);
+        $command->setTag($tag);
 
-        return $this->sendCommand($imapCommand);
+        return $this->sendCommand($command);
     }
 
     /**
@@ -976,14 +976,17 @@ class ImapConnection extends Connection
         while (true) {
             $line = $this->nextLine($response);
 
+            // Server indicates it's ready for IDLE.
             if (str_starts_with($line, '+ ')) {
                 return;
             }
 
-            if (preg_match('/^\* OK/i', $line) || preg_match('/^TAG\d+ OK/i', $line)) {
+            // Typical untagged or tagged "OK" lines.
+            if (preg_match('/^\* /i', $line) || preg_match('/^TAG\d+ OK/i', $line)) {
                 continue;
             }
 
+            // Unexpected response.
             throw new RuntimeException('Idle failed. Unexpected response: '.trim($line));
         }
     }
@@ -997,8 +1000,21 @@ class ImapConnection extends Connection
 
         $this->write($response, 'DONE');
 
-        if (! $this->assumedNextTaggedLine($response, 'OK', $tags)) {
-            throw new RuntimeException('Done failed');
+        while (true) {
+            $line = $this->nextLine($response);
+
+            // Typical tagged "OK" line.
+            if (preg_match('/^TAG\d+ OK/i', $line)) {
+                break;
+            }
+
+            // Handle untagged notifications (e.g. "* 4 EXISTS").
+            if (preg_match('/^\* /i', $line)) {
+                continue;
+            }
+
+            // Unexpected response.
+            throw new RuntimeException('Done failed. Unexpected response: '.trim($line));
         }
     }
 
@@ -1062,14 +1078,6 @@ class ImapConnection extends Connection
     public function setDebug(bool $enabled): void
     {
         $this->debug = $enabled;
-    }
-
-    /**
-     * Disable the debug mode.
-     */
-    public function disableDebug(): void
-    {
-        $this->debug = false;
     }
 
     /**
