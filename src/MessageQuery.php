@@ -857,10 +857,9 @@ class MessageQuery
     protected function getMessageKey(string $messageKey, int $msglist, Message $message): string
     {
         $key = match ($messageKey) {
-            'number' => $message->getMessageNo(),
             'list' => $msglist,
-            'uid' => $message->getUid(),
-            default => $message->getMessageId(),
+            'uid', 'number' => $message->id(),
+            default => $message->messageId(),
         };
 
         return (string) $key;
@@ -908,7 +907,7 @@ class MessageQuery
 
             $key = $this->getMessageKey($messageKey, $msglist, $message);
 
-            $messages->put("$key", $message);
+            $messages->put($key, $message);
 
             $msglist++;
         }
@@ -937,14 +936,14 @@ class MessageQuery
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
+        $messages = $this->search();
+
         $startChunk = max($startChunk, 1);
         $chunkSize = max($chunkSize, 1);
-        $skippedMessagesCount = $chunkSize * ($startChunk - 1);
 
-        $availableMessages = $this->search();
-        $availableMessagesCount = max($availableMessages->count() - $skippedMessagesCount, 0);
+        $count = max($messages->count() - ($chunkSize * ($startChunk - 1)), 0);
 
-        if (! $availableMessagesCount) {
+        if (! $count) {
             return;
         }
 
@@ -957,14 +956,14 @@ class MessageQuery
         $handledMessagesCount = 0;
 
         do {
-            $messages = $this->populate($availableMessages);
+            $hydrated = $this->populate($messages);
 
-            $handledMessagesCount += $messages->count();
+            $handledMessagesCount += $hydrated->count();
 
-            $callback($messages, $this->page);
+            $callback($hydrated, $this->page);
 
             $this->page++;
-        } while ($handledMessagesCount < $availableMessagesCount);
+        } while ($handledMessagesCount < $count);
 
         $this->limit = $previousLimit;
         $this->page = $previousPage;
@@ -991,39 +990,40 @@ class MessageQuery
     }
 
     /**
-     * Get a new Message instance.
-     *
-     * @param  null  $msglist
-     * @param  null  $sequence
+     * Get a message by its uid.
      */
-    public function getMessage(int $uid, $msglist = null, $sequence = null): Message
+    public function findByUid(int $uid): Message
     {
-        return new Message(
-            $uid,
-            $msglist,
-            $this->getMailbox,
-            $this->getFetchOptions(),
-            $this->isFetchingBody(),
-            $this->getFetchFlags(),
-            $sequence ?: $this->sequence
-        );
+        return $this->find($uid, null, Imap::ST_UID);
     }
 
     /**
      * Get a message by its message number.
-     *
-     * @param  null  $msglist
      */
-    public function getMessageByMsgn($msgn, $msglist = null): Message
+    public function findByMsgn(int $msgn, ?int $msglist = null, ?int $sequence = null): Message
     {
-        return $this->getMessage($msgn, $msglist, Imap::ST_MSGN);
+        return $this->find($msgn, $msglist, $sequence ?: $this->sequence);
     }
 
     /**
-     * Get a message by its uid.
+     * Find a message by its sequence number (or UID).
      */
-    public function getMessageByUid($uid): Message
+    protected function find(int $uid, ?int $msglist = null, ?int $sequence = null): Message
     {
-        return $this->getMessage($uid, null, Imap::ST_UID);
+        $sequence = $sequence ?: $this->sequence;
+
+        $connection = $this->folder->mailbox()->connection();
+
+        $flagsResponse = $connection->flags([$uid], $sequence)->getValidatedData();
+        $headersResponse = $connection->headers([$uid], 'RFC822', $sequence)->getValidatedData();
+        $contentsResponse = $connection->content([$uid], 'RFC822', $sequence)->getValidatedData();
+
+        $flags = $flagsResponse[$uid] ?? [];
+        $headers = $headersResponse[$uid] ?? '';
+        $contents = $contentsResponse[$uid] ?? '';
+
+        $id = $sequence === Imap::ST_UID ? $uid : ($msglist ?? $uid);
+
+        return new Message($this->folder, $id, $flags, $headers, $contents, $sequence);
     }
 }

@@ -90,11 +90,7 @@ class Folder
             // known to the current remote session.
             $this->select(true);
 
-            $message = $this->messages()->getMessageByMsgn($msgn);
-
-            $message->setSequence($sequence);
-
-            return $message;
+            return $this->messages()->findByMsgn($msgn, sequence: $sequence);
         };
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(

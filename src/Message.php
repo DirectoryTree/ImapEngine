@@ -22,7 +22,7 @@ class Message implements Stringable
      */
     public function __construct(
         protected Folder $folder,
-        protected int $uid,
+        protected int $id,
         protected array $flags,
         protected string $headers,
         protected string $contents,
@@ -30,11 +30,11 @@ class Message implements Stringable
     ) {}
 
     /**
-     * Get the message's unique identifier.
+     * Get the message's identifier.
      */
-    public function uid(): int
+    public function id(): int
     {
-        return $this->uid;
+        return $this->id;
     }
 
     /**
