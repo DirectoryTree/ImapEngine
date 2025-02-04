@@ -33,7 +33,8 @@
     },
     "require-dev": {
         "laravel/pint": "^1.18",
-        "pestphp/pest": "^3.7"
+        "pestphp/pest": "^3.7",
+        "spatie/ray": "^1.41"
     },
     "autoload": {
         "psr-4": {
