@@ -7,7 +7,6 @@ use Closure;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\GetMessagesFailedException;
-use DirectoryTree\ImapEngine\Exceptions\InvalidWhereQueryCriteriaException;
 use DirectoryTree\ImapEngine\Exceptions\MessageSearchValidationException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use Exception;
@@ -65,26 +64,6 @@ class MessageQuery
      * The date format to use for date based queries.
      */
     protected string $dateFormat = 'd-M-Y';
-
-    /**
-     * The available search criteria.
-     */
-    protected array $criteria = [
-        // Identifiers
-        'ALL', 'UID',
-
-        // Logical Operators
-        'AND', 'OR', 'NOT',
-
-        // Dates
-        'SINCE', 'BEFORE', 'ON',
-
-        // Headers / Fields
-        'SUBJECT', 'TEXT', 'BODY', 'TO', 'FROM', 'CC', 'BCC', 'KEYWORD', 'UNKEYWORD',
-
-        // Flags
-        'ANSWERED', 'DELETED', 'FLAGGED', 'SEEN', 'UNANSWERED', 'UNDELETED', 'UNFLAGGED', 'UNSEEN', 'NEW', 'OLD', 'RECENT',
-    ];
 
     /**
      * Constructor.
@@ -295,10 +274,6 @@ class MessageQuery
      */
     protected function addCondition(string $criteria, mixed $value): void
     {
-        if (! str_starts_with('CUSTOM', $criteria) && ! in_array($criteria, $this->criteria)) {
-            throw new InvalidWhereQueryCriteriaException("Invalid IMAP search criteria: $criteria");
-        }
-
         if (empty($value)) {
             $this->conditions[] = [$criteria];
         } else {
@@ -368,14 +343,6 @@ class MessageQuery
     public function bcc(string $value): static
     {
         return $this->where('BCC', $value);
-    }
-
-    /**
-     * Add a where before clause to the query.
-     */
-    public function before(mixed $value): static
-    {
-        return $this->where('BEFORE', $this->parseDate($value));
     }
 
     /**
@@ -459,6 +426,22 @@ class MessageQuery
     }
 
     /**
+     * Add a where since clause to the query.
+     */
+    public function since(mixed $date): static
+    {
+        return $this->where('SINCE', $this->parseDate($date));
+    }
+
+    /**
+     * Add a where before clause to the query.
+     */
+    public function before(mixed $value): static
+    {
+        return $this->where('BEFORE', $this->parseDate($value));
+    }
+
+    /**
      * Add a where recent clause to the query.
      */
     public function recent(): static
@@ -472,14 +455,6 @@ class MessageQuery
     public function seen(): static
     {
         return $this->where('SEEN');
-    }
-
-    /**
-     * Add a where since clause to the query.
-     */
-    public function since(mixed $date): static
-    {
-        return $this->where('SINCE', $this->parseDate($date));
     }
 
     /**
@@ -547,27 +522,11 @@ class MessageQuery
     }
 
     /**
-     * Add a where is not spam clause to the query.
-     */
-    public function noXSpam(): static
-    {
-        return $this->where('CUSTOM X-Spam-Flag NO');
-    }
-
-    /**
-     * Add a where is spam clause to the query.
-     */
-    public function isXSpam(): static
-    {
-        return $this->where('CUSTOM X-Spam-Flag YES');
-    }
-
-    /**
      * Add a where header clause to the query.
      */
     public function header(string $header, string $value): static
     {
-        return $this->where("CUSTOM HEADER $header $value");
+        return $this->where("HEADER $header", $value);
     }
 
     /**
