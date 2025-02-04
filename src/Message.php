@@ -267,6 +267,118 @@ class Message implements Stringable
     }
 
     /**
+     * Mark the message as seen.
+     */
+    public function markSeen(bool $expunge = true): void
+    {
+        $this->flag('Seen', '+', $expunge);
+    }
+
+    /**
+     * Unmark the seen flag.
+     */
+    public function unmarkSeen(bool $expunge = true): void
+    {
+        $this->flag('Seen', '-', $expunge);
+    }
+
+    /**
+     * Mark the message as answered.
+     */
+    public function markAnswered(bool $expunge = true): void
+    {
+        $this->flag('Answered', '+', $expunge);
+    }
+
+    /**
+     * Unmark the answered flag.
+     */
+    public function unmarkAnswered(bool $expunge = true): void
+    {
+        $this->flag('Answered', '-', $expunge);
+    }
+
+    /**
+     * Mark the message as flagged.
+     */
+    public function markFlagged(bool $expunge = true): void
+    {
+        $this->flag('Flagged', '+', $expunge);
+    }
+
+    /**
+     * Unmark the flagged flag.
+     */
+    public function unmarkFlagged(bool $expunge = true): void
+    {
+        $this->flag('Flagged', '-', $expunge);
+    }
+
+    /**
+     * Mark the message as deleted.
+     */
+    public function markDeleted(bool $expunge = true): void
+    {
+        $this->flag('Deleted', '+', $expunge);
+    }
+
+    /**
+     * Unmark the deleted flag.
+     */
+    public function unmarkDeleted(bool $expunge = true): void
+    {
+        $this->flag('Deleted', '-', $expunge);
+    }
+
+    /**
+     * Mark the message as a draft.
+     */
+    public function markDraft(bool $expunge = true): void
+    {
+        $this->flag('Draft', '+', $expunge);
+    }
+
+    /**
+     * Unmark the draft flag.
+     */
+    public function unmarkDraft(bool $expunge = true): void
+    {
+        $this->flag('Draft', '-', $expunge);
+    }
+
+    /**
+     * Mark the message as recent.
+     */
+    public function markRecent(bool $expunge = true): void
+    {
+        $this->flag('Recent', '+', $expunge);
+    }
+
+    /**
+     * Unmark the recent flag.
+     */
+    public function unmarkRecent(bool $expunge = true): void
+    {
+        $this->flag('Recent', '-', $expunge);
+    }
+
+    /**
+     * Set or remove a flag from the message.
+     */
+    public function flag(array|string $flag, string $operation = '+', bool $expunge = true): void
+    {
+        $flag = '\\'.trim(is_array($flag) ? implode(' \\', $flag) : $flag);
+
+        $this->folder->mailbox()->connection()
+            ->store([$flag], $this->uid, null, $operation, true)
+            ->getValidatedData();
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+    }
+
+    /**
      * Parse the message into a MailMimeMessage instance.
      */
     public function parse(): MailMimeMessage
