@@ -17,32 +17,19 @@ class Mailbox
     protected array $config = [
         'port' => 993,
         'host' => '',
+        'timeout' => 30,
         'debug' => false,
+        'username' => '',
+        'password' => '',
         'delimiter' => '/',
         'encryption' => 'ssl',
         'validate_cert' => true,
-        'timeout' => 30,
-        'username' => '',
-        'password' => '',
-        'extensions' => [],
         'authentication' => 'PLAIN',
         'proxy' => [
             'socket' => null,
-            'request_fulluri' => false,
             'username' => null,
             'password' => null,
-        ],
-        'options' => [
-            'fetch' => Imap::FT_PEEK,
-            'fetch_body' => true,
-            'fetch_flags' => true,
-            'rfc822' => true,
-            // 'fallback_date' => "01.01.1970 00:00:00",
-            'fetch_order' => 'asc',
-            'dispositions' => ['attachment', 'inline'],
-            'open' => [
-                // 'DISABLE_AUTHENTICATOR' => 'GSSAPI'
-            ],
+            'request_fulluri' => false,
         ],
     ];
 
