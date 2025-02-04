@@ -203,7 +203,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Check if the current session is connected.
+     * Check if the current stream is open.
      */
     public function connected(): bool
     {

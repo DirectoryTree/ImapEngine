@@ -34,7 +34,7 @@ class Mailbox
     ];
 
     /**
-     * The selected folder.
+     * The currently selected folder.
      */
     protected ?Folder $selected = null;
 
@@ -96,7 +96,7 @@ class Mailbox
      */
     public function isConnected(): bool
     {
-        return $this->connection && $this->connection->connected();
+        return (bool) $this->connection?->connected();
     }
 
     /**
@@ -114,7 +114,7 @@ class Mailbox
     }
 
     /**
-     * Force the client to reconnect.
+     * Force a reconnection to the IMAP server.
      */
     public function reconnect(): void
     {
