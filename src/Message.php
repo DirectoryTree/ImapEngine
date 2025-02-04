@@ -383,7 +383,7 @@ class Message implements Stringable
      */
     public function parse(): MailMimeMessage
     {
-        return $this->parsed ??= MailMimeMessage::from((string) $this, true);
+        return $this->parsed ??= MessageParser::parse((string) $this);
     }
 
     /**
