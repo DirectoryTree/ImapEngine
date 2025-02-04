@@ -295,8 +295,8 @@ class MessageQuery
      */
     protected function addFilter(string $criteria, mixed $value): void
     {
-        if (! in_array($criteria, $this->criteria)) {
-            throw new InvalidWhereQueryCriteriaException("Invalid imap search criteria: $criteria");
+        if (! str_starts_with('CUSTOM', $criteria) && ! in_array($criteria, $this->criteria)) {
+            throw new InvalidWhereQueryCriteriaException("Invalid IMAP search criteria: $criteria");
         }
 
         if (empty($value)) {
@@ -349,7 +349,7 @@ class MessageQuery
     /**
      * Add a where all clause to the query.
      */
-    public function whereAll(): static
+    public function all(): static
     {
         return $this->where('ALL');
     }
@@ -357,7 +357,7 @@ class MessageQuery
     /**
      * Add a where answered clause to the query.
      */
-    public function whereAnswered(): static
+    public function answered(): static
     {
         return $this->where('ANSWERED');
     }
@@ -365,7 +365,7 @@ class MessageQuery
     /**
      * Add a where bcc clause to the query.
      */
-    public function whereBcc(string $value): static
+    public function bcc(string $value): static
     {
         return $this->where('BCC', $value);
     }
@@ -373,7 +373,7 @@ class MessageQuery
     /**
      * Add a where before clause to the query.
      */
-    public function whereBefore(mixed $value): static
+    public function before(mixed $value): static
     {
         return $this->where('BEFORE', $this->parseDate($value));
     }
@@ -381,7 +381,7 @@ class MessageQuery
     /**
      * Add a where body clause to the query.
      */
-    public function whereBody(string $value): static
+    public function body(string $value): static
     {
         return $this->where('BODY', $value);
     }
@@ -389,7 +389,7 @@ class MessageQuery
     /**
      * Add a where cc clause to the query.
      */
-    public function whereCc(string $value): static
+    public function cc(string $value): static
     {
         return $this->where('CC', $value);
     }
@@ -397,7 +397,7 @@ class MessageQuery
     /**
      * Add a where deleted clause to the query.
      */
-    public function whereDeleted(): static
+    public function deleted(): static
     {
         return $this->where('DELETED');
     }
@@ -405,7 +405,7 @@ class MessageQuery
     /**
      * Add a where flagged clause to the query.
      */
-    public function whereFlagged(string $value): static
+    public function flagged(string $value): static
     {
         return $this->where('FLAGGED', $value);
     }
@@ -413,15 +413,15 @@ class MessageQuery
     /**
      * Add a where from clause to the query.
      */
-    public function whereFrom(string $value): static
+    public function from(string $email): static
     {
-        return $this->where('FROM', $value);
+        return $this->where('FROM', $email);
     }
 
     /**
      * Add a where keyword clause to the query.
      */
-    public function whereKeyword(string $value): static
+    public function keyword(string $value): static
     {
         return $this->where('KEYWORD', $value);
     }
@@ -429,7 +429,7 @@ class MessageQuery
     /**
      * Add a where new clause to the query.
      */
-    public function whereNew(): static
+    public function new(): static
     {
         return $this->where('NEW');
     }
@@ -437,7 +437,7 @@ class MessageQuery
     /**
      * Add a where not clause to the query.
      */
-    public function whereNot(): static
+    public function not(): static
     {
         return $this->where('NOT');
     }
@@ -445,7 +445,7 @@ class MessageQuery
     /**
      * Add a where old clause to the query.
      */
-    public function whereOld(): static
+    public function old(): static
     {
         return $this->where('OLD');
     }
@@ -453,15 +453,15 @@ class MessageQuery
     /**
      * Add a where on clause to the query.
      */
-    public function whereOn(mixed $value): static
+    public function on(mixed $date): static
     {
-        return $this->where('ON', $this->parseDate($value));
+        return $this->where('ON', $this->parseDate($date));
     }
 
     /**
      * Add a where recent clause to the query.
      */
-    public function whereRecent(): static
+    public function recent(): static
     {
         return $this->where('RECENT');
     }
@@ -469,7 +469,7 @@ class MessageQuery
     /**
      * Add a where seen clause to the query.
      */
-    public function whereSeen(): static
+    public function seen(): static
     {
         return $this->where('SEEN');
     }
@@ -477,15 +477,15 @@ class MessageQuery
     /**
      * Add a where since clause to the query.
      */
-    public function whereSince(mixed $value): static
+    public function since(mixed $date): static
     {
-        return $this->where('SINCE', $this->parseDate($value));
+        return $this->where('SINCE', $this->parseDate($date));
     }
 
     /**
      * Add a where subject clause to the query.
      */
-    public function whereSubject(string $value): static
+    public function subject(string $value): static
     {
         return $this->where('SUBJECT', $value);
     }
@@ -493,7 +493,7 @@ class MessageQuery
     /**
      * Add a where text clause to the query.
      */
-    public function whereText(string $value): static
+    public function text(string $value): static
     {
         return $this->where('TEXT', $value);
     }
@@ -501,7 +501,7 @@ class MessageQuery
     /**
      * Add a where to clause to the query.
      */
-    public function whereTo(string $value): static
+    public function to(string $value): static
     {
         return $this->where('TO', $value);
     }
@@ -509,7 +509,7 @@ class MessageQuery
     /**
      * Add a where unkeyword clause to the query.
      */
-    public function whereUnkeyword(string $value): static
+    public function unkeyword(string $value): static
     {
         return $this->where('UNKEYWORD', $value);
     }
@@ -517,7 +517,7 @@ class MessageQuery
     /**
      * Add a where undeleted clause to the query.
      */
-    public function whereUnanswered(): static
+    public function unanswered(): static
     {
         return $this->where('UNANSWERED');
     }
@@ -525,7 +525,7 @@ class MessageQuery
     /**
      * Add a where undeleted clause to the query.
      */
-    public function whereUndeleted(): static
+    public function undeleted(): static
     {
         return $this->where('UNDELETED');
     }
@@ -533,7 +533,7 @@ class MessageQuery
     /**
      * Add a where unflagged clause to the query.
      */
-    public function whereUnflagged(): static
+    public function unflagged(): static
     {
         return $this->where('UNFLAGGED');
     }
@@ -541,7 +541,7 @@ class MessageQuery
     /**
      * Add a where unseen clause to the query.
      */
-    public function whereUnseen(): static
+    public function unseen(): static
     {
         return $this->where('UNSEEN');
     }
@@ -549,7 +549,7 @@ class MessageQuery
     /**
      * Add a where is not spam clause to the query.
      */
-    public function whereNoXSpam(): static
+    public function noXSpam(): static
     {
         return $this->where('CUSTOM X-Spam-Flag NO');
     }
@@ -557,7 +557,7 @@ class MessageQuery
     /**
      * Add a where is spam clause to the query.
      */
-    public function whereIsXSpam(): static
+    public function isXSpam(): static
     {
         return $this->where('CUSTOM X-Spam-Flag YES');
     }
@@ -565,7 +565,7 @@ class MessageQuery
     /**
      * Add a where header clause to the query.
      */
-    public function whereHeader($header, $value): static
+    public function header(string $header, string $value): static
     {
         return $this->where("CUSTOM HEADER $header $value");
     }
@@ -573,23 +573,23 @@ class MessageQuery
     /**
      * Add a where message id clause to the query.
      */
-    public function whereMessageId($messageId): static
+    public function messageId(string $messageId): static
     {
-        return $this->whereHeader('Message-ID', $messageId);
+        return $this->header('Message-ID', $messageId);
     }
 
     /**
      * Add a where in reply to clause to the query.
      */
-    public function whereInReplyTo($messageId): static
+    public function inReplyTo($messageId): static
     {
-        return $this->whereHeader('In-Reply-To', $messageId);
+        return $this->header('In-Reply-To', $messageId);
     }
 
     /**
      * Add a where language clause to the query.
      */
-    public function whereLanguage($countryCode): static
+    public function language($countryCode): static
     {
         return $this->where("Content-Language $countryCode");
     }
@@ -597,19 +597,9 @@ class MessageQuery
     /**
      * Add a where UID clause to the query.
      */
-    public function whereUid(int|string $uid): static
+    public function uid(int|string|array $uid): static
     {
-        return $this->where('UID', $uid);
-    }
-
-    /**
-     * Get messages by their UIDs.
-     *
-     * @param  array<int, int>  $uids
-     */
-    public function whereUidIn(array $uids): static
-    {
-        return $this->where('UID', implode(',', $uids));
+        return $this->where('UID', implode(',', (array) $uid));
     }
 
     /**
