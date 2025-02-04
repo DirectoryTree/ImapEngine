@@ -73,7 +73,7 @@ class Folder
     public function messages(): MessageQuery
     {
         return new MessageQuery(
-            tap($this)->select()
+            tap($this)->select(true)
         );
     }
 
