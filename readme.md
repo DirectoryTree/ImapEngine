@@ -13,10 +13,56 @@
 
 ## Description
 
+IMAP Engine is a PHP library that allows you to interact with IMAP servers without the need for the PHP IMAP extension. 
+
+It provides a simple and intuitive API for managing mailboxes, messages, and attachments.
+
 ## Requirements
 
 PHP >= 8.1
 
-## Documentation
+## Installation
+
+You can install the package via composer:
+
+```bash
+composer require directorytree/imapengine
+```
 
 ## Usage
+
+```php
+use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\Message;
+
+$mailbox = new Mailbox([
+    'port' => 993,
+    'username' => '...',
+    'password' => '...',
+    'encryption' => 'ssl',
+    'host' => 'imap.example.com',
+]);
+
+// Get all the mailbox's folders.
+$folders = $mailbox->folders()->get();
+
+// Get the first folder.
+$folder = $folders->first();
+
+// Get all the folder's messages.
+$messages = $folder->messages()->get();
+
+// Get all the folder's messages with their bodies.
+$messages = $folder->messages()->withBody()->get();
+
+// Get messages since a certain date.
+$messages = $folder->messages()->since(now()->subDays(7))->get();
+
+// Get messages with a certain subject.
+$messages = $folder->messages()->subject('Hello World')->get();
+
+// Listen for new messages.
+$folder->idle(function (Message $message) {
+    // Handle the new message.
+});
+```
