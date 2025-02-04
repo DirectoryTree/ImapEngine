@@ -4,11 +4,13 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use Closure;
+use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\GetMessagesFailedException;
 use DirectoryTree\ImapEngine\Exceptions\MessageSearchValidationException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -282,15 +284,39 @@ class MessageQuery
     }
 
     /**
-     * Prepare the where value.
+     * Prepare the where value, escaping it as needed.
      */
     protected function prepareWhereValue(mixed $value): string
     {
+        if ($value instanceof DateTimeInterface) {
+            $value = Carbon::instance($value);
+        }
+
         if ($value instanceof Carbon) {
             $value = $value->format($this->dateFormat);
         }
 
-        return (string) $value;
+        return Str::escape($value);
+    }
+
+    /**
+     * Escape a value for safe inclusion in an IMAP quoted string.
+     *
+     * This function escapes backslashes and double quotes.
+     */
+    protected function escapeImapString(string $value): string
+    {
+        // Replace backslashes first to avoid double-escaping
+        $value = str_replace('\\', '\\\\', $value);
+
+        // Then escape double quotes
+        $value = str_replace('"', '\\"', $value);
+
+        // Optionally, you could also strip or encode control characters here.
+        // For example:
+        // $value = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
+
+        return $value;
     }
 
     /**

@@ -10,7 +10,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapBadRequestException;
 use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Imap;
-use DirectoryTree\ImapEngine\Support\Escape;
+use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Illuminate\Support\Arr;
 use Throwable;
@@ -1100,7 +1100,7 @@ class ImapConnection extends Connection
      */
     protected function escapeString(array|string ...$string): array|string
     {
-        return Escape::string(...$string);
+        return Str::literal(...$string);
     }
 
     /**
@@ -1108,6 +1108,6 @@ class ImapConnection extends Connection
      */
     protected function escapeList(array $list): string
     {
-        return Escape::list($list);
+        return Str::list($list);
     }
 }
