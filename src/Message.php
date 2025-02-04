@@ -61,14 +61,6 @@ class Message implements Stringable
     }
 
     /**
-     * Get the message's sequence number.
-     */
-    public function sequence(): int
-    {
-        return $this->sequence;
-    }
-
-    /**
      * Get the message date.
      */
     public function date(): ?Carbon
