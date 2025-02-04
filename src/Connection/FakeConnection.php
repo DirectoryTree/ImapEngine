@@ -152,7 +152,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(array|int $ids, string $rfc = 'RFC822'): Response
+    public function contents(array|int $ids): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -160,7 +160,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function headers(array|int $ids, string $rfc = 'RFC822'): Response
+    public function headers(array|int $ids): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }

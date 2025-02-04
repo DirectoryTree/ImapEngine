@@ -68,12 +68,12 @@ interface ConnectionInterface
     /**
      * Fetch message contents.
      */
-    public function contents(int|array $ids, string $rfc = 'RFC822'): Response;
+    public function contents(int|array $ids): Response;
 
     /**
      * Fetch message headers.
      */
-    public function headers(int|array $ids, string $rfc = 'RFC822'): Response;
+    public function headers(int|array $ids): Response;
 
     /**
      * Fetch message flags.

@@ -605,17 +605,17 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(int|array $ids, string $rfc = 'RFC822'): Response
+    public function contents(int|array $ids): Response
     {
-        return $this->fetch(["$rfc.TEXT"], Arr::wrap($ids));
+        return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function headers(int|array $ids, string $rfc = 'RFC822'): Response
+    public function headers(int|array $ids): Response
     {
-        return $this->fetch(["$rfc.HEADER"], Arr::wrap($ids));
+        return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
     }
 
     /**
@@ -623,7 +623,7 @@ class ImapConnection extends Connection
      */
     public function flags(int|array $ids): Response
     {
-        return $this->fetch(['FLAGS'], Arr::wrap($ids), null);
+        return $this->fetch(['FLAGS'], Arr::wrap($ids));
     }
 
     /**
@@ -631,7 +631,7 @@ class ImapConnection extends Connection
      */
     public function sizes(int|array $ids): Response
     {
-        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids), null);
+        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
     }
 
     /**
