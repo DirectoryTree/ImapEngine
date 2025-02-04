@@ -13,9 +13,7 @@
 
 ## Description
 
-IMAP Engine is a PHP library that allows you to interact with IMAP servers without the need for the PHP IMAP extension. 
-
-It provides a simple and intuitive API for managing mailboxes, messages, and attachments.
+ImapEngine provides a simple and intuitive API for managing mailboxes, messages, and attachments, over IMAP.
 
 ## Requirements
 
