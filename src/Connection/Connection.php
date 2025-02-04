@@ -188,9 +188,17 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
+     * Build a UID / MSGN command.
+     */
+    protected function buildUidCommand(string $command, int|string $uid): string
+    {
+        return trim($this->getUidKey($uid).' '.$command);
+    }
+
+    /**
      * Get the UID key string.
      */
-    public function getUidKey(int|string $uid): string
+    protected function getUidKey(int|string $uid): string
     {
         if ($uid == Imap::ST_UID || $uid == Imap::FT_UID) {
             return 'UID';
@@ -201,14 +209,6 @@ abstract class Connection implements ConnectionInterface
         }
 
         return '';
-    }
-
-    /**
-     * Build a UID / MSGN command.
-     */
-    public function buildUidCommand(string $command, int|string $uid): string
-    {
-        return trim($this->getUidKey($uid).' '.$command);
     }
 
     /**
