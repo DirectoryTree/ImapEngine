@@ -72,7 +72,9 @@ class Folder
      */
     public function messages(): MessageQuery
     {
-        return new MessageQuery($this);
+        return new MessageQuery(
+            tap($this)->select()
+        );
     }
 
     /**
@@ -85,11 +87,6 @@ class Folder
         }
 
         $fetch = function (int $msgn) {
-            // Always reopen the folder on the main client.
-            // Otherwise, the new message number isn't
-            // known to the current remote session.
-            $this->select(true);
-
             return $this->messages()->findByMsgn($msgn);
         };
 
