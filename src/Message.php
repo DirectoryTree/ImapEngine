@@ -45,7 +45,7 @@ class Message implements Stringable
     }
 
     /**
-     * Get the message's headers.
+     * Get the message's raw headers.
      */
     public function headers(): string
     {
@@ -53,7 +53,7 @@ class Message implements Stringable
     }
 
     /**
-     * Get the message's contents.
+     * Get the message's raw contents.
      */
     public function contents(): string
     {
@@ -208,6 +208,54 @@ class Message implements Stringable
     public function text(): ?string
     {
         return $this->parse()->getTextContent();
+    }
+
+    /**
+     * Check if the message is marked as seen.
+     */
+    public function isSeen(): bool
+    {
+        return in_array('\Seen', $this->flags);
+    }
+
+    /**
+     * Check if the message is marked as answered.
+     */
+    public function isAnswered(): bool
+    {
+        return in_array('\Answered', $this->flags);
+    }
+
+    /**
+     * Check if the message is flagged.
+     */
+    public function isFlagged(): bool
+    {
+        return in_array('\Flagged', $this->flags);
+    }
+
+    /**
+     * Check if the message is marked as deleted.
+     */
+    public function isDeleted(): bool
+    {
+        return in_array('\Deleted', $this->flags);
+    }
+
+    /**
+     * Check if the message is marked as a draft.
+     */
+    public function isDraft(): bool
+    {
+        return in_array('\Draft', $this->flags);
+    }
+
+    /**
+     * Check if the message is marked as recent.
+     */
+    public function isRecent(): bool
+    {
+        return in_array('\Recent', $this->flags);
     }
 
     /**
