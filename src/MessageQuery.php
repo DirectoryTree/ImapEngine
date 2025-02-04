@@ -6,12 +6,7 @@ use Carbon\Carbon;
 use Closure;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\GetMessagesFailedException;
-use DirectoryTree\ImapEngine\Exceptions\MessageSearchValidationException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Support\Str;
-use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
@@ -596,13 +591,7 @@ class MessageQuery
             return $date;
         }
 
-        try {
-            $date = Carbon::parse($date);
-        } catch (Exception) {
-            throw new MessageSearchValidationException;
-        }
-
-        return $date;
+        return Carbon::parse($date);
     }
 
     /**
@@ -642,16 +631,12 @@ class MessageQuery
      */
     protected function search(): Collection
     {
-        try {
-            $messages = $this->folder->mailbox()
-                ->connection()
-                ->search([$this->getQuery()])
-                ->getValidatedData();
+        $messages = $this->folder->mailbox()
+            ->connection()
+            ->search([$this->getQuery()])
+            ->getValidatedData();
 
-            return new Collection($messages);
-        } catch (RuntimeException|ConnectionFailedException $e) {
-            throw new GetMessagesFailedException('failed to fetch messages', 0, $e);
-        }
+        return new Collection($messages);
     }
 
     /**

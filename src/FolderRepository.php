@@ -3,7 +3,6 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
 class FolderRepository
 {
@@ -58,11 +57,6 @@ class FolderRepository
         $items = $this->mailbox->connection()
             ->folders('', $parentFolder.'*')
             ->getValidatedData();
-
-        if (empty($items)) {
-            throw new RuntimeException('Failed to fetch any folders');
-            // throw new FolderFetchingException('Failed to fetch any folders');
-        }
 
         foreach ($items as $folderName => $item) {
             $folders->push(
