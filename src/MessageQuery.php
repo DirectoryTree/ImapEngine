@@ -581,7 +581,7 @@ class MessageQuery
     /**
      * Add a where in reply to clause to the query.
      */
-    public function inReplyTo($messageId): static
+    public function inReplyTo(string $messageId): static
     {
         return $this->header('In-Reply-To', $messageId);
     }
@@ -589,7 +589,7 @@ class MessageQuery
     /**
      * Add a where language clause to the query.
      */
-    public function language($countryCode): static
+    public function language(string $countryCode): static
     {
         return $this->where("Content-Language $countryCode");
     }
