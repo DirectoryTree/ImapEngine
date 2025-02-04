@@ -3,7 +3,6 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Imap;
 
 abstract class Connection implements ConnectionInterface
 {
@@ -185,30 +184,6 @@ abstract class Connection implements ConnectionInterface
         }
 
         return $this;
-    }
-
-    /**
-     * Build a UID / MSGN command.
-     */
-    protected function buildUidCommand(string $command, int|string $uid): string
-    {
-        return trim($this->getUidKey($uid).' '.$command);
-    }
-
-    /**
-     * Get the UID key string.
-     */
-    protected function getUidKey(int|string $uid): string
-    {
-        if ($uid == Imap::ST_UID || $uid == Imap::FT_UID) {
-            return 'UID';
-        }
-
-        if (strlen($uid) > 0 && ! is_numeric($uid)) {
-            return (string) $uid;
-        }
-
-        return '';
     }
 
     /**

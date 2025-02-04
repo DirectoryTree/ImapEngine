@@ -84,30 +84,30 @@ class Folder
             throw new RuntimeException('IMAP server does not support IDLE');
         }
 
-        $fetch = function (int $msgn, int $sequence) {
+        $fetch = function (int $msgn) {
             // Always reopen the folder on the main client.
             // Otherwise, the new message number isn't
             // known to the current remote session.
             $this->select(true);
 
-            return $this->messages()->findByMsgn($msgn, sequence: $sequence);
+            return $this->messages()->findByMsgn($msgn);
         };
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
-            function (int $msgn, int $sequence) use ($callback, $fetch) {
+            function (int $msgn) use ($callback, $fetch) {
                 // Connect the client if the connection is closed.
                 if ($this->mailbox->isClosed()) {
                     $this->mailbox->connect();
                 }
 
                 try {
-                    $message = $fetch($msgn, $sequence);
+                    $message = $fetch($msgn);
                 } catch (RuntimeException|ResponseException) {
                     // If fetching the message fails, we'll attempt
                     // reconnecting and re-fetching the message.
                     $this->mailbox->reconnect();
 
-                    $message = $fetch($msgn, $sequence);
+                    $message = $fetch($msgn);
                 }
 
                 $callback($message);

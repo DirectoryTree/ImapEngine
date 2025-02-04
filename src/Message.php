@@ -22,19 +22,18 @@ class Message implements Stringable
      */
     public function __construct(
         protected Folder $folder,
-        protected int $id,
+        protected int $uid,
         protected array $flags,
         protected string $headers,
         protected string $contents,
-        protected int $sequence = Imap::ST_MSGN,
     ) {}
 
     /**
      * Get the message's identifier.
      */
-    public function id(): int
+    public function uid(): int
     {
-        return $this->id;
+        return $this->uid;
     }
 
     /**

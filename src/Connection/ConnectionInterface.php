@@ -61,36 +61,29 @@ interface ConnectionInterface
     public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response;
 
     /**
-     * Fetch message content.
-     *
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
+     * Fetch message UIDs using the given message numbers.
      */
-    public function content(int|array $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response;
+    public function uids(int|array $msgns): Response;
+
+    /**
+     * Fetch message contents.
+     */
+    public function contents(int|array $ids, string $rfc = 'RFC822'): Response;
 
     /**
      * Fetch message headers.
-     *
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      */
-    public function headers(int|array $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response;
+    public function headers(int|array $ids, string $rfc = 'RFC822'): Response;
 
     /**
      * Fetch message flags.
-     *
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      */
-    public function flags(int|array $uids, int|string $uid = Imap::ST_UID): Response;
+    public function flags(int|array $ids): Response;
 
     /**
      * Fetch message sizes.
-     *
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      */
-    public function sizes(int|array $uids, int|string $uid = Imap::ST_UID): Response;
+    public function sizes(int|array $ids): Response;
 
     /**
      * Get a list of available folders.
@@ -110,12 +103,10 @@ interface ConnectionInterface
      *                        last message, INF means last message available
      * @param  string|null  $mode  '+' to add flags, '-' to remove flags, everything else sets the flags as given
      * @param  bool  $silent  if false the return values are the new flags for the wanted messages
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      * @param  string|null  $item  command used to store a flag
      * @return Response containing the new flags if $silent is false, else true or false depending on success
      */
-    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, int|string $uid = Imap::ST_UID, ?string $item = null): Response;
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response;
 
     /**
      * Append a new message to given folder.
@@ -133,21 +124,17 @@ interface ConnectionInterface
      * @param  string  $folder  destination folder
      * @param  int|null  $to  if null only one message ($from) is fetched, else it's the
      *                        last message, INF means last message available
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      */
-    public function copyMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response;
+    public function copyMessage(string $folder, $from, ?int $to = null): Response;
 
     /**
      * Copy multiple messages to the target folder.
      *
      * @param  array<string>  $messages  List of message identifiers
      * @param  string  $folder  Destination folder
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      * @return Response Tokens if operation successful, false if an error occurred
      */
-    public function copyManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response;
+    public function copyManyMessages(array $messages, string $folder): Response;
 
     /**
      * Move a message set from current folder to another folder.
@@ -155,21 +142,17 @@ interface ConnectionInterface
      * @param  string  $folder  destination folder
      * @param  int|null  $to  if null only one message ($from) is fetched, else it's the
      *                        last message, INF means last message available
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      */
-    public function moveMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response;
+    public function moveMessage(string $folder, $from, ?int $to = null): Response;
 
     /**
      * Move multiple messages to the target folder.
      *
      * @param  array<string>  $messages  List of message identifiers
      * @param  string  $folder  Destination folder
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      * @return Response Tokens if operation successful, false if an error occurred
      */
-    public function moveManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response;
+    public function moveManyMessages(array $messages, string $folder): Response;
 
     /**
      * Exchange identification information.
@@ -252,11 +235,9 @@ interface ConnectionInterface
     public function noop(): Response;
 
     /**
-     * Do a search request.
+     * Execute a search request.
      *
-     * @param  int|string  $uid  set to IMAP::ST_UID or any string representing the UID - set to IMAP::ST_MSGN to use
-     *                           message numbers instead.
      * @return Response containing the message ids
      */
-    public function search(array $params, int|string $uid = Imap::ST_UID): Response;
+    public function search(array $params): Response;
 }

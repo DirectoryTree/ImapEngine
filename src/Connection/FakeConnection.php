@@ -144,7 +144,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function content(array|int $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response
+    public function uids(int|array $msgns): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -152,7 +152,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function headers(array|int $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response
+    public function contents(array|int $ids, string $rfc = 'RFC822'): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -160,7 +160,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function flags(array|int $uids, int|string $uid = Imap::ST_UID): Response
+    public function headers(array|int $ids, string $rfc = 'RFC822'): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -168,7 +168,15 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function sizes(array|int $uids, int|string $uid = Imap::ST_UID): Response
+    public function flags(array|int $ids): Response
+    {
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sizes(array|int $ids): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -184,7 +192,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, int|string $uid = Imap::ST_UID, ?string $item = null): Response
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -200,7 +208,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response
+    public function copyMessage(string $folder, $from, ?int $to = null): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -208,7 +216,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response
+    public function copyManyMessages(array $messages, string $folder): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -216,7 +224,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response
+    public function moveMessage(string $folder, $from, ?int $to = null): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -224,7 +232,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function moveManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response
+    public function moveManyMessages(array $messages, string $folder): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }
@@ -329,15 +337,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function search(array $params, int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function overview(string $sequence, int|string $uid = Imap::ST_UID): Response
+    public function search(array $params): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
     }

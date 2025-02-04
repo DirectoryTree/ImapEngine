@@ -12,7 +12,6 @@ use DirectoryTree\ImapEngine\Exceptions\MessageSearchValidationException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
 
@@ -26,21 +25,14 @@ class MessageQuery
     protected Folder $folder;
 
     /**
-     * The added search filters.
-     */
-    protected array $filters = [];
-
-    /**
-     * The IMAP extensions that should be used.
-     *
-     * @var string[]
-     */
-    protected array $extensions;
-
-    /**
      * The current page.
      */
     protected int $page = 1;
+
+    /**
+     * The added search filters.
+     */
+    protected array $filters = [];
 
     /**
      * The fetch limit.
@@ -58,28 +50,16 @@ class MessageQuery
     protected bool $fetchFlags = true;
 
     /**
-     * The fetch options.
-     *
-     * Leave messages unread by default.
-     */
-    protected int $fetchOptions = Imap::FT_PEEK;
-
-    /**
      * The fetch order.
      */
     protected string $fetchOrder = 'desc';
 
     /**
-     * @var mixed|int
+     * The fetch options.
+     *
+     * Leave messages unread by default.
      */
-    protected mixed $sequence = Imap::NIL;
-
-    protected array $options = [];
-
-    /**
-     * The errors that occurred while fetching messages.
-     */
-    protected array $errors = [];
+    protected int $fetchOptions = Imap::FT_PEEK;
 
     /**
      * The date format to use for date based queries.
@@ -109,13 +89,9 @@ class MessageQuery
     /**
      * Constructor.
      */
-    public function __construct(Folder $folder, array $options = [], array $extensions = [])
+    public function __construct(Folder $folder)
     {
         $this->folder = $folder;
-
-        $this->sequence = Arr::get($options, 'sequence', Imap::ST_MSGN);
-
-        $this->setExtensions($extensions);
     }
 
     /**
@@ -139,24 +115,6 @@ class MessageQuery
     }
 
     /**
-     * Set the sequence type.
-     */
-    public function setSequence(int $sequence): static
-    {
-        $this->sequence = $sequence;
-
-        return $this;
-    }
-
-    /**
-     * Get the sequence type.
-     */
-    public function getSequence(): int|string
-    {
-        return $this->sequence;
-    }
-
-    /**
      * Set the limit and page for the current query.
      */
     public function limit(int $limit, int $page = 1): static
@@ -166,34 +124,6 @@ class MessageQuery
         }
 
         $this->limit = $limit;
-
-        return $this;
-    }
-
-    /**
-     * Get all applied extensions.
-     *
-     * @return string[]
-     */
-    public function getExtensions(): array
-    {
-        return $this->extensions;
-    }
-
-    /**
-     * Set all extensions that should be used.
-     *
-     * @param  string[]  $extensions
-     */
-    public function setExtensions(array $extensions): static
-    {
-        $this->extensions = $extensions;
-
-        if (count($this->extensions) > 0) {
-            if (in_array('UID', $this->extensions) === false) {
-                $this->extensions[] = 'UID';
-            }
-        }
 
         return $this;
     }
@@ -242,14 +172,6 @@ class MessageQuery
         $this->fetchOptions = $fetchOptions;
 
         return $this;
-    }
-
-    /**
-     * Set the fetch option flag.
-     */
-    public function fetchOptions(int $fetchOptions): static
-    {
-        return $this->setFetchOptions($fetchOptions);
     }
 
     /**
@@ -373,7 +295,9 @@ class MessageQuery
      */
     protected function addFilter(string $criteria, mixed $value): void
     {
-        $criteria = $this->getValidCriteria($criteria);
+        if (! in_array($criteria, $this->criteria)) {
+            throw new InvalidWhereQueryCriteriaException("Invalid imap search criteria: $criteria");
+        }
 
         if (empty($value)) {
             $this->filters[] = [$criteria];
@@ -392,24 +316,6 @@ class MessageQuery
         }
 
         return (string) $value;
-    }
-
-    /**
-     * Validate the given criteria.
-     */
-    protected function getValidCriteria(string $criteria): string
-    {
-        $command = strtoupper($criteria);
-
-        if (str_starts_with($command, 'CUSTOM ')) {
-            return substr($criteria, 7);
-        }
-
-        if (in_array($command, $this->criteria) === false) {
-            throw new InvalidWhereQueryCriteriaException("Invalid imap search criteria: $command");
-        }
-
-        return $criteria;
     }
 
     /**
@@ -707,16 +613,6 @@ class MessageQuery
     }
 
     /**
-     * Get all available search criteria.
-     *
-     * @return array|string[]
-     */
-    public function getCriteria(): array
-    {
-        return $this->criteria;
-    }
-
-    /**
      * Check if a given date is a valid carbon object and if not try to convert it.
      */
     protected function parseDate(mixed $date): Carbon
@@ -774,7 +670,7 @@ class MessageQuery
         try {
             $messages = $this->folder->mailbox()
                 ->connection()
-                ->search([$this->getQuery()], $this->sequence)
+                ->search([$this->getQuery()])
                 ->getValidatedData();
 
             return new Collection($messages);
@@ -804,27 +700,20 @@ class MessageQuery
 
         $flags = $this->folder->mailbox()
             ->connection()
-            ->flags($uids, $this->sequence)
+            ->flags($uids)
             ->getValidatedData();
 
         $headers = $this->folder->mailbox()
             ->connection()
-            ->headers($uids, 'RFC822', $this->sequence)
+            ->headers($uids, 'RFC822')
             ->getValidatedData();
-
-        if (! empty($extensions = $this->getExtensions())) {
-            $extensions = $this->folder->mailbox()
-                ->connection()
-                ->fetch($this->getExtensions(), $uids, null, $this->sequence)
-                ->getValidatedData();
-        }
 
         $contents = [];
 
         if ($this->isFetchingBody()) {
             $contents = $this->folder->mailbox()
                 ->connection()
-                ->content($uids, 'RFC822', $this->sequence)
+                ->contents($uids, 'RFC822')
                 ->getValidatedData();
         }
 
@@ -833,7 +722,6 @@ class MessageQuery
             'flags' => $flags,
             'headers' => $headers,
             'contents' => $contents,
-            'extensions' => $extensions,
         ];
     }
 
@@ -852,20 +740,6 @@ class MessageQuery
     }
 
     /**
-     * Get the message key for a given message.
-     */
-    protected function getMessageKey(string $messageKey, int $msglist, Message $message): string
-    {
-        $key = match ($messageKey) {
-            'list' => $msglist,
-            'uid', 'number' => $message->id(),
-            default => $message->messageId(),
-        };
-
-        return (string) $key;
-    }
-
-    /**
      * Process the collection of messages.
      */
     protected function process(Collection $messages): MessageCollection
@@ -880,36 +754,21 @@ class MessageQuery
     /**
      * Populate a given id collection and receive a fully fetched message collection.
      */
-    protected function populate(Collection $availableMessages): MessageCollection
+    protected function populate(Collection $uids): MessageCollection
     {
         $messages = MessageCollection::make();
 
-        $messages->total($availableMessages->count());
+        $messages->total($uids->count());
 
-        $messageKey = $this->folder->mailbox()->config('options.message_key');
-
-        $rawMessages = $this->fetch($availableMessages);
-
-        $msglist = 0;
+        $rawMessages = $this->fetch($uids);
 
         foreach ($rawMessages['headers'] as $uid => $headers) {
             $flags = $rawMessages['flags'][$uid] ?? [];
             $contents = $rawMessages['contents'][$uid] ?? '';
-            $extensions = $rawMessages['extensions'][$uid] ?? [];
 
-            $message = $this->newMessage($uid, $flags, $headers, $contents);
-
-            //            dd($extensions);
-            //
-            //            foreach ($extensions as $key => $extension) {
-            //                $message->getHeader()->set($key, $extension);
-            //            }
-
-            $key = $this->getMessageKey($messageKey, $msglist, $message);
-
-            $messages->put($key, $message);
-
-            $msglist++;
+            $messages->push(
+                $this->newMessage($uid, $flags, $headers, $contents)
+            );
         }
 
         return $messages;
@@ -976,7 +835,7 @@ class MessageQuery
      * @param  null  $page  The current page you are on (e.g. 0, 1, 2, ...) use `null` to enable auto mode
      * @param  string  $pageName  The page name / uri parameter used for the generated links and the auto mode
      */
-    public function paginate(int $perPage = 5, $page = null, string $pageName = 'imap_page'): LengthAwarePaginator
+    public function paginate(int $perPage = 5, $page = null, string $pageName = 'page'): LengthAwarePaginator
     {
         if (is_null($page) && isset($_GET[$pageName]) && $_GET[$pageName] > 0) {
             $this->page = intval($_GET[$pageName]);
@@ -994,36 +853,34 @@ class MessageQuery
      */
     public function findByUid(int $uid): Message
     {
-        return $this->find($uid, null, Imap::ST_UID);
+        return $this->find($uid, Imap::ST_UID);
     }
 
     /**
      * Get a message by its message number.
      */
-    public function findByMsgn(int $msgn, ?int $msglist = null, ?int $sequence = null): Message
+    public function findByMsgn(int $msgn): Message
     {
-        return $this->find($msgn, $msglist, $sequence ?: $this->sequence);
+        return $this->find($msgn, Imap::ST_MSGN);
     }
 
     /**
-     * Find a message by its sequence number (or UID).
+     * Find a message by the specified sequence type.
      */
-    protected function find(int $uid, ?int $msglist = null, ?int $sequence = null): Message
+    protected function find(int $id, int $identifier): Message
     {
-        $sequence = $sequence ?: $this->sequence;
-
         $connection = $this->folder->mailbox()->connection();
 
-        $flagsResponse = $connection->flags([$uid], $sequence)->getValidatedData();
-        $headersResponse = $connection->headers([$uid], 'RFC822', $sequence)->getValidatedData();
-        $contentsResponse = $connection->content([$uid], 'RFC822', $sequence)->getValidatedData();
+        // If the sequence is not UID, we'll need to fetch the UID first.
+        $uid = match ($identifier) {
+            Imap::ST_UID => $id,
+            Imap::ST_MSGN => $connection->uids([$id])->getValidatedData()[$id],
+        };
 
-        $flags = $flagsResponse[$uid] ?? [];
-        $headers = $headersResponse[$uid] ?? '';
-        $contents = $contentsResponse[$uid] ?? '';
+        $flags = $connection->flags([$uid])->getValidatedData()[$uid] ?? [];
+        $headers = $connection->headers([$uid], 'RFC822')->getValidatedData()[$uid] ?? '';
+        $contents = $connection->contents([$uid], 'RFC822')->getValidatedData()[$uid] ?? '';
 
-        $id = $sequence === Imap::ST_UID ? $uid : ($msglist ?? $uid);
-
-        return new Message($this->folder, $id, $flags, $headers, $contents, $sequence);
+        return new Message($this->folder, $uid, $flags, $headers, $contents);
     }
 }

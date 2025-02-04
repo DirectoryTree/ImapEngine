@@ -34,12 +34,10 @@ class Mailbox
         ],
         'options' => [
             'fetch' => Imap::FT_PEEK,
-            'sequence' => Imap::ST_UID,
             'fetch_body' => true,
             'fetch_flags' => true,
             'rfc822' => true,
             // 'fallback_date' => "01.01.1970 00:00:00",
-            'message_key' => 'list',
             'fetch_order' => 'asc',
             'dispositions' => ['attachment', 'inline'],
             'open' => [

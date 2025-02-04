@@ -479,7 +479,7 @@ test('content', function () {
 
     $connection = new ImapConnection($stream);
 
-    $response = $connection->content(999);
+    $response = $connection->contents(999);
 
     $stream->assertWritten('TAG1 UID FETCH 999:999 (RFC822.TEXT)');
 

@@ -595,9 +595,49 @@ class ImapConnection extends Connection
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function uids(int|array $msgns): Response
+    {
+        return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function contents(int|array $ids, string $rfc = 'RFC822'): Response
+    {
+        return $this->fetch(["$rfc.TEXT"], Arr::wrap($ids));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function headers(int|array $ids, string $rfc = 'RFC822'): Response
+    {
+        return $this->fetch(["$rfc.HEADER"], Arr::wrap($ids));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flags(int|array $ids): Response
+    {
+        return $this->fetch(['FLAGS'], Arr::wrap($ids), null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sizes(int|array $ids): Response
+    {
+        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids), null);
+    }
+
+    /**
      * Fetch one or more items of one or more messages.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, int|string $uid = Imap::ST_UID): Response
+    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
     {
         if (is_array($from) && count($from) > 1) {
             $set = implode(',', $from);
@@ -613,8 +653,13 @@ class ImapConnection extends Connection
 
         $items = (array) $items;
 
+        $prefix = match ($identifier) {
+            Imap::ST_UID => 'UID',
+            default => '',
+        };
+
         $response = $this->sendRequest(
-            $this->buildUidCommand('FETCH', $uid),
+            trim($prefix.' FETCH'),
             [$set, $this->escapeList($items)],
             $tag
         );
@@ -632,7 +677,7 @@ class ImapConnection extends Connection
             $data = [];
 
             // Find array key of UID value; try the last elements, or search for it.
-            if ($uid === Imap::ST_UID) {
+            if ($identifier === Imap::ST_UID) {
                 $count = count($tokens[2]);
 
                 if ($tokens[2][$count - 2] == 'UID') {
@@ -651,7 +696,7 @@ class ImapConnection extends Connection
             }
 
             // Ignore other messages.
-            if (is_null($to) && ! is_array($from) && ($uid === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
                 continue;
             }
 
@@ -659,7 +704,7 @@ class ImapConnection extends Connection
             if (count($items) == 1) {
                 if ($tokens[2][0] == $items[0]) {
                     $data = $tokens[2][1];
-                } elseif ($uid === Imap::ST_UID && $tokens[2][2] == $items[0]) {
+                } elseif ($identifier === Imap::ST_UID && $tokens[2][2] == $items[0]) {
                     $data = $tokens[2][3];
                 } else {
                     $expectedResponse = 0;
@@ -693,14 +738,14 @@ class ImapConnection extends Connection
             }
 
             // If we want only one message we can ignore everything else and just return.
-            if (is_null($to) && ! is_array($from) && ($uid === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
                 // We still need to read all lines.
                 if (! $this->readLine($response, $tokens, $tag)) {
                     return $response->setResult($data);
                 }
             }
 
-            if ($uid === Imap::ST_UID) {
+            if ($identifier === Imap::ST_UID) {
                 $result[$tokens[2][$uidKey]] = $data;
             } else {
                 $result[$tokens[0]] = $data;
@@ -712,38 +757,6 @@ class ImapConnection extends Connection
         }
 
         return $response->setResult($result);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function content(int|array $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->fetch(["$rfc.TEXT"], Arr::wrap($uids), null, $uid);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function headers(int|array $uids, string $rfc = 'RFC822', int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->fetch(["$rfc.HEADER"], Arr::wrap($uids), null, $uid);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function flags(int|array $uids, int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->fetch(['FLAGS'], Arr::wrap($uids), null, $uid);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function sizes(int|array $uids, int|string $uid = Imap::ST_UID): Response
-    {
-        return $this->fetch(['RFC822.SIZE'], Arr::wrap($uids), null, $uid);
     }
 
     /**
@@ -786,18 +799,15 @@ class ImapConnection extends Connection
         ?int $to = null,
         ?string $mode = null,
         bool $silent = true,
-        int|string $uid = Imap::ST_UID,
         ?string $item = null
     ): Response {
         $flags = $this->escapeList(Arr::wrap($flags));
 
         $set = $this->buildSet($from, $to);
 
-        $command = $this->buildUidCommand('STORE', $uid);
-
         $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
 
-        $response = $this->requestAndResponse($command, [$set, $item, $flags], ! $silent);
+        $response = $this->requestAndResponse('UID STORE', [$set, $item, $flags], ! $silent);
 
         if ($silent) {
             return $response;
@@ -841,53 +851,46 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response
+    public function copyMessage(string $folder, $from, ?int $to = null): Response
     {
-        $set = $this->buildSet($from, $to);
-
-        $command = $this->buildUidCommand('COPY', $uid);
-
-        return $this->requestAndResponse($command, [$set, $this->escapeString($folder)], false);
+        return $this->requestAndResponse('UID COPY', [
+            $this->buildSet($from, $to),
+            $this->escapeString($folder),
+        ], false);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function copyManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response
+    public function copyManyMessages(array $messages, string $folder): Response
     {
-        $command = $this->buildUidCommand('COPY', $uid);
-
         $set = implode(',', $messages);
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->requestAndResponse($command, $tokens, false);
+        return $this->requestAndResponse('UID COPY', $tokens, false);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null, int|string $uid = Imap::ST_UID): Response
+    public function moveMessage(string $folder, $from, ?int $to = null): Response
     {
         $set = $this->buildSet($from, $to);
 
-        $command = $this->buildUidCommand('MOVE', $uid);
-
-        return $this->requestAndResponse($command, [$set, $this->escapeString($folder)], false);
+        return $this->requestAndResponse('UID MOVE', [$set, $this->escapeString($folder)], false);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveManyMessages(array $messages, string $folder, int|string $uid = Imap::ST_UID): Response
+    public function moveManyMessages(array $messages, string $folder): Response
     {
-        $command = $this->buildUidCommand('MOVE', $uid);
-
         $set = implode(',', $messages);
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->requestAndResponse($command, $tokens, false);
+        return $this->requestAndResponse('UID MOVE', $tokens, false);
     }
 
     /**
@@ -1021,11 +1024,9 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function search(array $params, int|string $uid = Imap::ST_UID): Response
+    public function search(array $params): Response
     {
-        $command = $this->buildUidCommand('SEARCH', $uid);
-
-        $response = $this->requestAndResponse($command, $params);
+        $response = $this->requestAndResponse('UID SEARCH', $params);
 
         $response->setCanBeEmpty(true);
 
@@ -1081,7 +1082,7 @@ class ImapConnection extends Connection
     }
 
     /**
-     * Build a valid UID number set.
+     * Build a UID number set.
      */
     public function buildSet($from, $to = null): int|string
     {
