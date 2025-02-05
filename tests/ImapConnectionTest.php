@@ -481,7 +481,7 @@ test('content', function () {
 
     $response = $connection->contents(999);
 
-    $stream->assertWritten('TAG1 UID FETCH 999:999 (RFC822.TEXT)');
+    $stream->assertWritten('TAG1 UID FETCH 999:999 (BODY[TEXT])');
 
     expect($response->data()[999])->toContain('message content...');
 });
@@ -502,7 +502,7 @@ test('headers', function () {
 
     $response = $connection->headers(777);
 
-    $stream->assertWritten('TAG1 UID FETCH 777:777 (RFC822.HEADER)');
+    $stream->assertWritten('TAG1 UID FETCH 777:777 (BODY[HEADER])');
 
     expect($response->data()[777])->toContain('Subject: Test');
 });

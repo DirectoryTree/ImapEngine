@@ -491,7 +491,7 @@ abstract class Connection implements ConnectionInterface
     /**
      * Fetch one or more items of one or more messages.
      */
-    protected function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
+    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
     {
         if (is_array($from) && count($from) > 1) {
             $set = implode(',', $from);

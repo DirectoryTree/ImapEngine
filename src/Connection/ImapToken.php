@@ -25,23 +25,7 @@ class ImapToken
      * Constructor.
      */
     public function __construct(
-        protected string $type,
-        protected mixed $value
+        public string $type,
+        public mixed $value
     ) {}
-
-    /**
-     * Get the token's type.
-     */
-    public function type(): string
-    {
-        return $this->type;
-    }
-
-    /**
-     * Get the token's value.
-     */
-    public function value(): mixed
-    {
-        return $this->value;
-    }
 }

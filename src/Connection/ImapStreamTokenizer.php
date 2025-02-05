@@ -9,7 +9,7 @@ class ImapStreamTokenizer
     /**
      * Decode the given line into an array of tokens.
      */
-    public function tokenize(ImapStream $stream, string $line): array
+    public function tokenize(StreamInterface $stream, string $line): array
     {
         // Replace any trailing <NL> including spaces with a single space.
         $line = rtrim($line).' ';
@@ -164,7 +164,7 @@ class ImapStreamTokenizer
      *
      * @throws RuntimeException
      */
-    protected function parseLiteral(ImapStream $stream, string $line, string $tokenText): array
+    protected function parseLiteral(StreamInterface $stream, string $line, string $tokenText): array
     {
         // Extract the byte count from the literal (e.g., {20}).
         $endPos = strpos($tokenText, '}');
