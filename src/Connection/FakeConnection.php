@@ -312,23 +312,6 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function getQuota(string $username): Response
-    {
-
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getQuotaRoot(string $quotaRoot = 'INBOX'): Response
-    {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function noop(): Response
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();

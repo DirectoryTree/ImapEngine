@@ -3,333 +3,17 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
-use DirectoryTree\ImapEngine\Exceptions\ImapBadRequestException;
-use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Imap;
-use DirectoryTree\ImapEngine\Support\Str;
-use Exception;
 use Illuminate\Support\Arr;
 use Throwable;
 
-/**
- * @see https://www.rfc-editor.org/rfc/rfc2087.txt
- */
 class ImapConnection extends Connection
 {
     /**
      * The current request sequence.
      */
     protected int $sequence = 0;
-
-    /**
-     * Tear down the connection.
-     */
-    public function __destruct()
-    {
-        $this->logout();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function connect(string $host, ?int $port = null): void
-    {
-        $transport = 'tcp';
-        $encryption = '';
-
-        if ($this->encryption) {
-            $encryption = strtolower($this->encryption);
-
-            if (in_array($encryption, ['ssl', 'tls'])) {
-                $transport = $encryption;
-                $port ??= 993;
-            }
-        }
-
-        $port ??= 143;
-
-        try {
-            $response = new Response(0, $this->debug);
-
-            $this->stream->open(
-                $transport,
-                $host,
-                $port,
-                $this->connectionTimeout,
-                $this->defaultSocketOptions($transport),
-            );
-
-            // Upon opening the connection, we should receive
-            // an initial IMAP greeting message from the
-            // server to indicate it was successful.
-            if (! $this->assumedNextLine($response, '* OK')) {
-                throw new ConnectionFailedException('Connection refused');
-            }
-
-            $this->setStreamTimeout($this->connectionTimeout);
-
-            if ($encryption == 'starttls') {
-                $this->enableStartTls();
-            }
-        } catch (Exception $e) {
-            throw new ConnectionFailedException('Connection failed', 0, $e);
-        }
-    }
-
-    /**
-     * Enable TLS on the current connection.
-     */
-    protected function enableStartTls(): void
-    {
-        $response = $this->requestAndResponse('STARTTLS');
-
-        $result = $response->successful() && $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
-
-        if (! $result) {
-            throw new ConnectionFailedException('Failed to enable TLS');
-        }
-    }
-
-    /**
-     * Get the next line from stream.
-     */
-    public function nextLine(Response $response): string
-    {
-        $line = $this->stream->fgets();
-
-        if ($line === false) {
-            $meta = $this->meta();
-
-            throw match (true) {
-                $meta['timed_out'] ?? false => new ConnectionTimedOutException('Stream timed out, no response'),
-                $meta['eof'] ?? false => new ConnectionClosedException('Server closed the connection (EOF)'),
-                default => new RuntimeException('Unknown read error, no response: '.json_encode($meta)),
-            };
-        }
-
-        $response->push($line);
-
-        if ($this->debug) {
-            echo '<< '.$line;
-        }
-
-        return $line;
-    }
-
-    /**
-     * Get the next tagged line along with the containing tag.
-     */
-    protected function nextTaggedLine(Response $response, ?string &$tag): string
-    {
-        $line = $this->nextLine($response);
-
-        if (str_contains($line, ' ')) {
-            [$tag, $line] = explode(' ', $line, 2);
-        }
-
-        return $line ?? '';
-    }
-
-    /**
-     * Get the next line and check if it starts with a given string.
-     */
-    protected function assumedNextLine(Response $response, string $start): bool
-    {
-        return str_starts_with($this->nextLine($response), $start);
-    }
-
-    /**
-     * Get the next line and check if it contains a given string and split the tag.
-     */
-    protected function assumedNextTaggedLine(Response $response, string $start, ?string &$tag): bool
-    {
-        return str_contains($this->nextTaggedLine($response, $tag), $start);
-    }
-
-    /**
-     * Flatten/transform the tokens into the old array-based format if desired.
-     * Otherwise, you can skip this and return $tokens directly.
-     */
-    protected function flattenTokens(array $tokens): array
-    {
-        $result = [];
-
-        /** @var ImapToken $token */
-        foreach ($tokens as $token) {
-            if ($token->type() === ImapToken::TYPE_LIST) {
-                // Recursively flatten sub-lists.
-                $result[] = $this->flattenTokens($token->value());
-            } else {
-                // Just the raw token value.
-                $result[] = $token->value();
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Read all lines of response until given tag is found.
-     *
-     * @param  string  $tag  request tag
-     * @param  bool  $parse  if true, lines are decoded; if false, lines are returned raw
-     */
-    public function readResponse(Response $response, string $tag, bool $parse = true): array
-    {
-        $lines = [];
-        $tokens = '';
-
-        do {
-            $readAll = $this->readLine($response, $tokens, $tag, $parse);
-
-            $lines[] = $tokens;
-        } while (! $readAll);
-
-        $original = $tokens;
-
-        if (! $parse) {
-            // First two chars are still needed for the response code.
-            $tokens = [trim(substr($tokens, 0, 3))];
-        }
-
-        $original = Arr::wrap($original);
-
-        // Last line has response code.
-        if ($tokens[0] == 'OK') {
-            return $lines ?: [true];
-        }
-
-        if (in_array($tokens[0], ['NO', 'BAD', 'BYE'])) {
-            throw ImapServerErrorException::fromResponseTokens($original);
-        }
-
-        throw ImapBadRequestException::fromResponseTokens($original);
-    }
-
-    /**
-     * Read and optionally parse a response "line".
-     *
-     * @param  array|string  $tokens  to decode
-     * @param  string  $wantedTag  targeted tag
-     * @param  bool  $parse  if true, line is decoded into tokens; if false, the unparsed line is returned
-     */
-    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
-    {
-        $line = $this->nextTaggedLine($response, $tag); // Get next tag.
-
-        if ($parse) {
-            $tokens = $this->tokenize($line);
-        } else {
-            $tokens = $line;
-        }
-
-        // If tag is wanted tag we might be at the end of a multiline response.
-        return $tag == $wantedTag;
-    }
-
-    /**
-     * Parse the given line into tokens.
-     */
-    protected function tokenize(string $line): array
-    {
-        $tokens = (new ImapStreamTokenizer)->tokenize($this->stream, $line);
-
-        ray($line, $tokens);
-
-        return $this->flattenTokens($tokens);
-    }
-
-    /**
-     * Send a new request.
-     *
-     * @param  array  $tokens  additional parameters to command, use escapeString() to prepare
-     * @param  string|null  $tag  provide a tag otherwise an autogenerated is returned
-     */
-    public function sendRequest(string $command, array $tokens = [], ?string &$tag = null): Response
-    {
-        $command = new ImapCommand($command, $tokens);
-
-        if (! $tag) {
-            $this->sequence++;
-
-            $tag = 'TAG'.$this->sequence;
-        }
-
-        $command->setTag($tag);
-
-        return $this->sendCommand($command);
-    }
-
-    /**
-     * Dispatch the given IMAP command.
-     */
-    protected function sendCommand(ImapCommand $command): Response
-    {
-        if (! $command->getTag()) {
-            $this->sequence++;
-
-            $command->setTag('TAG'.$this->sequence);
-        }
-
-        $response = new Response($this->sequence, $this->debug);
-
-        foreach ($command->compile() as $line) {
-            $this->write($response, $line);
-
-            // If the line doesn't end with a literal marker, move on.
-            if (! str_ends_with($line, '}')) {
-                continue;
-            }
-
-            // If the line does end with a literal marker, check for the expected continuation.
-            if ($this->assumedNextLine($response, '+ ')) {
-                continue;
-            }
-
-            // Early return: if we didn't get the continuation, throw immediately.
-            throw new RuntimeException('Failed to send literal string');
-        }
-
-        return $response;
-    }
-
-    /**
-     * Write data to the current stream.
-     */
-    public function write(Response $response, string $data): void
-    {
-        $command = $data."\r\n";
-
-        if ($this->debug) {
-            echo '>> '.$command."\n";
-        }
-
-        $response->addCommand($command);
-
-        if ($this->stream->fwrite($command) === false) {
-            throw new RuntimeException('Failed to write - connection closed?');
-        }
-    }
-
-    /**
-     * Send a request and get response at once.
-     *
-     * @param  bool  $parse  if true, parse the response lines into tokens; if false, return raw lines
-     */
-    public function requestAndResponse(string $command, array $tokens = [], bool $parse = true): Response
-    {
-        $response = $this->sendRequest($command, $tokens, $tag);
-
-        $response->setResult(
-            $this->readResponse($response, $tag, $parse)
-        );
-
-        return $response;
-    }
 
     /**
      * {@inheritDoc}
@@ -351,13 +35,13 @@ class ImapConnection extends Connection
         try {
             $authenticateParams = ['XOAUTH2', base64_encode("user=$user\1auth=Bearer $token\1\1")];
 
-            $response = $this->sendRequest('AUTHENTICATE', $authenticateParams);
+            $response = $this->sendCommand('AUTHENTICATE', $authenticateParams);
 
             while (true) {
                 $tokens = '';
 
                 if ($this->readLine($response, $tokens, '+', false)) {
-                    $response->addResponse($this->sendRequest(''));
+                    $response->addResponse($this->sendCommand(''));
 
                     continue;
                 }
@@ -373,341 +57,6 @@ class ImapConnection extends Connection
         } catch (RuntimeException $e) {
             throw new AuthFailedException('Failed to authenticate', 0, $e);
         }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function logout(): Response
-    {
-        if (! $this->stream->isOpen() || ($this->meta()['timed_out'] ?? false)) {
-            $this->reset();
-
-            return new Response(0, $this->debug);
-        }
-
-        try {
-            $result = $this->requestAndResponse('LOGOUT', [], false);
-
-            $this->stream->close();
-        } catch (Throwable) {
-            $result = null;
-        }
-
-        $this->reset();
-
-        return $result ?? new Response(0, $this->debug);
-    }
-
-    /**
-     * Reset the current stream and uid cache.
-     */
-    public function reset(): void
-    {
-        $this->stream->close();
-    }
-
-    /**
-     * Examine and select have the same response.
-     *
-     * @param  string  $command  can be 'EXAMINE' or 'SELECT'
-     * @param  string  $folder  target folder
-     */
-    public function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): Response
-    {
-        $response = $this->sendRequest($command, [$this->escapeString($folder)], $tag);
-
-        $result = [];
-        $tokens = [];
-
-        while (! $this->readLine($response, $tokens, $tag)) {
-            if ($tokens[0] == 'FLAGS') {
-                array_shift($tokens);
-
-                $result['flags'] = $tokens;
-
-                continue;
-            }
-
-            switch ($tokens[1]) {
-                case 'EXISTS':
-                case 'RECENT':
-                    $result[strtolower($tokens[1])] = (int) $tokens[0];
-                    break;
-                case '[UIDVALIDITY':
-                    $result['uidvalidity'] = (int) $tokens[2];
-                    break;
-                case '[UIDNEXT':
-                    $result['uidnext'] = (int) $tokens[2];
-                    break;
-                case '[UNSEEN':
-                    $result['unseen'] = (int) $tokens[2];
-                    break;
-                case '[NONEXISTENT]':
-                    throw new RuntimeException("Folder doesn't exist");
-                default:
-                    // ignore
-                    break;
-            }
-        }
-
-        $response->setResult($result);
-
-        if ($tokens[0] != 'OK') {
-            $response->addError('request failed');
-        }
-
-        return $response;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function selectFolder(string $folder = 'INBOX'): Response
-    {
-        return $this->examineOrSelect('SELECT', $folder);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function examineFolder(string $folder = 'INBOX'): Response
-    {
-        return $this->examineOrSelect('EXAMINE', $folder);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response
-    {
-        $response = $this->requestAndResponse('STATUS', [
-            $this->escapeString($folder),
-            $this->escapeList($arguments),
-        ]);
-
-        $data = $response->getValidatedData();
-
-        if (! isset($data[0]) || ! isset($data[0][2])) {
-            throw new RuntimeException('Folder status could not be fetched');
-        }
-
-        $result = [];
-
-        $key = null;
-
-        foreach ($data[0][2] as $value) {
-            if (is_null($key)) {
-                $key = $value;
-            } else {
-                $result[strtolower($key)] = (int) $value;
-                $key = null;
-            }
-        }
-
-        $response->setResult($result);
-
-        return $response;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function uids(int|array $msgns): Response
-    {
-        return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function contents(int|array $ids): Response
-    {
-        return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function headers(int|array $ids): Response
-    {
-        return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function flags(int|array $ids): Response
-    {
-        return $this->fetch(['FLAGS'], Arr::wrap($ids));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function sizes(int|array $ids): Response
-    {
-        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
-    }
-
-    /**
-     * Fetch one or more items of one or more messages.
-     */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
-    {
-        if (is_array($from) && count($from) > 1) {
-            $set = implode(',', $from);
-        } elseif (is_array($from) && count($from) === 1) {
-            $set = $from[0].':'.$from[0];
-        } elseif (is_null($to)) {
-            $set = $from.':'.$from;
-        } elseif ($to == INF) {
-            $set = $from.':*';
-        } else {
-            $set = $from.':'.(int) $to;
-        }
-
-        $items = (array) $items;
-
-        $prefix = match ($identifier) {
-            Imap::ST_UID => 'UID',
-            default => '',
-        };
-
-        $response = $this->sendRequest(
-            trim($prefix.' FETCH'),
-            [$set, $this->escapeList($items)],
-            $tag
-        );
-
-        $result = [];
-        $tokens = [];
-
-        while (! $this->readLine($response, $tokens, $tag)) {
-            if (! isset($tokens[1])) {
-                continue;
-            }
-
-            // Ignore other responses.
-            if ($tokens[1] != 'FETCH') {
-                continue;
-            }
-
-            $uidKey = 0;
-            $data = [];
-
-            // Find array key of UID value; try the last elements, or search for it.
-            if ($identifier === Imap::ST_UID) {
-                $count = count($tokens[2]);
-
-                if ($tokens[2][$count - 2] == 'UID') {
-                    $uidKey = $count - 1;
-                } elseif ($tokens[2][0] == 'UID') {
-                    $uidKey = 1;
-                } else {
-                    $found = array_search('UID', $tokens[2]);
-
-                    if ($found === false || $found === -1) {
-                        continue;
-                    }
-
-                    $uidKey = $found + 1;
-                }
-            }
-
-            // Ignore other messages.
-            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
-                continue;
-            }
-
-            // If we only want one item we return that one directly.
-            if (count($items) == 1) {
-                if ($tokens[2][0] == $items[0]) {
-                    $data = $tokens[2][1];
-                } elseif ($identifier === Imap::ST_UID && $tokens[2][2] == $items[0]) {
-                    $data = $tokens[2][3];
-                } else {
-                    $expectedResponse = 0;
-
-                    // Maybe the server send another field we didn't wanted.
-                    $count = count($tokens[2]);
-
-                    // We start with 2, because 0 was already checked.
-                    for ($i = 2; $i < $count; $i += 2) {
-                        if ($tokens[2][$i] != $items[0]) {
-                            continue;
-                        }
-
-                        $data = $tokens[2][$i + 1];
-
-                        $expectedResponse = 1;
-
-                        break;
-                    }
-
-                    if (! $expectedResponse) {
-                        continue;
-                    }
-                }
-            } else {
-                while (key($tokens[2]) !== null) {
-                    $data[current($tokens[2])] = next($tokens[2]);
-
-                    next($tokens[2]);
-                }
-            }
-
-            // If we want only one message we can ignore everything else and just return.
-            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
-                // We still need to read all lines.
-                if (! $this->readLine($response, $tokens, $tag)) {
-                    return $response->setResult($data);
-                }
-            }
-
-            if ($identifier === Imap::ST_UID) {
-                $result[$tokens[2][$uidKey]] = $data;
-            } else {
-                $result[$tokens[0]] = $data;
-            }
-        }
-
-        if (is_null($to) && ! is_array($from)) {
-            throw new RuntimeException('The single id was not found in response');
-        }
-
-        return $response->setResult($result);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function folders(string $reference = '', string $folder = '*'): Response
-    {
-        $response = $this->requestAndResponse('LIST', $this->escapeString($reference, $folder));
-
-        $response->setCanBeEmpty(true);
-
-        $list = $response->data();
-
-        $result = [];
-
-        if ($list[0] !== true) {
-            foreach ($list as $item) {
-                if (count($item) != 4 || $item[0] != 'LIST') {
-                    continue;
-                }
-
-                $item[3] = str_replace('\\\\', '\\', str_replace('\\"', '"', $item[3]));
-
-                $result[$item[3]] = [
-                    'delimiter' => $item[2],
-                    'flags' => $item[1],
-                ];
-            }
-        }
-
-        return $response->setResult($result);
     }
 
     /**
@@ -894,7 +243,7 @@ class ImapConnection extends Connection
      */
     public function idle(): void
     {
-        $response = $this->sendRequest('IDLE');
+        $response = $this->sendCommand('IDLE');
 
         while (true) {
             $line = $this->nextLine($response);
@@ -978,27 +327,352 @@ class ImapConnection extends Connection
     }
 
     /**
-     * {@inheritDoc}
+     * Flatten/transform the tokens into the old array-based format if desired.
+     * Otherwise, you can skip this and return $tokens directly.
      */
-    public function getQuota(string $username): Response
+    protected function flattenTokens(array $tokens): array
     {
-        return $this->requestAndResponse('GETQUOTA', ['"#user/'.$username.'"']);
+        $result = [];
+
+        /** @var ImapToken $token */
+        foreach ($tokens as $token) {
+            if ($token->type() === ImapToken::TYPE_LIST) {
+                // Recursively flatten sub-lists.
+                $result[] = $this->flattenTokens($token->value());
+            } else {
+                // Just the raw token value.
+                $result[] = $token->value();
+            }
+        }
+
+        return $result;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function getQuotaRoot(string $quotaRoot = 'INBOX'): Response
+    public function logout(): Response
     {
-        return $this->requestAndResponse('GETQUOTAROOT', [$quotaRoot]);
+        if (! $this->stream->isOpen() || ($this->meta()['timed_out'] ?? false)) {
+            $this->reset();
+
+            return new Response(0, $this->debug);
+        }
+
+        try {
+            $result = $this->requestAndResponse('LOGOUT', [], false);
+
+            $this->stream->close();
+        } catch (Throwable) {
+            $result = null;
+        }
+
+        $this->reset();
+
+        return $result ?? new Response(0, $this->debug);
     }
 
     /**
-     * Enable the debug mode.
+     * {@inheritDoc}
      */
-    public function setDebug(bool $enabled): void
+    public function selectFolder(string $folder = 'INBOX'): Response
     {
-        $this->debug = $enabled;
+        return $this->examineOrSelect('SELECT', $folder);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function examineFolder(string $folder = 'INBOX'): Response
+    {
+        return $this->examineOrSelect('EXAMINE', $folder);
+    }
+
+    /**
+     * Examine and select have the same response.
+     *
+     * @param  string  $command  can be 'EXAMINE' or 'SELECT'
+     * @param  string  $folder  target folder
+     */
+    protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): Response
+    {
+        $response = $this->sendCommand($command, [$this->escapeString($folder)], $tag);
+
+        $result = [];
+        $tokens = [];
+
+        while (! $this->readLine($response, $tokens, $tag)) {
+            if ($tokens[0] == 'FLAGS') {
+                array_shift($tokens);
+
+                $result['flags'] = $tokens;
+
+                continue;
+            }
+
+            switch ($tokens[1]) {
+                case 'EXISTS':
+                case 'RECENT':
+                    $result[strtolower($tokens[1])] = (int) $tokens[0];
+                    break;
+                case '[UIDVALIDITY':
+                    $result['uidvalidity'] = (int) $tokens[2];
+                    break;
+                case '[UIDNEXT':
+                    $result['uidnext'] = (int) $tokens[2];
+                    break;
+                case '[UNSEEN':
+                    $result['unseen'] = (int) $tokens[2];
+                    break;
+                case '[NONEXISTENT]':
+                    throw new RuntimeException("Folder doesn't exist");
+                default:
+                    // ignore
+                    break;
+            }
+        }
+
+        $response->setResult($result);
+
+        if ($tokens[0] != 'OK') {
+            $response->addError('request failed');
+        }
+
+        return $response;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response
+    {
+        $response = $this->requestAndResponse('STATUS', [
+            $this->escapeString($folder),
+            $this->escapeList($arguments),
+        ]);
+
+        $data = $response->getValidatedData();
+
+        if (! isset($data[0]) || ! isset($data[0][2])) {
+            throw new RuntimeException('Folder status could not be fetched');
+        }
+
+        $result = [];
+
+        $key = null;
+
+        foreach ($data[0][2] as $value) {
+            if (is_null($key)) {
+                $key = $value;
+            } else {
+                $result[strtolower($key)] = (int) $value;
+                $key = null;
+            }
+        }
+
+        $response->setResult($result);
+
+        return $response;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function uids(int|array $msgns): Response
+    {
+        return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function contents(int|array $ids): Response
+    {
+        return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function headers(int|array $ids): Response
+    {
+        return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flags(int|array $ids): Response
+    {
+        return $this->fetch(['FLAGS'], Arr::wrap($ids));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sizes(int|array $ids): Response
+    {
+        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
+    }
+
+    /**
+     * Fetch one or more items of one or more messages.
+     */
+    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
+    {
+        if (is_array($from) && count($from) > 1) {
+            $set = implode(',', $from);
+        } elseif (is_array($from) && count($from) === 1) {
+            $set = $from[0].':'.$from[0];
+        } elseif (is_null($to)) {
+            $set = $from.':'.$from;
+        } elseif ($to == INF) {
+            $set = $from.':*';
+        } else {
+            $set = $from.':'.(int) $to;
+        }
+
+        $items = (array) $items;
+
+        $prefix = match ($identifier) {
+            Imap::ST_UID => 'UID',
+            default => '',
+        };
+
+        $response = $this->sendCommand(
+            trim($prefix.' FETCH'),
+            [$set, $this->escapeList($items)],
+            $tag
+        );
+
+        $result = [];
+        $tokens = [];
+
+        while (! $this->readLine($response, $tokens, $tag)) {
+            if (! isset($tokens[1])) {
+                continue;
+            }
+
+            // Ignore other responses.
+            if ($tokens[1] != 'FETCH') {
+                continue;
+            }
+
+            $uidKey = 0;
+            $data = [];
+
+            // Find array key of UID value; try the last elements, or search for it.
+            if ($identifier === Imap::ST_UID) {
+                $count = count($tokens[2]);
+
+                if ($tokens[2][$count - 2] == 'UID') {
+                    $uidKey = $count - 1;
+                } elseif ($tokens[2][0] == 'UID') {
+                    $uidKey = 1;
+                } else {
+                    $found = array_search('UID', $tokens[2]);
+
+                    if ($found === false || $found === -1) {
+                        continue;
+                    }
+
+                    $uidKey = $found + 1;
+                }
+            }
+
+            // Ignore other messages.
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
+                continue;
+            }
+
+            // If we only want one item we return that one directly.
+            if (count($items) == 1) {
+                if ($tokens[2][0] == $items[0]) {
+                    $data = $tokens[2][1];
+                } elseif ($identifier === Imap::ST_UID && $tokens[2][2] == $items[0]) {
+                    $data = $tokens[2][3];
+                } else {
+                    $expectedResponse = 0;
+
+                    // Maybe the server send another field we didn't wanted.
+                    $count = count($tokens[2]);
+
+                    // We start with 2, because 0 was already checked.
+                    for ($i = 2; $i < $count; $i += 2) {
+                        if ($tokens[2][$i] != $items[0]) {
+                            continue;
+                        }
+
+                        $data = $tokens[2][$i + 1];
+
+                        $expectedResponse = 1;
+
+                        break;
+                    }
+
+                    if (! $expectedResponse) {
+                        continue;
+                    }
+                }
+            } else {
+                while (key($tokens[2]) !== null) {
+                    $data[current($tokens[2])] = next($tokens[2]);
+
+                    next($tokens[2]);
+                }
+            }
+
+            // If we want only one message we can ignore everything else and just return.
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
+                // We still need to read all lines.
+                if (! $this->readLine($response, $tokens, $tag)) {
+                    return $response->setResult($data);
+                }
+            }
+
+            if ($identifier === Imap::ST_UID) {
+                $result[$tokens[2][$uidKey]] = $data;
+            } else {
+                $result[$tokens[0]] = $data;
+            }
+        }
+
+        if (is_null($to) && ! is_array($from)) {
+            throw new RuntimeException('The single id was not found in response');
+        }
+
+        return $response->setResult($result);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function folders(string $reference = '', string $folder = '*'): Response
+    {
+        $response = $this->requestAndResponse('LIST', $this->escapeString($reference, $folder));
+
+        $response->setCanBeEmpty(true);
+
+        $list = $response->data();
+
+        $result = [];
+
+        if ($list[0] !== true) {
+            foreach ($list as $item) {
+                if (count($item) != 4 || $item[0] != 'LIST') {
+                    continue;
+                }
+
+                $item[3] = str_replace('\\\\', '\\', str_replace('\\"', '"', $item[3]));
+
+                $result[$item[3]] = [
+                    'delimiter' => $item[2],
+                    'flags' => $item[1],
+                ];
+            }
+        }
+
+        return $response->setResult($result);
     }
 
     /**
@@ -1013,21 +687,5 @@ class ImapConnection extends Connection
         }
 
         return $set;
-    }
-
-    /**
-     * Escape one or more literals i.e. for sendRequest.
-     */
-    protected function escapeString(array|string ...$string): array|string
-    {
-        return Str::literal(...$string);
-    }
-
-    /**
-     * Escape a list with literals or lists.
-     */
-    protected function escapeList(array $list): string
-    {
-        return Str::list($list);
     }
 }

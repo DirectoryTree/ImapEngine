@@ -2,38 +2,12 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use DirectoryTree\ImapEngine\Imap;
-
 interface ConnectionInterface
 {
     /**
-     * Open a new connection / session.
-     *
-     * @param  string  $host  hostname or IP address of IMAP server
-     * @param  int|null  $port  of service server
+     * Open a new connection.
      */
     public function connect(string $host, ?int $port = null): void;
-
-    /**
-     * Login to a new session.
-     *
-     * @param  string  $user  username
-     * @param  string  $password  password
-     */
-    public function login(string $user, string $password): Response;
-
-    /**
-     * Authenticate your current session.
-     *
-     * @param  string  $user  username
-     * @param  string  $token  access token
-     */
-    public function authenticate(string $user, string $token): Response;
-
-    /**
-     * Logout of the current server session.
-     */
-    public function logout(): Response;
 
     /**
      * Check if the current session is connected.
@@ -41,24 +15,60 @@ interface ConnectionInterface
     public function connected(): bool;
 
     /**
-     * Change the current folder.
-     *
-     * @param  string  $folder  change to this folder
-     * @return Response see examineOrSelect()
+     * Login to a new session.
      */
-    public function selectFolder(string $folder = 'INBOX'): Response;
+    public function login(string $user, string $password): Response;
 
     /**
-     * Examine a given folder.
+     * Logout of the current server session.
      */
-    public function examineFolder(string $folder = 'INBOX'): Response;
+    public function logout(): Response;
 
     /**
-     * Get the status of a given folder.
-     *
-     * @return Response list of STATUS items
+     * Authenticate the current session.
      */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response;
+    public function authenticate(string $user, string $token): Response;
+
+    /**
+     * Send idle command.
+     */
+    public function idle(): void;
+
+    /**
+     * Send done command.
+     */
+    public function done(): void;
+
+    /**
+     * Send noop command.
+     */
+    public function noop(): Response;
+
+    /**
+     * Apply session saved changes to the server.
+     */
+    public function expunge(): Response;
+
+    /**
+     * Get an array of available capabilities.
+     *
+     * @return Response containing a list of capabilities
+     */
+    public function capability(): Response;
+
+    /**
+     * Execute a search request.
+     *
+     * @return Response containing the message ids
+     */
+    public function search(array $params): Response;
+
+    /**
+     * Exchange identification information.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc2971.
+     */
+    public function id(?array $ids = null): Response;
 
     /**
      * Fetch message UIDs using the given message numbers.
@@ -86,6 +96,16 @@ interface ConnectionInterface
     public function sizes(int|array $ids): Response;
 
     /**
+     * Select the given folder.
+     */
+    public function selectFolder(string $folder): Response;
+
+    /**
+     * Examine a given folder.
+     */
+    public function examineFolder(string $folder): Response;
+
+    /**
      * Get a list of available folders.
      *
      * @param  string  $reference  mailbox reference for list
@@ -93,6 +113,13 @@ interface ConnectionInterface
      * @return Response containing mailboxes that matched $folder as array(globalName => array('delim' => .., 'flags' => ..))
      */
     public function folders(string $reference = '', string $folder = '*'): Response;
+
+    /**
+     * Get the status of a given folder.
+     *
+     * @return Response list of STATUS items
+     */
+    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response;
 
     /**
      * Set message flags.
@@ -155,13 +182,6 @@ interface ConnectionInterface
     public function moveManyMessages(array $messages, string $folder): Response;
 
     /**
-     * Exchange identification information.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc2971.
-     */
-    public function id(?array $ids = null): Response;
-
-    /**
      * Create a new folder.
      *
      * @param  string  $folder  folder name
@@ -196,48 +216,4 @@ interface ConnectionInterface
      * @param  string  $folder  folder name
      */
     public function unsubscribeFolder(string $folder): Response;
-
-    /**
-     * Send idle command.
-     */
-    public function idle(): void;
-
-    /**
-     * Send done command.
-     */
-    public function done(): void;
-
-    /**
-     * Apply session saved changes to the server.
-     */
-    public function expunge(): Response;
-
-    /**
-     * Get an array of available capabilities.
-     *
-     * @return Response containing a list of capabilities
-     */
-    public function capability(): Response;
-
-    /**
-     * Retrieve the quota level settings, and usage statics per mailbox.
-     */
-    public function getQuota(string $username): Response;
-
-    /**
-     * Retrieve the quota settings per user.
-     */
-    public function getQuotaRoot(string $quotaRoot = 'INBOX'): Response;
-
-    /**
-     * Send noop command.
-     */
-    public function noop(): Response;
-
-    /**
-     * Execute a search request.
-     *
-     * @return Response containing the message ids
-     */
-    public function search(array $params): Response;
 }
