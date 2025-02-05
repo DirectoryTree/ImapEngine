@@ -539,8 +539,7 @@ class ImapConnection extends Connection
     }
 
     /**
-     * Flatten/transform the tokens into the old array-based format if desired.
-     * Otherwise, you can skip this and return $tokens directly.
+     * Flatten the tokens into an array.
      */
     protected function flattenTokens(array $tokens): array
     {
