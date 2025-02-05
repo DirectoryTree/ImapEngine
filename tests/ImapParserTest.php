@@ -6,9 +6,10 @@ use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
 
 test('parses an untagged response including the asterisk token', function () {
     $stream = new FakeStream;
+
     $stream->open();
-    // Note: include a trailing CRLF if your parser expects line termination.
-    $stream->feed("* OK Dovecot ready.\r\n");
+
+    $stream->feed('* OK Dovecot ready.');
 
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
@@ -19,28 +20,30 @@ test('parses an untagged response including the asterisk token', function () {
 
 test('parses a list response', function () {
     $stream = new FakeStream;
+
     $stream->open();
+
     // A simple list response.
-    $stream->feed("(A B C)\r\n");
+    $stream->feed('(A B C)');
 
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $result = $parser->parse();
-    expect($result)->toEqual(['A', 'B', 'C']);
+    expect($parser->parse())->toEqual(['A', 'B', 'C']);
 });
 
 test('parses a quoted string', function () {
     $stream = new FakeStream;
+
     $stream->open();
+
     // Feed a quoted string.
-    $stream->feed("\"Hello, world!\"\r\n");
+    $stream->feed('"Hello, world!"');
 
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $result = $parser->parse();
-    expect($result)->toEqual('Hello, world!');
+    expect($parser->parse())->toEqual('Hello, world!');
 });
 
 test('parses a literal block', function () {
@@ -53,9 +56,7 @@ test('parses a literal block', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $result = $parser->parse();
-
-    expect($result)->toEqual('Hello');
+    expect($parser->parse())->toEqual('Hello');
 });
 
 test('parses a nested list response', function () {
@@ -69,9 +70,7 @@ test('parses a nested list response', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $result = $parser->parse();
-
-    expect($result)->toEqual(['A', ['B', 'C'], 'D']);
+    expect($parser->parse())->toEqual(['A', ['B', 'C'], 'D']);
 });
 
 test('parses a tagged response', function () {
@@ -100,14 +99,31 @@ test('parses a tagged response', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $result = $parser->parse();
-
-    expect($result)->toEqual([
+    expect($parser->parse())->toEqual([
         '*', '1', 'FETCH', ['UID', '101'],
         '*', '2', 'FETCH', ['UID', '102'],
         'TAG1', 'OK', 'FETCH', 'completed',
         '*', '3', 'FETCH', ['UID', '101', 'RFC822.HEADER', 'Subject: Foo'],
         '*', '4', 'FETCH', ['UID', '102', 'RFC822.HEADER', 'Subject: Bar'],
         'TAG2', 'OK', 'FETCH', 'completed',
+    ]);
+});
+
+test('parses quota response', function () {
+    $stream = new FakeStream;
+
+    $stream->open();
+
+    $stream->feed([
+        '* QUOTA "#user/testuser" (STORAGE 512 1024)',
+        'TAG1 OK GETQUOTA completed',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    expect($parser->parse())->toEqual([
+        '*', 'QUOTA', '#user/testuser', ['STORAGE', '512', '1024'],
+        'TAG1', 'OK', 'GETQUOTA', 'completed',
     ]);
 });
