@@ -227,8 +227,6 @@ class ImapTokenizer
         $this->advance(2);
         $length = (int) $numStr;
 
-        $literal = '';
-
         // First, use any data that is already in our buffer.
         $available = strlen($this->buffer) - $this->pos;
 
