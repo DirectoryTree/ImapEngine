@@ -15,6 +15,11 @@ interface StreamInterface
     public function close(): void;
 
     /**
+     * Read data from the stream.
+     */
+    public function read(int $length): string|false;
+
+    /**
      * Read a single line from the stream.
      */
     public function fgets(): string|false;

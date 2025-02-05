@@ -53,6 +53,30 @@ class ImapStream implements StreamInterface
     /**
      * {@inheritDoc}
      */
+    public function read(int $length): string|false
+    {
+        if (! $this->isOpen()) {
+            return false;
+        }
+
+        $data = '';
+
+        while (strlen($data) < $length && ! feof($this->stream)) {
+            $chunk = fread($this->stream, $length - strlen($data));
+
+            if ($chunk === false) {
+                return false;
+            }
+
+            $data .= $chunk;
+        }
+
+        return $data;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function fgets(): string|false
     {
         if (! $this->isOpen()) {
