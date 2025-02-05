@@ -8,6 +8,11 @@ use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 class Folder
 {
     /**
+     * The folder's cached capabilities.
+     */
+    protected array $capabilities;
+
+    /**
      * Constructor.
      */
     public function __construct(
