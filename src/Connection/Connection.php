@@ -75,7 +75,196 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * {@inheritDoc}
+     * Check if the current stream is open.
+     */
+    public function connected(): bool
+    {
+        return $this->stream->isOpen();
+    }
+
+    /**
+     * Get metadata about the current stream.
+     */
+    public function meta(): array
+    {
+        if ($this->stream->isOpen()) {
+            return $this->stream->meta();
+        }
+
+        return [
+            'crypto' => [
+                'protocol' => '',
+                'cipher_name' => '',
+                'cipher_bits' => 0,
+                'cipher_version' => '',
+            ],
+            'timed_out' => true,
+            'blocked' => true,
+            'eof' => true,
+            'stream_type' => 'tcp_socket/unknown',
+            'mode' => 'c',
+            'unread_bytes' => 0,
+            'seekable' => false,
+        ];
+    }
+
+    /**
+     * Set the encryption method.
+     */
+    public function setEncryption(string $encryption): void
+    {
+        $this->encryption = $encryption;
+    }
+
+    /**
+     * Get the encryption method.
+     */
+    public function getEncryption(): ?string
+    {
+        return $this->encryption;
+    }
+
+    /**
+     * Set SSL certificate validation.
+     */
+    public function setCertValidation(int $certValidation): Connection
+    {
+        $this->certValidation = $certValidation;
+
+        return $this;
+    }
+
+    /**
+     * Should we validate SSL certificate?
+     */
+    public function getCertValidation(): bool
+    {
+        return $this->certValidation;
+    }
+
+    /**
+     * Set connection proxy settings.
+     */
+    public function setProxy(array $options): Connection
+    {
+        foreach ($this->proxy as $key => $val) {
+            if (isset($options[$key])) {
+                $this->proxy[$key] = $options[$key];
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the current proxy settings.
+     */
+    public function getProxy(): array
+    {
+        return $this->proxy;
+    }
+
+    /**
+     * Enable or disable debug mode.
+     */
+    public function setDebug(bool $enabled): void
+    {
+        $this->debug = $enabled;
+    }
+
+    /**
+     * Get the current connection timeout.
+     */
+    public function getConnectionTimeout(): int
+    {
+        return $this->connectionTimeout;
+    }
+
+    /**
+     * Set the connection timeout.
+     */
+    public function setConnectionTimeout(int $connectionTimeout): Connection
+    {
+        $this->connectionTimeout = $connectionTimeout;
+
+        return $this;
+    }
+
+    /**
+     * Set the stream timeout.
+     */
+    public function setStreamTimeout(int $streamTimeout): Connection
+    {
+        if (! $this->stream->setTimeout($streamTimeout)) {
+            throw new ConnectionFailedException('Failed to set stream timeout');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get an available cryptographic method.
+     */
+    public function getCryptoMethod(): int
+    {
+        // Allow the best TLS version(s) we can.
+        $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+
+        if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
+            $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+        } elseif (defined('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT')) {
+            $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT;
+        }
+
+        return $cryptoMethod;
+    }
+
+    /**
+     * Enable TLS on the current connection.
+     */
+    protected function enableStartTls(): void
+    {
+        $response = $this->requestAndResponse('STARTTLS');
+
+        $result = $response->successful() && $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
+
+        if (! $result) {
+            throw new ConnectionFailedException('Failed to enable TLS');
+        }
+    }
+
+    /**
+     * Get the default socket options.
+     */
+    protected function getDefaultSocketOptions(string $transport): array
+    {
+        $options = [];
+
+        if ($this->encryption) {
+            $options['ssl'] = [
+                'verify_peer_name' => $this->getCertValidation(),
+                'verify_peer' => $this->getCertValidation(),
+            ];
+        }
+
+        if ($this->proxy['socket']) {
+            $options[$transport]['proxy'] = $this->proxy['socket'];
+            $options[$transport]['request_fulluri'] = $this->proxy['request_fulluri'];
+
+            if ($this->proxy['username'] != null) {
+                $auth = base64_encode($this->proxy['username'].':'.$this->proxy['password']);
+
+                $options[$transport]['header'] = [
+                    "Proxy-Authorization: Basic $auth",
+                ];
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Connect to a host.
      */
     public function connect(string $host, ?int $port = null): void
     {
@@ -170,6 +359,24 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
+     * Write data to the current stream.
+     */
+    protected function write(Response $response, string $data): void
+    {
+        $command = $data."\r\n";
+
+        if ($this->debug) {
+            echo '>> '.$command."\n";
+        }
+
+        $response->addCommand($command);
+
+        if ($this->stream->fwrite($command) === false) {
+            throw new RuntimeException('Failed to write - connection closed?');
+        }
+    }
+
+    /**
      * Send a new IMAP request.
      *
      * @param  array  $tokens  additional parameters to command, use escapeString() to prepare
@@ -210,24 +417,6 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Write data to the current stream.
-     */
-    protected function write(Response $response, string $data): void
-    {
-        $command = $data."\r\n";
-
-        if ($this->debug) {
-            echo '>> '.$command."\n";
-        }
-
-        $response->addCommand($command);
-
-        if ($this->stream->fwrite($command) === false) {
-            throw new RuntimeException('Failed to write - connection closed?');
-        }
-    }
-
-    /**
      * Send a request and get response at once.
      *
      * @param  bool  $parse  if true, parse the response lines into tokens; if false, return raw lines
@@ -244,192 +433,24 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Enable TLS on the current connection.
+     * Read and optionally parse a response "line".
+     *
+     * @param  array|string  $tokens  to decode
+     * @param  string  $wantedTag  targeted tag
+     * @param  bool  $parse  if true, line is decoded into tokens; if false, the unparsed line is returned
      */
-    protected function enableStartTls(): void
+    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
     {
-        $response = $this->requestAndResponse('STARTTLS');
+        $line = $this->nextTaggedLine($response, $tag); // Get next tag.
 
-        $result = $response->successful() && $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
-
-        if (! $result) {
-            throw new ConnectionFailedException('Failed to enable TLS');
-        }
-    }
-
-    /**
-     * Get an available cryptographic method.
-     */
-    public function getCryptoMethod(): int
-    {
-        // Allow the best TLS version(s) we can.
-        $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
-
-        if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
-            $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
-        } elseif (defined('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT')) {
-            $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT;
+        if ($parse) {
+            $tokens = $this->tokenize($line);
+        } else {
+            $tokens = $line;
         }
 
-        return $cryptoMethod;
-    }
-
-    /**
-     * Set SSL certificate validation.
-     */
-    public function setCertValidation(int $certValidation): Connection
-    {
-        $this->certValidation = $certValidation;
-
-        return $this;
-    }
-
-    /**
-     * Should we validate SSL certificate?
-     */
-    public function getCertValidation(): bool
-    {
-        return $this->certValidation;
-    }
-
-    /**
-     * Set connection proxy settings.
-     */
-    public function setProxy(array $options): Connection
-    {
-        foreach ($this->proxy as $key => $val) {
-            if (isset($options[$key])) {
-                $this->proxy[$key] = $options[$key];
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the current proxy settings.
-     */
-    public function getProxy(): array
-    {
-        return $this->proxy;
-    }
-
-    /**
-     * Enable or disable debug mode.
-     */
-    public function setDebug(bool $enabled): void
-    {
-        $this->debug = $enabled;
-    }
-
-    /**
-     * Get the current connection timeout.
-     */
-    public function getConnectionTimeout(): int
-    {
-        return $this->connectionTimeout;
-    }
-
-    /**
-     * Set the connection timeout.
-     */
-    public function setConnectionTimeout(int $connectionTimeout): Connection
-    {
-        $this->connectionTimeout = $connectionTimeout;
-
-        return $this;
-    }
-
-    /**
-     * Set the stream timeout.
-     */
-    public function setStreamTimeout(int $streamTimeout): Connection
-    {
-        if (! $this->stream->setTimeout($streamTimeout)) {
-            throw new ConnectionFailedException('Failed to set stream timeout');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Set the encryption method.
-     */
-    public function setEncryption(string $encryption): void
-    {
-        $this->encryption = $encryption;
-    }
-
-    /**
-     * Get the encryption method.
-     */
-    public function getEncryption(): ?string
-    {
-        return $this->encryption;
-    }
-
-    /**
-     * Check if the current stream is open.
-     */
-    public function connected(): bool
-    {
-        return $this->stream->isOpen();
-    }
-
-    /**
-     * Get metadata about the current stream.
-     */
-    public function meta(): array
-    {
-        if ($this->stream->isOpen()) {
-            return $this->stream->meta();
-        }
-
-        return [
-            'crypto' => [
-                'protocol' => '',
-                'cipher_name' => '',
-                'cipher_bits' => 0,
-                'cipher_version' => '',
-            ],
-            'timed_out' => true,
-            'blocked' => true,
-            'eof' => true,
-            'stream_type' => 'tcp_socket/unknown',
-            'mode' => 'c',
-            'unread_bytes' => 0,
-            'seekable' => false,
-        ];
-    }
-
-    /**
-     * Get the default socket options.
-     */
-    protected function getDefaultSocketOptions(string $transport): array
-    {
-        $options = [];
-
-        if ($this->encryption) {
-            $options['ssl'] = [
-                'verify_peer_name' => $this->getCertValidation(),
-                'verify_peer' => $this->getCertValidation(),
-            ];
-        }
-
-        if ($this->proxy['socket']) {
-            $options[$transport]['proxy'] = $this->proxy['socket'];
-            $options[$transport]['request_fulluri'] = $this->proxy['request_fulluri'];
-
-            if ($this->proxy['username'] != null) {
-                $auth = base64_encode($this->proxy['username'].':'.$this->proxy['password']);
-
-                $options[$transport]['header'] = [
-                    "Proxy-Authorization: Basic $auth",
-                ];
-            }
-        }
-
-        return $options;
+        // If tag is wanted tag we might be at the end of a multiline response.
+        return $tag == $wantedTag;
     }
 
     /**
@@ -468,27 +489,6 @@ abstract class Connection implements ConnectionInterface
         }
 
         throw ImapBadRequestException::fromResponseTokens($original);
-    }
-
-    /**
-     * Read and optionally parse a response "line".
-     *
-     * @param  array|string  $tokens  to decode
-     * @param  string  $wantedTag  targeted tag
-     * @param  bool  $parse  if true, line is decoded into tokens; if false, the unparsed line is returned
-     */
-    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
-    {
-        $line = $this->nextTaggedLine($response, $tag); // Get next tag.
-
-        if ($parse) {
-            $tokens = $this->tokenize($line);
-        } else {
-            $tokens = $line;
-        }
-
-        // If tag is wanted tag we might be at the end of a multiline response.
-        return $tag == $wantedTag;
     }
 
     /**
