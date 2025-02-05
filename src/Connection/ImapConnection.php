@@ -107,11 +107,13 @@ class ImapConnection extends Connection
      */
     protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): Response
     {
+        // Send the command and retrieve the tag.
         $response = $this->sendCommand($command, [$this->escapeString($folder)], $tag);
 
         $result = [];
         $tokens = [];
 
+        // Continuously read lines associate with the tag to collect the final response.
         while (! $this->readLine($response, $tokens, $tag)) {
             if ($tokens[0] == 'FLAGS') {
                 array_shift($tokens);
@@ -327,14 +329,8 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function store(
-        array|string $flags,
-        int $from,
-        ?int $to = null,
-        ?string $mode = null,
-        bool $silent = true,
-        ?string $item = null
-    ): Response {
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response
+    {
         $flags = $this->escapeList(Arr::wrap($flags));
 
         $set = $this->buildSet($from, $to);
