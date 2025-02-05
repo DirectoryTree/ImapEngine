@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapBadRequestException;
 use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Imap;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Illuminate\Support\Arr;
@@ -498,6 +499,135 @@ abstract class Connection implements ConnectionInterface
         return $this->flattenTokens(
             (new ImapStreamTokenizer)->tokenize($this->stream, $line)
         );
+    }
+
+    /**
+     * Fetch one or more items of one or more messages.
+     */
+    protected function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
+    {
+        if (is_array($from) && count($from) > 1) {
+            $set = implode(',', $from);
+        } elseif (is_array($from) && count($from) === 1) {
+            $set = $from[0].':'.$from[0];
+        } elseif (is_null($to)) {
+            $set = $from.':'.$from;
+        } elseif ($to == INF) {
+            $set = $from.':*';
+        } else {
+            $set = $from.':'.(int) $to;
+        }
+
+        $items = (array) $items;
+
+        $prefix = match ($identifier) {
+            Imap::ST_UID => 'UID',
+            default => '',
+        };
+
+        $response = $this->sendCommand(
+            trim($prefix.' FETCH'),
+            [$set, $this->escapeList($items)],
+            $tag
+        );
+
+        $result = [];
+        $tokens = [];
+
+        while (! $this->readLine($response, $tokens, $tag)) {
+            if (! isset($tokens[1])) {
+                continue;
+            }
+
+            // Ignore other responses.
+            if ($tokens[1] != 'FETCH') {
+                continue;
+            }
+
+            $uidKey = 0;
+            $data = [];
+
+            // Find array key of UID value; try the last elements, or search for it.
+            if ($identifier === Imap::ST_UID) {
+                $count = count($tokens[2]);
+
+                if ($tokens[2][$count - 2] == 'UID') {
+                    $uidKey = $count - 1;
+                } elseif ($tokens[2][0] == 'UID') {
+                    $uidKey = 1;
+                } else {
+                    $found = array_search('UID', $tokens[2]);
+
+                    if ($found === false || $found === -1) {
+                        continue;
+                    }
+
+                    $uidKey = $found + 1;
+                }
+            }
+
+            // Ignore other messages.
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
+                continue;
+            }
+
+            // If we only want one item we return that one directly.
+            if (count($items) == 1) {
+                if ($tokens[2][0] == $items[0]) {
+                    $data = $tokens[2][1];
+                } elseif ($identifier === Imap::ST_UID && $tokens[2][2] == $items[0]) {
+                    $data = $tokens[2][3];
+                } else {
+                    $expectedResponse = 0;
+
+                    // Maybe the server send another field we didn't wanted.
+                    $count = count($tokens[2]);
+
+                    // We start with 2, because 0 was already checked.
+                    for ($i = 2; $i < $count; $i += 2) {
+                        if ($tokens[2][$i] != $items[0]) {
+                            continue;
+                        }
+
+                        $data = $tokens[2][$i + 1];
+
+                        $expectedResponse = 1;
+
+                        break;
+                    }
+
+                    if (! $expectedResponse) {
+                        continue;
+                    }
+                }
+            } else {
+                while (key($tokens[2]) !== null) {
+                    $data[current($tokens[2])] = next($tokens[2]);
+
+                    next($tokens[2]);
+                }
+            }
+
+            // If we want only one message we can ignore everything else and just return.
+            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
+                // We still need to read all lines.
+                if (! $this->readLine($response, $tokens, $tag)) {
+                    return $response->setResult($data);
+                }
+            }
+
+            if ($identifier === Imap::ST_UID) {
+                $result[$tokens[2][$uidKey]] = $data;
+            } else {
+                $result[$tokens[0]] = $data;
+            }
+        }
+
+        if (is_null($to) && ! is_array($from)) {
+            throw new RuntimeException('The single id was not found in response');
+        }
+
+        return $response->setResult($result);
     }
 
     /**
