@@ -35,7 +35,6 @@ class ImapTokenizer
     protected function ensureBuffer(int $length): void
     {
         while ((strlen($this->buffer) - $this->pos) < $length) {
-
             $data = $this->stream->fgets();
 
             if ($data === false) {
