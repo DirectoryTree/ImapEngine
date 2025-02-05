@@ -543,12 +543,12 @@ class ImapConnection extends Connection
 
         /** @var ImapToken $token */
         foreach ($tokens as $token) {
-            if ($token->type() === ImapToken::TYPE_LIST) {
+            if ($token->type === ImapToken::TYPE_LIST) {
                 // Recursively flatten sub-lists.
-                $result[] = $this->flattenTokens($token->value());
+                $result[] = $this->flattenTokens($token->value);
             } else {
                 // Just the raw token value.
-                $result[] = $token->value();
+                $result[] = $token->value;
             }
         }
 
