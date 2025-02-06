@@ -27,7 +27,7 @@ class ImapTokenizer
     /**
      * The current position in the buffer.
      */
-    protected int $pos = 0;
+    protected int $position = 0;
 
     /**
      * Constructor.
@@ -38,51 +38,7 @@ class ImapTokenizer
     }
 
     /**
-     * Ensures that at least the given length in characters are available in the buffer.
-     */
-    protected function ensureBuffer(int $length): void
-    {
-        while ((strlen($this->buffer) - $this->pos) < $length) {
-            $data = $this->stream->fgets();
-
-            if ($data === false) {
-                break;
-            }
-
-            $this->buffer .= $data;
-        }
-    }
-
-    /**
-     * Returns the current character in the buffer.
-     */
-    protected function currentChar(): ?string
-    {
-        if ($this->pos < strlen($this->buffer)) {
-            return $this->buffer[$this->pos];
-        }
-
-        return null;
-    }
-
-    /**
-     * Advances the internal pointer by $n characters.
-     */
-    protected function advance(int $n = 1): void
-    {
-        $this->pos += $n;
-
-        // If we have consumed the entire buffer, reset it.
-        if ($this->pos >= strlen($this->buffer)) {
-            $this->buffer = '';
-            $this->pos = 0;
-        }
-    }
-
-    /**
      * Returns the next token from the stream.
-     *
-     * The token is an array with 'type' and 'value' keys.
      *
      * @throws ImapParseException
      */
@@ -100,35 +56,36 @@ class ImapTokenizer
 
         // Check for carriage return.
         if ($char === "\r") {
-            // Skip the carriage return.
-            $this->advance(2);
+            // Skip the new line ("\n") character.
+            $this->advance();
+
             $this->ensureBuffer(1);
 
             return new Crlf("\r\n");
         }
 
-        // Check for list open.
+        // Check for list opening.
         if ($char === '(') {
             $this->advance();
 
             return new ListOpen('(');
         }
 
-        // Check for list close.
+        // Check for a list closing.
         if ($char === ')') {
             $this->advance();
 
             return new ListClose(')');
         }
 
-        // Check for bracket open.
+        // Check for a group opening.
         if ($char === '[') {
             $this->advance();
 
             return new GroupOpen('[');
         }
 
-        // Check for bracket close.
+        // Check for group closing.
         if ($char === ']') {
             $this->advance();
 
@@ -250,6 +207,7 @@ class ImapTokenizer
 
         while (true) {
             $this->ensureBuffer(1);
+
             $char = $this->currentChar();
 
             if ($char === null) {
@@ -271,7 +229,7 @@ class ImapTokenizer
         $this->ensureBuffer(2);
 
         // Get the carriage return.
-        $crlf = substr($this->buffer, $this->pos, 2);
+        $crlf = substr($this->buffer, $this->position, 2);
 
         if ($crlf !== "\r\n") {
             throw new ImapParseException('Expected CRLF after literal specifier');
@@ -282,18 +240,18 @@ class ImapTokenizer
         $length = (int) $numStr;
 
         // Use any data that is already in our buffer.
-        $available = strlen($this->buffer) - $this->pos;
+        $available = strlen($this->buffer) - $this->position;
 
         if ($available >= $length) {
-            $literal = substr($this->buffer, $this->pos, $length);
+            $literal = substr($this->buffer, $this->position, $length);
 
             $this->advance($length);
         } else {
-            $literal = substr($this->buffer, $this->pos);
+            $literal = substr($this->buffer, $this->position);
 
             // Flush the current buffer.
             $this->buffer = '';
-            $this->pos = 0;
+            $this->position = 0;
 
             $remaining = $length - strlen($literal);
 
@@ -347,6 +305,45 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return new Atom($value);
+        return $value ? new Atom($value) : null;
+    }
+
+    /**
+     * Ensures that at least the given length in characters are available in the buffer.
+     */
+    protected function ensureBuffer(int $length): void
+    {
+        // If we have enough data in the buffer, return early.
+        while ((strlen($this->buffer) - $this->position) < $length) {
+            $data = $this->stream->fgets();
+
+            if ($data === false) {
+                break;
+            }
+
+            $this->buffer .= $data;
+        }
+    }
+
+    /**
+     * Returns the current character in the buffer.
+     */
+    protected function currentChar(): ?string
+    {
+        return $this->buffer[$this->position] ?? null;
+    }
+
+    /**
+     * Advances the internal pointer by $n characters.
+     */
+    protected function advance(int $n = 1): void
+    {
+        $this->position += $n;
+
+        // If we have consumed the entire buffer, reset it.
+        if ($this->position >= strlen($this->buffer)) {
+            $this->buffer = '';
+            $this->position = 0;
+        }
     }
 }

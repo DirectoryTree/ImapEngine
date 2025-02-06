@@ -33,8 +33,6 @@ class ImapStream implements StreamInterface
             throw new ConnectionFailedException('Stream failed to open: '.$errstr, $errno);
         }
 
-        stream_set_blocking($this->stream, true);
-
         return true;
     }
 

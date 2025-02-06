@@ -39,8 +39,6 @@ class ImapParser
     public function __construct(ImapTokenizer $tokenizer)
     {
         $this->tokenizer = $tokenizer;
-
-        $this->advance(); // Load the first token.
     }
 
     /**
@@ -54,8 +52,10 @@ class ImapParser
      */
     public function parse(): Data|Token|Response
     {
+        $this->advance(); // Load the first token.
+
         if ($this->currentToken === null) {
-            throw new ImapParseException('Empty response');
+            throw new ImapParseException('Empty response.');
         }
 
         // If the current token is a quoted string or a literal,

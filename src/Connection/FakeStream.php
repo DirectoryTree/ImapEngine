@@ -54,7 +54,9 @@ class FakeStream implements StreamInterface
     {
         // We'll ensure that each line ends with a newline character
         // as this is the expected behavior of the IMAP a stream.
-        $lines = array_map(fn ($line) => rtrim($line, "\r\n")."\r\n", Arr::wrap($lines));
+        $lines = array_map(fn (string $line) => (
+            rtrim($line, "\r\n")."\r\n"
+        ), Arr::wrap($lines));
 
         array_push($this->buffer, ...$lines);
 
@@ -116,6 +118,7 @@ class FakeStream implements StreamInterface
         }
 
         $data = implode('', $this->buffer);
+
         $availableLength = strlen($data);
 
         if ($availableLength === 0) {
@@ -144,7 +147,9 @@ class FakeStream implements StreamInterface
             return false;
         }
 
-        return array_shift($this->buffer) ?: false;
+        $line = array_shift($this->buffer);
+
+        return $line === null ? false : $line;
     }
 
     /**
