@@ -50,7 +50,7 @@ class ImapTokenizer
 
         $char = $this->currentChar();
 
-        if ($char === null || $char === '') {
+        if (empty($char)) {
             return null;
         }
 

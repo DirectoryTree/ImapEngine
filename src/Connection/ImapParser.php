@@ -46,7 +46,7 @@ class ImapParser
      *
      * This method dispatches to specialized methods based on the type
      * and value of the current token. It expects that the tokenizer
-     * will eventually emit an end-of-response marker (CRLF).
+     * will eventually return an end-of-response marker (CRLF).
      *
      * @throws ImapParseException if the response is empty.
      */
