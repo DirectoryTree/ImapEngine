@@ -9,6 +9,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\GroupOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
@@ -109,6 +110,11 @@ class ImapTokenizer
         // Check for literal block open.
         if ($char === '{') {
             return $this->readLiteral();
+        }
+
+        // Check for NIL (null) value.
+        if ($char === 'N') {
+            return $this->readNil();
         }
 
         // Otherwise, parse an atom.
@@ -273,6 +279,26 @@ class ImapTokenizer
         }
 
         return empty($literal) ? null : new Literal($literal);
+    }
+
+    /**
+     * Reads a NIL token.
+     *
+     * NIL is a special token that represents a null value.
+     */
+    protected function readNil(): ?Nil
+    {
+        $this->ensureBuffer(3);
+
+        $nil = substr($this->buffer, $this->position, 3);
+
+        if ($nil === 'NIL') {
+            $this->advance(3);
+
+            return new Nil('NIL');
+        }
+
+        throw new ImapParseException('Expected NIL token');
     }
 
     /**
