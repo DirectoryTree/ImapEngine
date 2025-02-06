@@ -11,12 +11,12 @@ use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
-use DirectoryTree\ImapEngine\Connection\Tokens\GroupClose;
-use DirectoryTree\ImapEngine\Connection\Tokens\GroupOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
+use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
+use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
 class ImapParser
@@ -182,7 +182,7 @@ class ImapParser
 
         while (
             $this->currentToken !== null
-            && ! $this->currentToken instanceof GroupClose
+            && ! $this->currentToken instanceof ResponseCodeClose
             && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
             $elements[] = $this->parseElement();
@@ -248,7 +248,7 @@ class ImapParser
         }
 
         // If the token indicates the start of a group, parse it as a group.
-        if ($this->currentToken instanceof GroupOpen) {
+        if ($this->currentToken instanceof ResponseCodeOpen) {
             return $this->parseBracketGroup();
         }
 
