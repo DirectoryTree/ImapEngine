@@ -2,7 +2,15 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use Exception;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
+use DirectoryTree\ImapEngine\Connection\Tokens\GroupClose;
+use DirectoryTree\ImapEngine\Connection\Tokens\GroupOpen;
+use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
+use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
+use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
 class ImapTokenizer
 {
@@ -72,30 +80,13 @@ class ImapTokenizer
     }
 
     /**
-     * Skips whitespace characters.
-     */
-    protected function skipWhitespace(): void
-    {
-        while (true) {
-            $this->ensureBuffer(1);
-            $char = $this->currentChar();
-
-            if ($char === null || ! ctype_space($char)) {
-                break;
-            }
-
-            $this->advance();
-        }
-    }
-
-    /**
      * Returns the next token from the stream.
      *
      * The token is an array with 'type' and 'value' keys.
      *
-     * @throws Exception
+     * @throws ImapParseException
      */
-    public function nextToken(): ?array
+    public function nextToken(): ?Token
     {
         $this->skipWhitespace();
 
@@ -107,17 +98,41 @@ class ImapTokenizer
             return null;
         }
 
-        // Check for list delimiters.
+        // Check for carriage return.
+        if ($char === "\r") {
+            // Skip the carriage return.
+            $this->advance(2);
+            $this->ensureBuffer(1);
+
+            return new Crlf("\r\n");
+        }
+
+        // Check for list open.
         if ($char === '(') {
             $this->advance();
 
-            return ['type' => 'LIST_OPEN', 'value' => '('];
+            return new ListOpen('(');
         }
 
+        // Check for list close.
         if ($char === ')') {
             $this->advance();
 
-            return ['type' => 'LIST_CLOSE', 'value' => ')'];
+            return new ListClose(')');
+        }
+
+        // Check for bracket open.
+        if ($char === '[') {
+            $this->advance();
+
+            return new GroupOpen('[');
+        }
+
+        // Check for bracket close.
+        if ($char === ']') {
+            $this->advance();
+
+            return new GroupClose(']');
         }
 
         // Check for quoted string.
@@ -125,7 +140,7 @@ class ImapTokenizer
             return $this->readQuotedString();
         }
 
-        // Check for literal block.
+        // Check for literal block open.
         if ($char === '{') {
             return $this->readLiteral();
         }
@@ -135,13 +150,41 @@ class ImapTokenizer
     }
 
     /**
+     * Skips whitespace characters (spaces and tabs only, preserving CRLF).
+     */
+    protected function skipWhitespace(): void
+    {
+        while (true) {
+            $this->ensureBuffer(1);
+            $char = $this->currentChar();
+
+            // Break on EOF.
+            if ($char === null) {
+                break;
+            }
+
+            // Break on CRLF.
+            if ($char === "\r" || $char === "\n") {
+                break;
+            }
+
+            // Break on non-whitespace.
+            if ($char !== ' ' && $char !== "\t") {
+                break;
+            }
+
+            $this->advance();
+        }
+    }
+
+    /**
      * Reads a quoted string token.
      *
      * Quoted strings are enclosed in double quotes and may contain escaped characters.
      *
-     * @throws Exception
+     * @throws ImapParseException
      */
-    protected function readQuotedString(): array
+    protected function readQuotedString(): QuotedString
     {
         // Skip the opening quote.
         $this->advance();
@@ -150,22 +193,26 @@ class ImapTokenizer
 
         while (true) {
             $this->ensureBuffer(1);
+
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new Exception('Unterminated quoted string');
+                throw new ImapParseException('Unterminated quoted string');
             }
 
             if ($char === '\\') {
                 $this->advance(); // Skip the backslash.
+
                 $this->ensureBuffer(1);
+
                 $escapedChar = $this->currentChar();
 
                 if ($escapedChar === null) {
-                    throw new Exception('Unterminated escape sequence in quoted string');
+                    throw new ImapParseException('Unterminated escape sequence in quoted string');
                 }
 
                 $value .= $escapedChar;
+
                 $this->advance();
 
                 continue;
@@ -173,6 +220,7 @@ class ImapTokenizer
 
             if ($char === '"') {
                 $this->advance(); // Skip the closing quote.
+
                 break;
             }
 
@@ -181,7 +229,7 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return ['type' => 'QUOTED_STRING', 'value' => $value];
+        return new QuotedString($value);
     }
 
     /**
@@ -189,13 +237,15 @@ class ImapTokenizer
      *
      * Literal blocks in IMAP have the form {<size>}\r\n<data>.
      *
-     * @throws Exception
+     * @throws ImapParseException
      */
-    protected function readLiteral(): array
+    protected function readLiteral(): Literal
     {
         // Skip the opening '{'.
         $this->advance();
 
+        // This will contain the size of the literal block in a sequence of digits.
+        // {<size>}\r\n<data>
         $numStr = '';
 
         while (true) {
@@ -203,11 +253,12 @@ class ImapTokenizer
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new Exception('Unterminated literal specifier');
+                throw new ImapParseException('Unterminated literal specifier');
             }
 
             if ($char === '}') {
                 $this->advance(); // Skip the '}'.
+
                 break;
             }
 
@@ -216,18 +267,21 @@ class ImapTokenizer
             $this->advance();
         }
 
-        // Expect CRLF after the literal specifier.
+        // Expect carriage return after the literal specifier.
         $this->ensureBuffer(2);
+
+        // Get the carriage return.
         $crlf = substr($this->buffer, $this->pos, 2);
 
         if ($crlf !== "\r\n") {
-            throw new Exception('Expected CRLF after literal specifier');
+            throw new ImapParseException('Expected CRLF after literal specifier');
         }
 
         $this->advance(2);
+
         $length = (int) $numStr;
 
-        // First, use any data that is already in our buffer.
+        // Use any data that is already in our buffer.
         $available = strlen($this->buffer) - $this->pos;
 
         if ($available >= $length) {
@@ -246,13 +300,13 @@ class ImapTokenizer
             $data = $this->stream->read($remaining);
 
             if ($data === false || strlen($data) !== $remaining) {
-                throw new Exception('Unable to read complete literal block from stream');
+                throw new ImapParseException('Unable to read complete literal block from stream');
             }
 
             $literal .= $data;
         }
 
-        return ['type' => 'LITERAL', 'value' => $literal];
+        return new Literal($literal);
     }
 
     /**
@@ -260,7 +314,7 @@ class ImapTokenizer
      *
      * Atoms are unquoted strings ending at whitespace or a delimiter.
      */
-    protected function readAtom(): array
+    protected function readAtom(): ?Atom
     {
         $value = '';
 
@@ -268,20 +322,31 @@ class ImapTokenizer
             $this->ensureBuffer(1);
             $char = $this->currentChar();
 
-            if ($char === null || ctype_space($char) || in_array($char, ['(', ')'])) {
+            if (
+                // White space.
+                $char === null ||
+                $char === ' ' ||
+                $char === "\t" ||
+
+                // Delimiters.
+                $char === "\r" ||
+                $char === "\n" ||
+                $char === '(' ||
+                $char === ')' ||
+                $char === '[' ||
+                $char === ']' ||
+                $char === '{' ||
+                $char === '}'
+            ) {
                 break;
             }
 
-            // Do not cross into the start of a literal or quoted string.
-            if ($char === '{' || $char === '"') {
-                break;
-            }
-
+            // Append the character to the value.
             $value .= $char;
 
             $this->advance();
         }
 
-        return ['type' => 'ATOM', 'value' => $value];
+        return new Atom($value);
     }
 }

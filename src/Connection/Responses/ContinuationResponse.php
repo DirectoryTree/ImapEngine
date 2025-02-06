@@ -2,4 +2,4 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Responses;
 
-class ContinuationResponse extends ImapResponse {}
+class ContinuationResponse extends Response {}

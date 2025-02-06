@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine\Connection\Responses;
 use Exception;
 use Stringable;
 
-abstract class ImapResponse implements Stringable
+abstract class Response implements Stringable
 {
     /**
      * Constructor.
@@ -17,7 +17,7 @@ abstract class ImapResponse implements Stringable
     /**
      * Collect responses from an array of tokens.
      *
-     * @return ImapResponse[]
+     * @return Response[]
      */
     public static function collect(array $tokens): array
     {
@@ -60,7 +60,7 @@ abstract class ImapResponse implements Stringable
     /**
      * Create an appropriate response object based on the first token.
      */
-    protected static function make(array $tokens): ImapResponse
+    protected static function make(array $tokens): Response
     {
         if (empty($tokens)) {
             throw new Exception('Cannot create a response from an empty token array');

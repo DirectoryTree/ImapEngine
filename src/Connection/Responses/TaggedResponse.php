@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Responses;
 
-class TaggedResponse extends ImapResponse
+class TaggedResponse extends Response
 {
     /**
      * Get the response tag.
