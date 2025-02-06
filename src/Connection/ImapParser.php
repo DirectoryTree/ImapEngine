@@ -50,12 +50,12 @@ class ImapParser
      *
      * @throws ImapParseException if the response is empty.
      */
-    public function parse(): Data|Token|Response
+    public function parse(): Data|Token|Response|null
     {
         $this->advance(); // Load the first token.
 
         if ($this->currentToken === null) {
-            throw new ImapParseException('Empty response.');
+            return null;
         }
 
         // If the current token is a quoted string or a literal,

@@ -15,9 +15,9 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 class ImapTokenizer
 {
     /**
-     * The stream instance.
+     * The current position in the buffer.
      */
-    protected StreamInterface $stream;
+    protected int $position = 0;
 
     /**
      * The buffer of characters read from the stream.
@@ -25,9 +25,9 @@ class ImapTokenizer
     protected string $buffer = '';
 
     /**
-     * The current position in the buffer.
+     * The current stream instance.
      */
-    protected int $position = 0;
+    protected StreamInterface $stream;
 
     /**
      * Constructor.
@@ -50,13 +50,20 @@ class ImapTokenizer
 
         $char = $this->currentChar();
 
-        if ($char === null) {
+        if ($char === null || $char === '') {
+            return null;
+        }
+
+        // Check for line feed.
+        if ($char === "\n") {
+            $this->flushBuffer();
+
             return null;
         }
 
         // Check for carriage return.
         if ($char === "\r") {
-            // Skip the new line ("\n") character.
+            // Navigate to the new line ("\n") character.
             $this->advance();
 
             $this->ensureBuffer(1);
@@ -113,10 +120,11 @@ class ImapTokenizer
     {
         while (true) {
             $this->ensureBuffer(1);
+
             $char = $this->currentChar();
 
             // Break on EOF.
-            if ($char === null) {
+            if ($char === null || $char === '') {
                 break;
             }
 
@@ -141,7 +149,7 @@ class ImapTokenizer
      *
      * @throws ImapParseException
      */
-    protected function readQuotedString(): QuotedString
+    protected function readQuotedString(): ?QuotedString
     {
         // Skip the opening quote.
         $this->advance();
@@ -186,7 +194,7 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return new QuotedString($value);
+        return empty($value) ? null : new QuotedString($value);
     }
 
     /**
@@ -196,7 +204,7 @@ class ImapTokenizer
      *
      * @throws ImapParseException
      */
-    protected function readLiteral(): Literal
+    protected function readLiteral(): ?Literal
     {
         // Skip the opening '{'.
         $this->advance();
@@ -249,9 +257,7 @@ class ImapTokenizer
         } else {
             $literal = substr($this->buffer, $this->position);
 
-            // Flush the current buffer.
-            $this->buffer = '';
-            $this->position = 0;
+            $this->flushBuffer();
 
             $remaining = $length - strlen($literal);
 
@@ -264,7 +270,7 @@ class ImapTokenizer
             $literal .= $data;
         }
 
-        return new Literal($literal);
+        return empty($literal) ? null : new Literal($literal);
     }
 
     /**
@@ -305,7 +311,7 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return $value ? new Atom($value) : null;
+        return empty($value) ? null : new Atom($value);
     }
 
     /**
@@ -318,11 +324,20 @@ class ImapTokenizer
             $data = $this->stream->fgets();
 
             if ($data === false) {
-                break;
+                return;
             }
 
             $this->buffer .= $data;
         }
+    }
+
+    /**
+     * Flushes the buffer and resets the position.
+     */
+    protected function flushBuffer(): void
+    {
+        $this->buffer = '';
+        $this->position = 0;
     }
 
     /**

@@ -18,10 +18,8 @@ class ImapStream implements StreamInterface
      */
     public function open(string $transport, string $host, int $port, int $timeout, array $options = []): bool
     {
-        $remoteSocket = "{$transport}://{$host}:{$port}";
-
         $this->stream = @stream_socket_client(
-            $remoteSocket,
+            "{$transport}://{$host}:{$port}",
             $errno,
             $errstr,
             $timeout,
@@ -77,11 +75,7 @@ class ImapStream implements StreamInterface
      */
     public function fgets(): string|false
     {
-        if (! $this->isOpen()) {
-            return false;
-        }
-
-        return fgets($this->stream);
+        return $this->isOpen() ? fgets($this->stream) : false;
     }
 
     /**
@@ -89,11 +83,7 @@ class ImapStream implements StreamInterface
      */
     public function fwrite(string $data): int|false
     {
-        if (! $this->isOpen()) {
-            return false;
-        }
-
-        return fwrite($this->stream, $data);
+        return $this->isOpen() ? fwrite($this->stream, $data) : false;
     }
 
     /**
