@@ -56,6 +56,8 @@ class ImapTokenizer
 
         // Check for line feed.
         if ($char === "\n") {
+            // We've reached the end of the response.
+            // We'll flush the buffer and return null.
             $this->flushBuffer();
 
             return null;
@@ -332,15 +334,6 @@ class ImapTokenizer
     }
 
     /**
-     * Flushes the buffer and resets the position.
-     */
-    protected function flushBuffer(): void
-    {
-        $this->buffer = '';
-        $this->position = 0;
-    }
-
-    /**
      * Returns the current character in the buffer.
      */
     protected function currentChar(): ?string
@@ -357,8 +350,16 @@ class ImapTokenizer
 
         // If we have consumed the entire buffer, reset it.
         if ($this->position >= strlen($this->buffer)) {
-            $this->buffer = '';
-            $this->position = 0;
+            $this->flushBuffer();
         }
+    }
+
+    /**
+     * Flushes the buffer and resets the position.
+     */
+    protected function flushBuffer(): void
+    {
+        $this->buffer = '';
+        $this->position = 0;
     }
 }
