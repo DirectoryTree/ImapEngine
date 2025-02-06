@@ -9,7 +9,6 @@ use DirectoryTree\ImapEngine\Connection\Tokens\GroupOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
-use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
@@ -66,10 +65,13 @@ class ImapTokenizer
 
         // Check for carriage return.
         if ($char === "\r") {
-            // Navigate to the new line ("\n") character.
             $this->advance();
 
             $this->ensureBuffer(1);
+
+            if ($this->currentChar() !== "\n") {
+                throw new ImapParseException('Expected line feed (LF) after carriage return (CR)');
+            }
 
             return new Crlf("\r\n");
         }
@@ -110,11 +112,6 @@ class ImapTokenizer
         // Check for literal block open.
         if ($char === '{') {
             return $this->readLiteral();
-        }
-
-        // Check for NIL (null) value.
-        if ($char === 'N') {
-            return $this->readNil();
         }
 
         // Otherwise, parse an atom.
@@ -170,7 +167,11 @@ class ImapTokenizer
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new ImapParseException('Unterminated quoted string');
+                throw new ImapParseException(sprintf(
+                    'Unterminated quoted string at buffer offset %d. Buffer: "%s"',
+                    $this->position,
+                    substr($this->buffer, max(0, $this->position - 10), 20)
+                ));
             }
 
             if ($char === '\\') {
@@ -272,33 +273,13 @@ class ImapTokenizer
             $data = $this->stream->read($remaining);
 
             if ($data === false || strlen($data) !== $remaining) {
-                throw new ImapParseException('Unable to read complete literal block from stream');
+                throw new ImapStreamException('Unexpected end of stream while trying to fill the buffer');
             }
 
             $literal .= $data;
         }
 
         return empty($literal) ? null : new Literal($literal);
-    }
-
-    /**
-     * Reads a NIL token.
-     *
-     * NIL is a special token that represents a null value.
-     */
-    protected function readNil(): ?Nil
-    {
-        $this->ensureBuffer(3);
-
-        $nil = substr($this->buffer, $this->position, 3);
-
-        if ($nil === 'NIL') {
-            $this->advance(3);
-
-            return new Nil('NIL');
-        }
-
-        throw new ImapParseException('Expected NIL token');
     }
 
     /**
@@ -314,22 +295,11 @@ class ImapTokenizer
             $this->ensureBuffer(1);
             $char = $this->currentChar();
 
-            if (
-                // White space.
-                $char === null ||
-                $char === ' ' ||
-                $char === "\t" ||
+            if ($char === null) {
+                break;
+            }
 
-                // Delimiters.
-                $char === "\r" ||
-                $char === "\n" ||
-                $char === '(' ||
-                $char === ')' ||
-                $char === '[' ||
-                $char === ']' ||
-                $char === '{' ||
-                $char === '}'
-            ) {
+            if (! $this->isValidAtomCharacter($char)) {
                 break;
             }
 
@@ -387,5 +357,37 @@ class ImapTokenizer
     {
         $this->buffer = '';
         $this->position = 0;
+    }
+
+    /**
+     * Determine if the given character is a delimiter.
+     */
+    protected function isDelimiter(string $char): bool
+    {
+        return in_array($char, [
+            ' ', "\t", "\r", "\n",
+            '(', ')', '[', ']', '{', '}',
+        ], true);
+    }
+
+    /**
+     * Determine if the given character is a valid atom character.
+     */
+    protected function isValidAtomCharacter(string $char): bool
+    {
+        // Get the ASCII code.
+        $code = ord($char);
+
+        // Allow only printable ASCII (32-126).
+        if ($code < 32 || $code > 126) {
+            return false;
+        }
+
+        // Delimiters are not allowed inside ATOMs.
+        if ($this->isDelimiter($char)) {
+            return false;
+        }
+
+        return true;
     }
 }
