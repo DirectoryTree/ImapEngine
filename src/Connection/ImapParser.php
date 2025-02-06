@@ -71,15 +71,13 @@ class ImapParser
 
         // If the token is an ATOM, check its value for special markers.
         if ($this->currentToken instanceof Atom) {
-            $token = clone $this->currentToken;
-
             // '*' marks an untagged response.
-            if ($token->value === '*') {
+            if ($this->currentToken->value === '*') {
                 return $this->parseUntaggedResponse();
             }
 
             // '+' marks a continuation response.
-            if ($token->value === '+') {
+            if ($this->currentToken->value === '+') {
                 return $this->parseContinuationResponse();
             }
         }
