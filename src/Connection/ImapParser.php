@@ -55,7 +55,7 @@ class ImapParser
         $this->advance(); // Load the first token.
 
         if ($this->currentToken === null) {
-            return null;
+            throw new ImapParseException('Empty response');
         }
 
         // If the current token is a quoted string or a literal,
