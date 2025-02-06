@@ -252,7 +252,7 @@ class ImapParser
             return $this->parseBracketGroup();
         }
 
-        // Otherwise, capture the value of the token.
+        // Otherwise, capture the current token.
         $token = clone $this->currentToken;
 
         $this->advance();
