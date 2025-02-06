@@ -4,12 +4,13 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
-use DirectoryTree\ImapEngine\Connection\Tokens\GroupClose;
-use DirectoryTree\ImapEngine\Connection\Tokens\GroupOpen;
+use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
+use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
+use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
 class ImapTokenizer
@@ -90,18 +91,25 @@ class ImapTokenizer
             return new ListClose(')');
         }
 
-        // Check for a group opening.
+        // Check for a response group open.
         if ($char === '[') {
             $this->advance();
 
-            return new GroupOpen('[');
+            return new ResponseCodeOpen('[');
         }
 
-        // Check for group closing.
+        // Check for response group close.
         if ($char === ']') {
             $this->advance();
 
-            return new GroupClose(']');
+            return new ResponseCodeClose(']');
+        }
+
+        // Check for angle bracket open (for email addresses).
+        if ($char === '<') {
+            $this->advance();
+
+            return $this->readEmailAddress();
         }
 
         // Check for quoted string.
@@ -209,7 +217,7 @@ class ImapTokenizer
     /**
      * Reads a literal token.
      *
-     * Literal blocks in IMAP have the form {<size>}\r\n<data>.
+     * Literal blocks in IMAP have the form {<length>}\r\n<data>.
      *
      * @throws ImapParseException
      */
@@ -252,6 +260,7 @@ class ImapTokenizer
             throw new ImapParseException('Expected CRLF after literal specifier');
         }
 
+        // Skip the CRLF.
         $this->advance(2);
 
         $length = (int) $numStr;
@@ -277,6 +286,15 @@ class ImapTokenizer
             }
 
             $literal .= $data;
+        }
+
+        // Verify that the literal length matches the expected length.
+        if (strlen($literal) !== $length) {
+            throw new ImapParseException(sprintf(
+                'Literal length mismatch: expected %d, got %d',
+                $length,
+                strlen($literal)
+            ));
         }
 
         return empty($literal) ? null : new Literal($literal);
@@ -310,6 +328,38 @@ class ImapTokenizer
         }
 
         return empty($value) ? null : new Atom($value);
+    }
+
+    /**
+     * Reads an email address token enclosed in angle brackets.
+     *
+     * @throws ImapParseException
+     */
+    protected function readEmailAddress(): ?EmailAddress
+    {
+        $value = '';
+
+        while (true) {
+            $this->ensureBuffer(1);
+
+            $char = $this->currentChar();
+
+            if ($char === null) {
+                throw new ImapParseException('Unterminated email address, expected ">"');
+            }
+
+            if ($char === '>') {
+                $this->advance(); // Skip the closing '>'.
+
+                break;
+            }
+
+            $value .= $char;
+
+            $this->advance();
+        }
+
+        return new EmailAddress($value);
     }
 
     /**
@@ -366,7 +416,7 @@ class ImapTokenizer
     {
         return in_array($char, [
             ' ', "\t", "\r", "\n",
-            '(', ')', '[', ']', '{', '}',
+            '(', ')', '[', ']', '{', '}', '<', '>',
         ], true);
     }
 

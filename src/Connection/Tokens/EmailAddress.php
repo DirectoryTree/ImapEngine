@@ -2,13 +2,13 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Tokens;
 
-class QuotedString extends Token
+class EmailAddress extends Token
 {
     /**
      * Get the token's value.
      */
     public function __toString(): string
     {
-        return '"'.$this->value.'"';
+        return '<'.$this->value.'>';
     }
 }
