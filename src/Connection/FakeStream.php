@@ -38,13 +38,13 @@ class FakeStream implements StreamInterface
             'cipher_bits' => 0,
             'cipher_version' => '',
         ],
-        'timed_out' => false,
-        'blocked' => false,
-        'eof' => false,
-        'stream_type' => 'tcp_socket/unknown',
         'mode' => 'c',
-        'unread_bytes' => 0,
+        'eof' => false,
+        'blocked' => false,
+        'timed_out' => false,
         'seekable' => false,
+        'unread_bytes' => 0,
+        'stream_type' => 'tcp_socket/unknown',
     ];
 
     /**
