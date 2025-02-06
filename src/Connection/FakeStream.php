@@ -147,9 +147,7 @@ class FakeStream implements StreamInterface
             return false;
         }
 
-        $line = array_shift($this->buffer);
-
-        return $line === null ? false : $line;
+        return array_shift($this->buffer) ?? false;
     }
 
     /**
