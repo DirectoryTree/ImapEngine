@@ -2,7 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Tokens;
 
-abstract class Token
+use Stringable;
+
+abstract class Token implements Stringable
 {
     /**
      * Constructor.
@@ -10,4 +12,12 @@ abstract class Token
     public function __construct(
         public string $value,
     ) {}
+
+    /**
+     * Get the token's value.
+     */
+    public function __toString(): string
+    {
+        return $this->value;
+    }
 }

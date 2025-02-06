@@ -2,4 +2,15 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Data;
 
-class ListData extends Data {}
+class ListData extends Data
+{
+    /**
+     * Get the list as a string.
+     */
+    public function __toString(): string
+    {
+        return sprintf('(%s)', implode(
+            ' ', array_map('strval', $this->tokens)
+        ));
+    }
+}

@@ -2,7 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Data;
 
-abstract class Data
+use Stringable;
+
+abstract class Data implements Stringable
 {
     /**
      * Constructor.
