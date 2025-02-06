@@ -122,12 +122,16 @@ class FakeStream implements StreamInterface
         $availableLength = strlen($data);
 
         if ($availableLength === 0) {
-            return ''; // No data available right now (but not EOF). Simulate non-blocking behavior.
+            // No data available right now (but not EOF). Simulate non-blocking behavior.
+            return '';
         }
 
         $bytesToRead = min($length, $availableLength);
+
         $result = substr($data, 0, $bytesToRead);
+
         $remainingData = substr($data, $bytesToRead);
+
         $this->buffer = $remainingData !== '' ? [$remainingData] : [];
 
         return $result;
