@@ -60,7 +60,10 @@ class ImapParser
 
         // If the current token is a quoted string or a literal,
         // return it directly as a simple element.
-        if ($this->currentToken instanceof QuotedString || $this->currentToken instanceof Literal) {
+        if (
+            $this->currentToken instanceof Literal ||
+            $this->currentToken instanceof QuotedString
+        ) {
             return $this->parseElement();
         }
 
