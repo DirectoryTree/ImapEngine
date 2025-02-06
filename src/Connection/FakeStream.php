@@ -48,7 +48,7 @@ class FakeStream implements StreamInterface
     ];
 
     /**
-     * Feed a line to the stream.
+     * Feed a line to the stream buffer with a newline character.
      */
     public function feed(array|string $lines): self
     {
@@ -58,7 +58,17 @@ class FakeStream implements StreamInterface
             rtrim($line, "\r\n")."\r\n"
         ), Arr::wrap($lines));
 
-        array_push($this->buffer, ...$lines);
+        array_push($this->buffer, ...(array) $lines);
+
+        return $this;
+    }
+
+    /**
+     * Feed a raw line to the stream buffer.
+     */
+    public function feedRaw(array|string $lines): self
+    {
+        array_push($this->buffer, ...(array) $lines);
 
         return $this;
     }
