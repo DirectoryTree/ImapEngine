@@ -40,8 +40,6 @@ class ImapTokenizer
 
     /**
      * Returns the next token from the stream.
-     *
-     * @throws ImapParseException
      */
     public function nextToken(): ?Token
     {
@@ -51,7 +49,7 @@ class ImapTokenizer
 
         $char = $this->currentChar();
 
-        if (empty($char)) {
+        if ($char === null || $char === '') {
             return null;
         }
 
@@ -161,8 +159,6 @@ class ImapTokenizer
      * Reads a quoted string token.
      *
      * Quoted strings are enclosed in double quotes and may contain escaped characters.
-     *
-     * @throws ImapParseException
      */
     protected function readQuotedString(): QuotedString
     {
@@ -220,10 +216,8 @@ class ImapTokenizer
      * Reads a literal token.
      *
      * Literal blocks in IMAP have the form {<length>}\r\n<data>.
-     *
-     * @throws ImapParseException
      */
-    protected function readLiteral(): ?Literal
+    protected function readLiteral(): Literal
     {
         // Skip the opening '{'.
         $this->advance();
@@ -305,15 +299,13 @@ class ImapTokenizer
             ));
         }
 
-        return empty($literal) ? null : new Literal($literal);
+        return new Literal($literal);
     }
 
     /**
      * Reads an atom token.
-     *
-     * Atoms are unquoted strings ending at whitespace or a delimiter.
      */
-    protected function readAtom(): ?Atom
+    protected function readAtom(): Atom
     {
         $value = '';
 
@@ -335,13 +327,11 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return empty($value) ? null : new Atom($value);
+        return new Atom($value);
     }
 
     /**
      * Reads an email address token enclosed in angle brackets.
-     *
-     * @throws ImapParseException
      */
     protected function readEmailAddress(): ?EmailAddress
     {
