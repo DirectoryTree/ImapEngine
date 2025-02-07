@@ -7,11 +7,11 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 class ContinuationResponse extends Response
 {
     /**
-     * Get the continuation messages.
+     * Get the data tokens.
      *
      * @return Atom[]
      */
-    public function messages(): array
+    public function data(): array
     {
         return array_slice($this->tokens, 1);
     }

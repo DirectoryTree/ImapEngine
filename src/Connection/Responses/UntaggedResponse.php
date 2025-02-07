@@ -17,7 +17,7 @@ class UntaggedResponse extends Response implements StatusResponse
     }
 
     /**
-     * Get the response data.
+     * Get the data tokens.
      *
      * @return Atom[]
      */

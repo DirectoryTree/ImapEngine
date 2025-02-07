@@ -25,11 +25,11 @@ class TaggedResponse extends Response implements StatusResponse
     }
 
     /**
-     * Get the response messages.
+     * Get the data tokens.
      *
      * @return Atom[]
      */
-    public function messages(): array
+    public function data(): array
     {
         return array_slice($this->tokens, 2);
     }
