@@ -12,4 +12,12 @@ abstract class Data implements Stringable
     public function __construct(
         protected array $tokens
     ) {}
+
+    /**
+     * Get the tokens.
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
 }
