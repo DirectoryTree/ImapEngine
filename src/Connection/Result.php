@@ -19,33 +19,42 @@ class Result
     }
 
     /**
-     * Get a unique sequence number.
+     * Get the response sequence.
      */
-    protected function getUniqueSequence(): int
+    public function sequence(): int
     {
-        return (int) str_replace('.', '', (string) microtime(true));
+        return $this->sequence;
     }
 
+    /**
+     * Add a command to the result.
+     */
     public function addCommand(ImapCommand $command): void
     {
         $this->commands[] = $command;
     }
 
+    /**
+     * Add a response to the result.
+     */
     public function addResponse(Response $response): void
     {
         $this->responses[] = $response;
     }
 
+    /**
+     * Get the responses.
+     */
     public function responses(): ResponseCollection
     {
         return new ResponseCollection($this->responses);
     }
 
     /**
-     * Get the response sequence.
+     * Get a unique sequence number.
      */
-    public function sequence(): int
+    protected function getUniqueSequence(): int
     {
-        return $this->sequence;
+        return (int) str_replace('.', '', (string) microtime(true));
     }
 }

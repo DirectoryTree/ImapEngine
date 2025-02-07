@@ -45,8 +45,6 @@ class ImapParser
      * This method dispatches to specialized methods based on the type
      * and value of the current token. It expects that the tokenizer
      * will eventually return an end-of-response marker (CRLF).
-     *
-     * @throws ImapParseException if the response is empty.
      */
     public function next(): Data|Token|Response|null
     {
@@ -170,8 +168,6 @@ class ImapParser
 
     /**
      * Parses a bracket group of elements delimited by '[' and ']'.
-     *
-     * @throws ImapParseException if the group is unterminated.
      */
     protected function parseBracketGroup(): ResponseCodeData
     {
