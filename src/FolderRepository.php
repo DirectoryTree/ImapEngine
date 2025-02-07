@@ -55,10 +55,10 @@ class FolderRepository
     {
         return $this->mailbox->connection()->folders('', $parentFolder.'*')->map(
             fn (UntaggedResponse $response) => new Folder(
-                $this->mailbox,
-                $response->tokenAt(4)->value,
-                $response->tokenAt(2)->values(),
-                $response->tokenAt(3)->value,
+                mailbox: $this->mailbox,
+                path: $response->tokenAt(4)->value,
+                flags: $response->tokenAt(2)->values(),
+                delimiter: $response->tokenAt(3)->value,
             )
         )->pipeInto(FolderCollection::class);
     }
@@ -68,9 +68,7 @@ class FolderRepository
      */
     public function create(string $folderPath, bool $expunge = true): Folder
     {
-        $this->mailbox->connection()
-            ->createFolder($folderPath)
-            ->getValidatedData();
+        $response = $this->mailbox->connection()->createFolder($folderPath);
 
         if ($expunge) {
             $this->expunge();
