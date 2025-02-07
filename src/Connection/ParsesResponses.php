@@ -55,31 +55,31 @@ trait ParsesResponses
     /**
      * Assert the next response is a tagged response.
      */
-    protected function assertTaggedResponse(string $tag, callable $default): TaggedResponse
+    protected function assertTaggedResponse(string $tag, callable $exception): TaggedResponse
     {
         return $this->assertNextResponse(fn (Response $response) => (
             $response instanceof TaggedResponse && $response->tag()->is($tag)
-        ), fn (TaggedResponse $response) => $response->successful(), $default);
+        ), fn (TaggedResponse $response) => $response->successful(), $exception);
     }
 
     /**
      * Assert the next response is an untagged response.
      */
-    protected function assertUntaggedResponse(callable $assertion, callable $default): UntaggedResponse
+    protected function assertUntaggedResponse(callable $assertion, callable $exception): UntaggedResponse
     {
         return $this->assertNextResponse(fn (Response $response) => (
             $response instanceof UntaggedResponse
-        ), $assertion, $default);
+        ), $assertion, $exception);
     }
 
     /**
      * Assert the next response is a continuation response.
      */
-    protected function assertContinuationResponse(callable $assertion, callable $default): ContinuationResponse
+    protected function assertContinuationResponse(callable $assertion, callable $exception): ContinuationResponse
     {
         return $this->assertNextResponse(fn (Response $response) => (
             $response instanceof ContinuationResponse
-        ), $assertion, $default);
+        ), $assertion, $exception);
     }
 
     /**
@@ -90,14 +90,14 @@ trait ParsesResponses
      * @param  callable(Response): bool  $filter
      * @return T
      */
-    protected function assertNextResponse(callable $filter, callable $assertion, callable $default): Response
+    protected function assertNextResponse(callable $filter, callable $assertion, callable $exception): Response
     {
         while ($response = $this->nextResponse($filter)) {
             if ($assertion($response)) {
                 return $response;
             }
 
-            return $default($response);
+            throw $exception($response);
         }
 
         throw new RuntimeException('No matching response found.');
