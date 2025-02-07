@@ -23,10 +23,12 @@ abstract class Data implements Stringable
     }
 
     /**
-     * Get all of the token's values.
+     * Get all the token's values.
      */
     public function values(): array
     {
-        return array_map(fn (Token $token) => $token->value, $this->tokens);
+        return array_map(function (Token|Data $token) {
+            return $token instanceof Data ? $token->values() : $token->value;
+        }, $this->tokens);
     }
 }
