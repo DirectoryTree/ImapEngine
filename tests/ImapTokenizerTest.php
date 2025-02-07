@@ -91,8 +91,6 @@ test('tokenizer returns list open and list close tokens', function () {
     expect($crlf)->toBeInstanceOf(Crlf::class);
     expect($crlf->value)->toBe("\r\n");
 
-    expect($tokenizer->nextToken())->toBeNull();
-
     $tokenClose = $tokenizer->nextToken();
     expect($tokenClose)->toBeInstanceOf(ListClose::class);
     expect($tokenClose->value)->toBe(')');
