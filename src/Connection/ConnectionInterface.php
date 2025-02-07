@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 
 interface ConnectionInterface
 {
@@ -45,7 +46,7 @@ interface ConnectionInterface
     /**
      * Send noop command.
      */
-    public function noop(): ResponseCollection;
+    public function noop(): TaggedResponse;
 
     /**
      * Apply session saved changes to the server.
@@ -53,11 +54,9 @@ interface ConnectionInterface
     public function expunge(): ResponseCollection;
 
     /**
-     * Get an array of available capabilities.
-     *
-     * @return ResponseCollection containing a list of capabilities
+     * Get the mailboxes available capabilities.
      */
-    public function capability(): ResponseCollection;
+    public function capability(): UntaggedResponse;
 
     /**
      * Execute a search request.
@@ -76,27 +75,27 @@ interface ConnectionInterface
     /**
      * Fetch message UIDs using the given message numbers.
      */
-    public function uids(int|array $msgns): ResponseCollection;
+    public function uids(int|array $msgns): UntaggedResponse;
 
     /**
      * Fetch message contents.
      */
-    public function contents(int|array $ids): ResponseCollection;
+    public function contents(int|array $ids): UntaggedResponse;
 
     /**
      * Fetch message headers.
      */
-    public function headers(int|array $ids): ResponseCollection;
+    public function headers(int|array $ids): UntaggedResponse;
 
     /**
      * Fetch message flags.
      */
-    public function flags(int|array $ids): ResponseCollection;
+    public function flags(int|array $ids): UntaggedResponse;
 
     /**
      * Fetch message sizes.
      */
-    public function sizes(int|array $ids): ResponseCollection;
+    public function sizes(int|array $ids): UntaggedResponse;
 
     /**
      * Select the given folder.
@@ -122,7 +121,7 @@ interface ConnectionInterface
      *
      * @return ResponseCollection list of STATUS items
      */
-    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection;
+    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse;
 
     /**
      * Set message flags.
@@ -192,31 +191,31 @@ interface ConnectionInterface
     public function createFolder(string $folder): ResponseCollection;
 
     /**
-     * Rename an existing folder.
-     *
-     * @param  string  $oldPath  old name
-     * @param  string  $newPath  new name
-     */
-    public function renameFolder(string $oldPath, string $newPath): ResponseCollection;
-
-    /**
      * Delete a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function deleteFolder(string $folder): ResponseCollection;
+    public function deleteFolder(string $folder): TaggedResponse;
 
     /**
      * Subscribe to a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function subscribeFolder(string $folder): ResponseCollection;
+    public function subscribeFolder(string $folder): TaggedResponse;
 
     /**
      * Unsubscribe from a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function unsubscribeFolder(string $folder): ResponseCollection;
+    public function unsubscribeFolder(string $folder): TaggedResponse;
+
+    /**
+     * Rename an existing folder.
+     *
+     * @param  string  $oldPath  old name
+     * @param  string  $newPath  new name
+     */
+    public function renameFolder(string $oldPath, string $newPath): TaggedResponse;
 }

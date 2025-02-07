@@ -337,7 +337,7 @@ abstract class Connection implements ConnectionInterface
     /**
      * Send an IMAP command.
      */
-    public function send(string $name, array $tokens, ?string &$tag): void
+    public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
         $command = new ImapCommand($name, $tokens);
 
@@ -381,7 +381,7 @@ abstract class Connection implements ConnectionInterface
      * This method compiles the FETCH command, sends it, and then uses the new parser
      * to obtain the parsed result.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
+    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): UntaggedResponse
     {
         if (is_array($from) && count($from) > 1) {
             $set = implode(',', $from);
@@ -398,22 +398,16 @@ abstract class Connection implements ConnectionInterface
         $items = (array) $items;
         $prefix = ($identifier === Imap::ST_UID) ? 'UID' : '';
 
-        // Send the FETCH command.
-        $response = $this->send(
+        $this->send(
             trim($prefix.' FETCH'),
             [$set, $this->escapeList($items)],
             $tag
         );
 
-        // Use the new parser to parse the FETCH response.
-        $tokenizer = new ImapTokenizer($this->stream);
-        $parser = new ImapParser($tokenizer);
-        $parsedData = $parser->next();
-
-        // Process $parsedData as needed; here we simply assign it.
-        $response->setResult($parsedData);
-
-        return $response;
+        return $this->assertUntaggedResponse(
+            fn (UntaggedResponse $response) => $response->tokenAt(2)?->is('FETCH'),
+            fn () => new RuntimeException('Failed to fetch items')
+        );
     }
 
     /**
