@@ -236,6 +236,49 @@ test('tokenizer returns null with no feed', function () {
     expect($tokenizer->nextToken())->toBeNull();
 });
 
+test('tokenizer parsed tagged response', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed('TAG1 OK [UIDNEXT 1000] Completed');
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('TAG1');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('OK');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(ResponseCodeOpen::class);
+    expect($token->value)->toBe('[');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('UIDNEXT');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('1000');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(ResponseCodeClose::class);
+    expect($token->value)->toBe(']');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('Completed');
+
+    $token = $tokenizer->nextToken();
+    expect($token)->toBeInstanceOf(Crlf::class);
+    expect($token->value)->toBe("\r\n");
+
+    expect($tokenizer->nextToken())->toBeNull();
+});
+
 test('all tokens implement the token interface', function (string $data) {
     $stream = new FakeStream;
     $stream->open();
