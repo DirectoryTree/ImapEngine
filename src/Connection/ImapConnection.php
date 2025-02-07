@@ -2,6 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Imap;
@@ -18,75 +21,53 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function login(string $user, string $password): Response
+    public function login(string $user, string $password): TaggedResponse
     {
-        try {
-            return $this->requestAndResponse('LOGIN', $this->escapeString($user, $password), false);
-        } catch (RuntimeException $e) {
-            throw new AuthFailedException('Failed to authenticate', 0, $e);
-        }
+        $this->send('LOGIN', $this->escapeString($user, $password), $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => throw new AuthFailedException('Failed to login'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function authenticate(string $user, string $token): Response
+    public function authenticate(string $user, string $token): TaggedResponse
     {
-        try {
-            $authenticateParams = ['XOAUTH2', base64_encode("user=$user\1auth=Bearer $token\1\1")];
+        $authenticateParams = ['XOAUTH2', base64_encode("user=$user\1auth=Bearer $token\1\1")];
 
-            $response = $this->sendCommand('AUTHENTICATE', $authenticateParams);
+        $this->send('AUTHENTICATE', $authenticateParams, $tag);
 
-            while (true) {
-                $tokens = '';
-
-                if ($this->readLine($response, $tokens, '+', false)) {
-                    $response->addResponse($this->sendCommand(''));
-
-                    continue;
-                }
-
-                if (preg_match('/^(NO|BAD) /i', $tokens)) {
-                    return $response->addError("got failure response: $tokens");
-                }
-
-                if (preg_match('/^OK /i', $tokens)) {
-                    return $response->setResult(is_array($tokens) ? $tokens : [$tokens]);
-                }
-            }
-        } catch (RuntimeException $e) {
-            throw new AuthFailedException('Failed to authenticate', 0, $e);
-        }
+        return $this->assertTaggedResponse($tag, fn () => throw new AuthFailedException('Failed to authenticate'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function logout(): Response
+    public function logout(): ?TaggedResponse
     {
         if (! $this->stream->isOpen() || ($this->meta()['timed_out'] ?? false)) {
-            $this->reset();
+            $this->close();
 
-            return new Response(0, $this->debug);
+            return null;
         }
 
         try {
-            $result = $this->requestAndResponse('LOGOUT', [], false);
+            $this->send('LOGOUT', [], $tag);
 
-            $this->stream->close();
+            return $this->nextTaggedResponse($tag);
         } catch (Throwable) {
             $result = null;
         }
 
-        $this->reset();
+        $this->close();
 
-        return $result ?? new Response(0, $this->debug);
+        return $result;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function selectFolder(string $folder = 'INBOX'): Response
+    public function selectFolder(string $folder = 'INBOX'): ResponseCollection
     {
         return $this->examineOrSelect('SELECT', $folder);
     }
@@ -94,7 +75,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function examineFolder(string $folder = 'INBOX'): Response
+    public function examineFolder(string $folder = 'INBOX'): ResponseCollection
     {
         return $this->examineOrSelect('EXAMINE', $folder);
     }
@@ -105,10 +86,10 @@ class ImapConnection extends Connection
      * @param  string  $command  can be 'EXAMINE' or 'SELECT'
      * @param  string  $folder  target folder
      */
-    protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): Response
+    protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): ResponseCollection
     {
         // Send the command and retrieve the tag.
-        $response = $this->sendCommand($command, [$this->escapeString($folder)], $tag);
+        $response = $this->send($command, [$this->escapeString($folder)], $tag);
 
         $result = [];
         $tokens = [];
@@ -157,12 +138,9 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response
+    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection
     {
-        $response = $this->requestAndResponse('STATUS', [
-            $this->escapeString($folder),
-            $this->escapeList($arguments),
-        ]);
+        $this->send('STATUS', [$this->escapeString($folder), $this->escapeList($arguments)], $tag);
 
         $data = $response->getValidatedData();
 
@@ -191,7 +169,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function createFolder(string $folder): Response
+    public function createFolder(string $folder): ResponseCollection
     {
         return $this->requestAndResponse('CREATE', [$this->escapeString($folder)], false);
     }
@@ -199,7 +177,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $oldPath, string $newPath): Response
+    public function renameFolder(string $oldPath, string $newPath): ResponseCollection
     {
         return $this->requestAndResponse('RENAME', $this->escapeString($oldPath, $newPath), false);
     }
@@ -207,7 +185,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function deleteFolder(string $folder): Response
+    public function deleteFolder(string $folder): ResponseCollection
     {
         return $this->requestAndResponse('DELETE', [$this->escapeString($folder)], false);
     }
@@ -215,7 +193,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function subscribeFolder(string $folder): Response
+    public function subscribeFolder(string $folder): ResponseCollection
     {
         return $this->requestAndResponse('SUBSCRIBE', [$this->escapeString($folder)], false);
     }
@@ -223,7 +201,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function unsubscribeFolder(string $folder): Response
+    public function unsubscribeFolder(string $folder): ResponseCollection
     {
         return $this->requestAndResponse('UNSUBSCRIBE', [$this->escapeString($folder)], false);
     }
@@ -231,38 +209,21 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function folders(string $reference = '', string $folder = '*'): Response
+    public function folders(string $reference = '', string $folder = '*'): ResponseCollection
     {
-        $response = $this->requestAndResponse('LIST', $this->escapeString($reference, $folder));
+        $this->send('LIST', $this->escapeString($reference, $folder), $tag);
 
-        $response->setCanBeEmpty(true);
+        $this->assertTaggedResponse($tag, fn () => throw new RuntimeException('Failed to fetch folders'));
 
-        $list = $response->data();
-
-        $result = [];
-
-        if ($list[0] !== true) {
-            foreach ($list as $item) {
-                if (count($item) != 4 || $item[0] != 'LIST') {
-                    continue;
-                }
-
-                $item[3] = str_replace('\\\\', '\\', str_replace('\\"', '"', $item[3]));
-
-                $result[$item[3]] = [
-                    'delimiter' => $item[2],
-                    'flags' => $item[1],
-                ];
-            }
-        }
-
-        return $response->setResult($result);
+        return $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('LIST')
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): Response
+    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection
     {
         $tokens = [];
 
@@ -284,7 +245,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): Response
+    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection
     {
         return $this->requestAndResponse('UID COPY', [
             $this->buildSet($from, $to),
@@ -295,7 +256,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyManyMessages(array $messages, string $folder): Response
+    public function copyManyMessages(array $messages, string $folder): ResponseCollection
     {
         $set = implode(',', $messages);
 
@@ -307,7 +268,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): Response
+    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection
     {
         $set = $this->buildSet($from, $to);
 
@@ -317,7 +278,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function moveManyMessages(array $messages, string $folder): Response
+    public function moveManyMessages(array $messages, string $folder): ResponseCollection
     {
         $set = implode(',', $messages);
 
@@ -329,7 +290,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection
     {
         $flags = $this->escapeList(Arr::wrap($flags));
 
@@ -359,7 +320,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function uids(int|array $msgns): Response
+    public function uids(int|array $msgns): ResponseCollection
     {
         return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
     }
@@ -367,7 +328,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(int|array $ids): Response
+    public function contents(int|array $ids): ResponseCollection
     {
         return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
     }
@@ -375,7 +336,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function headers(int|array $ids): Response
+    public function headers(int|array $ids): ResponseCollection
     {
         return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
     }
@@ -383,7 +344,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function flags(int|array $ids): Response
+    public function flags(int|array $ids): ResponseCollection
     {
         return $this->fetch(['FLAGS'], Arr::wrap($ids));
     }
@@ -391,7 +352,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function sizes(int|array $ids): Response
+    public function sizes(int|array $ids): ResponseCollection
     {
         return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
     }
@@ -399,7 +360,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function search(array $params): Response
+    public function search(array $params): ResponseCollection
     {
         $response = $this->requestAndResponse('UID SEARCH', $params);
 
@@ -419,7 +380,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function capability(): Response
+    public function capability(): ResponseCollection
     {
         $response = $this->requestAndResponse('CAPABILITY');
 
@@ -435,7 +396,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function id(?array $ids = null): Response
+    public function id(?array $ids = null): ResponseCollection
     {
         $token = 'NIL';
 
@@ -455,7 +416,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function expunge(): Response
+    public function expunge(): ResponseCollection
     {
         return $this->requestAndResponse('EXPUNGE');
     }
@@ -463,7 +424,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function noop(): Response
+    public function noop(): ResponseCollection
     {
         return $this->requestAndResponse('NOOP');
     }
@@ -473,10 +434,10 @@ class ImapConnection extends Connection
      */
     public function idle(): void
     {
-        $response = $this->sendCommand('IDLE');
+        $response = $this->send('IDLE');
 
         while (true) {
-            $line = $this->nextLine($response);
+            $line = $this->nextReply($response);
 
             // Server indicates it's ready for IDLE.
             if (str_starts_with($line, '+ ')) {
@@ -498,12 +459,12 @@ class ImapConnection extends Connection
      */
     public function done(): void
     {
-        $response = new Response($this->sequence, $this->debug);
+        $response = new ResponseCollection($this->sequence, $this->debug);
 
         $this->write($response, 'DONE');
 
         while (true) {
-            $line = $this->nextLine($response);
+            $line = $this->nextReply($response);
 
             // Typical tagged "OK" line.
             if (preg_match('/^TAG\d+ OK/i', $line)) {
@@ -532,26 +493,5 @@ class ImapConnection extends Connection
         }
 
         return $set;
-    }
-
-    /**
-     * Flatten the tokens into an array.
-     */
-    protected function flattenTokens(array $tokens): array
-    {
-        $result = [];
-
-        /** @var ImapToken $token */
-        foreach ($tokens as $token) {
-            if ($token->type === ImapToken::TYPE_LIST) {
-                // Recursively flatten sub-lists.
-                $result[] = $this->flattenTokens($token->value);
-            } else {
-                // Just the raw token value.
-                $result[] = $token->value;
-            }
-        }
-
-        return $result;
     }
 }

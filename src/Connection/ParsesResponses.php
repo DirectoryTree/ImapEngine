@@ -21,6 +21,38 @@ trait ParsesResponses
     protected ?ImapParser $parser = null;
 
     /**
+     * Set the current result instance.
+     */
+    protected function setResult(Result $result): void
+    {
+        $this->result = $result;
+    }
+
+    /**
+     * Set the current parser instance.
+     */
+    protected function setParser(ImapParser $parser): void
+    {
+        $this->parser = $parser;
+    }
+
+    /**
+     * Create a new parser instance.
+     */
+    protected function newParser(StreamInterface $stream): ImapParser
+    {
+        return new ImapParser(new ImapTokenizer($stream));
+    }
+
+    /**
+     * Create a new tokenizer instance.
+     */
+    protected function newTokenizer(StreamInterface $stream): ImapTokenizer
+    {
+        return new ImapTokenizer($stream);
+    }
+
+    /**
      * Assert the next response is a tagged response.
      */
     protected function assertTaggedResponse(string $tag, callable $default): TaggedResponse
@@ -33,7 +65,7 @@ trait ParsesResponses
     /**
      * Assert the next response is an untagged response.
      */
-    protected function assertUntaggedResponse(callable $assertion, callable $default): Response
+    protected function assertUntaggedResponse(callable $assertion, callable $default): UntaggedResponse
     {
         return $this->assertNextResponse(fn (Response $response) => (
             $response instanceof UntaggedResponse
@@ -43,7 +75,7 @@ trait ParsesResponses
     /**
      * Assert the next response is a continuation response.
      */
-    protected function assertContinuationResponse(callable $assertion, callable $default): Response
+    protected function assertContinuationResponse(callable $assertion, callable $default): ContinuationResponse
     {
         return $this->assertNextResponse(fn (Response $response) => (
             $response instanceof ContinuationResponse
@@ -52,6 +84,11 @@ trait ParsesResponses
 
     /**
      * Assert the next response matches the given filter and assertion.
+     *
+     * @template T of Response
+     *
+     * @param  callable(Response): bool  $filter
+     * @return T
      */
     protected function assertNextResponse(callable $filter, callable $assertion, callable $default): Response
     {

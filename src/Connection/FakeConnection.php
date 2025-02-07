@@ -88,201 +88,201 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function login(string $user, string $password): Response
+    public function login(string $user, string $password): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function authenticate(string $user, string $token): Response
+    public function authenticate(string $user, string $token): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function logout(): Response
+    public function logout(): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function capability(): Response
+    public function capability(): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function selectFolder(string $folder = 'INBOX'): Response
+    public function selectFolder(string $folder = 'INBOX'): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function examineFolder(string $folder = 'INBOX'): Response
+    public function examineFolder(string $folder = 'INBOX'): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response
+    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function uids(int|array $msgns): Response
+    public function uids(int|array $msgns): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function contents(array|int $ids): Response
+    public function contents(array|int $ids): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function headers(array|int $ids): Response
+    public function headers(array|int $ids): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function flags(array|int $ids): Response
+    public function flags(array|int $ids): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function sizes(array|int $ids): Response
+    public function sizes(array|int $ids): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function folders(string $reference = '', string $folder = '*'): Response
+    public function folders(string $reference = '', string $folder = '*'): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): Response
+    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): Response
+    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function copyManyMessages(array $messages, string $folder): Response
+    public function copyManyMessages(array $messages, string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): Response
+    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveManyMessages(array $messages, string $folder): Response
+    public function moveManyMessages(array $messages, string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function id(?array $ids = null): Response
+    public function id(?array $ids = null): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function createFolder(string $folder): Response
+    public function createFolder(string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $oldPath, string $newPath): Response
+    public function renameFolder(string $oldPath, string $newPath): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function deleteFolder(string $folder): Response
+    public function deleteFolder(string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function subscribeFolder(string $folder): Response
+    public function subscribeFolder(string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function unsubscribeFolder(string $folder): Response
+    public function unsubscribeFolder(string $folder): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
@@ -304,24 +304,24 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function expunge(): Response
+    public function expunge(): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function noop(): Response
+    public function noop(): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function search(array $params): Response
+    public function search(array $params): ResponseCollection
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? Response::make();
+        return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
 }

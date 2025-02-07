@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Data;
 
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Stringable;
 
 abstract class Data implements Stringable
@@ -19,5 +20,13 @@ abstract class Data implements Stringable
     public function tokens(): array
     {
         return $this->tokens;
+    }
+
+    /**
+     * Get all of the token's values.
+     */
+    public function values(): array
+    {
+        return array_map(fn (Token $token) => $token->value, $this->tokens);
     }
 }

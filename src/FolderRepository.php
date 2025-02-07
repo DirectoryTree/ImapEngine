@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 
 class FolderRepository
 {
@@ -52,24 +53,14 @@ class FolderRepository
      */
     public function get(?string $parentFolder = null): FolderCollection
     {
-        $folders = FolderCollection::make();
-
-        $items = $this->mailbox->connection()
-            ->folders('', $parentFolder.'*')
-            ->getValidatedData();
-
-        foreach ($items as $folderName => $item) {
-            $folders->push(
-                new Folder(
-                    $this->mailbox,
-                    $folderName,
-                    $item['flags'],
-                    $item['delimiter'],
-                )
-            );
-        }
-
-        return $folders;
+        return $this->mailbox->connection()->folders('', $parentFolder.'*')->map(
+            fn (UntaggedResponse $response) => new Folder(
+                $this->mailbox,
+                $response->tokenAt(4)->value,
+                $response->tokenAt(2)->values(),
+                $response->tokenAt(3)->value,
+            )
+        )->pipeInto(FolderCollection::class);
     }
 
     /**

@@ -2,6 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
+
 interface ConnectionInterface
 {
     /**
@@ -17,17 +20,17 @@ interface ConnectionInterface
     /**
      * Login to a new session.
      */
-    public function login(string $user, string $password): Response;
+    public function login(string $user, string $password): TaggedResponse;
 
     /**
      * Logout of the current server session.
      */
-    public function logout(): Response;
+    public function logout(): ?TaggedResponse;
 
     /**
      * Authenticate the current session.
      */
-    public function authenticate(string $user, string $token): Response;
+    public function authenticate(string $user, string $token): TaggedResponse;
 
     /**
      * Send idle command.
@@ -42,84 +45,84 @@ interface ConnectionInterface
     /**
      * Send noop command.
      */
-    public function noop(): Response;
+    public function noop(): ResponseCollection;
 
     /**
      * Apply session saved changes to the server.
      */
-    public function expunge(): Response;
+    public function expunge(): ResponseCollection;
 
     /**
      * Get an array of available capabilities.
      *
-     * @return Response containing a list of capabilities
+     * @return ResponseCollection containing a list of capabilities
      */
-    public function capability(): Response;
+    public function capability(): ResponseCollection;
 
     /**
      * Execute a search request.
      *
-     * @return Response containing the message ids
+     * @return ResponseCollection containing the message ids
      */
-    public function search(array $params): Response;
+    public function search(array $params): ResponseCollection;
 
     /**
      * Exchange identification information.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc2971.
      */
-    public function id(?array $ids = null): Response;
+    public function id(?array $ids = null): ResponseCollection;
 
     /**
      * Fetch message UIDs using the given message numbers.
      */
-    public function uids(int|array $msgns): Response;
+    public function uids(int|array $msgns): ResponseCollection;
 
     /**
      * Fetch message contents.
      */
-    public function contents(int|array $ids): Response;
+    public function contents(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message headers.
      */
-    public function headers(int|array $ids): Response;
+    public function headers(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message flags.
      */
-    public function flags(int|array $ids): Response;
+    public function flags(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message sizes.
      */
-    public function sizes(int|array $ids): Response;
+    public function sizes(int|array $ids): ResponseCollection;
 
     /**
      * Select the given folder.
      */
-    public function selectFolder(string $folder): Response;
+    public function selectFolder(string $folder): ResponseCollection;
 
     /**
      * Examine a given folder.
      */
-    public function examineFolder(string $folder): Response;
+    public function examineFolder(string $folder): ResponseCollection;
 
     /**
      * Get a list of available folders.
      *
      * @param  string  $reference  mailbox reference for list
      * @param  string  $folder  mailbox / folder name match with wildcards
-     * @return Response containing mailboxes that matched $folder as array(globalName => array('delim' => .., 'flags' => ..))
+     * @return ResponseCollection containing mailboxes that matched $folder as array(globalName => array('delim' => .., 'flags' => ..))
      */
-    public function folders(string $reference = '', string $folder = '*'): Response;
+    public function folders(string $reference = '', string $folder = '*'): ResponseCollection;
 
     /**
      * Get the status of a given folder.
      *
-     * @return Response list of STATUS items
+     * @return ResponseCollection list of STATUS items
      */
-    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): Response;
+    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection;
 
     /**
      * Set message flags.
@@ -131,9 +134,9 @@ interface ConnectionInterface
      * @param  string|null  $mode  '+' to add flags, '-' to remove flags, everything else sets the flags as given
      * @param  bool  $silent  if false the return values are the new flags for the wanted messages
      * @param  string|null  $item  command used to store a flag
-     * @return Response containing the new flags if $silent is false, else true or false depending on success
+     * @return ResponseCollection containing the new flags if $silent is false, else true or false depending on success
      */
-    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): Response;
+    public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection;
 
     /**
      * Append a new message to given folder.
@@ -143,7 +146,7 @@ interface ConnectionInterface
      * @param  array|null  $flags  flags for new message
      * @param  string|null  $date  date for new message
      */
-    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): Response;
+    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection;
 
     /**
      * Copy message set from current folder to other folder.
@@ -152,16 +155,16 @@ interface ConnectionInterface
      * @param  int|null  $to  if null only one message ($from) is fetched, else it's the
      *                        last message, INF means last message available
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): Response;
+    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection;
 
     /**
      * Copy multiple messages to the target folder.
      *
      * @param  array<string>  $messages  List of message identifiers
      * @param  string  $folder  Destination folder
-     * @return Response Tokens if operation successful, false if an error occurred
+     * @return ResponseCollection Tokens if operation successful, false if an error occurred
      */
-    public function copyManyMessages(array $messages, string $folder): Response;
+    public function copyManyMessages(array $messages, string $folder): ResponseCollection;
 
     /**
      * Move a message set from current folder to another folder.
@@ -170,23 +173,23 @@ interface ConnectionInterface
      * @param  int|null  $to  if null only one message ($from) is fetched, else it's the
      *                        last message, INF means last message available
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): Response;
+    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection;
 
     /**
      * Move multiple messages to the target folder.
      *
      * @param  array<string>  $messages  List of message identifiers
      * @param  string  $folder  Destination folder
-     * @return Response Tokens if operation successful, false if an error occurred
+     * @return ResponseCollection Tokens if operation successful, false if an error occurred
      */
-    public function moveManyMessages(array $messages, string $folder): Response;
+    public function moveManyMessages(array $messages, string $folder): ResponseCollection;
 
     /**
      * Create a new folder.
      *
      * @param  string  $folder  folder name
      */
-    public function createFolder(string $folder): Response;
+    public function createFolder(string $folder): ResponseCollection;
 
     /**
      * Rename an existing folder.
@@ -194,26 +197,26 @@ interface ConnectionInterface
      * @param  string  $oldPath  old name
      * @param  string  $newPath  new name
      */
-    public function renameFolder(string $oldPath, string $newPath): Response;
+    public function renameFolder(string $oldPath, string $newPath): ResponseCollection;
 
     /**
      * Delete a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function deleteFolder(string $folder): Response;
+    public function deleteFolder(string $folder): ResponseCollection;
 
     /**
      * Subscribe to a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function subscribeFolder(string $folder): Response;
+    public function subscribeFolder(string $folder): ResponseCollection;
 
     /**
      * Unsubscribe from a folder.
      *
      * @param  string  $folder  folder name
      */
-    public function unsubscribeFolder(string $folder): Response;
+    public function unsubscribeFolder(string $folder): ResponseCollection;
 }

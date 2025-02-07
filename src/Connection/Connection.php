@@ -271,23 +271,16 @@ abstract class Connection implements ConnectionInterface
      */
     public function connect(string $host, ?int $port = null): void
     {
+        $transport = $this->getTransport();
 
-        $transport = 'tcp';
-        $encryption = '';
-
-        if ($this->encryption) {
-            $encryption = strtolower($this->encryption);
-
-            if (in_array($encryption, ['ssl', 'tls'])) {
-                $transport = $encryption;
-                $port ??= 993;
-            }
+        if (in_array($transport, ['ssl', 'tls'])) {
+            $port ??= 993;
+        } else {
+            $port ??= 143;
         }
 
-        $port ??= 143;
-
-        $this->parser = new ImapParser(
-            new ImapTokenizer($this->stream)
+        $this->setParser(
+            $this->newParser($this->stream)
         );
 
         $this->stream->open(
@@ -306,43 +299,17 @@ abstract class Connection implements ConnectionInterface
 
         $this->setStreamTimeout($this->connectionTimeout);
 
-        if ($encryption == 'starttls') {
+        if ($transport === 'starttls') {
             $this->enableStartTls();
         }
     }
 
     /**
-     * Send an IMAP command.
+     * Get the transport method for the current connection.
      */
-    public function send(string $name, array $tokens = [], ?string &$tag = null): void
+    protected function getTransport(): string
     {
-        $command = new ImapCommand($name, $tokens);
-
-        if (! $tag) {
-            $this->sequence++;
-            $tag = 'TAG'.$this->sequence;
-        }
-
-        $command->setTag($tag);
-
-        $this->result = new Result;
-
-        $this->result->addCommand($command);
-
-        foreach ($command->compile() as $line) {
-            $this->write($line);
-        }
-    }
-
-    protected function untilTaggedResponse(string $tag, Result $result): void
-    {
-        while ($response = $this->nextResponse()) {
-            $result->addResponse($response);
-
-            if ($response instanceof TaggedResponse && $response->tag()->is($tag)) {
-                break;
-            }
-        }
+        return $this->encryption ? strtolower($this->encryption) : 'tcp';
     }
 
     /**
@@ -365,6 +332,31 @@ abstract class Connection implements ConnectionInterface
         }
 
         return $reply;
+    }
+
+    /**
+     * Send an IMAP command.
+     */
+    public function send(string $name, array $tokens, ?string &$tag): void
+    {
+        $command = new ImapCommand($name, $tokens);
+
+        if (! $tag) {
+            $this->sequence++;
+            $tag = 'TAG'.$this->sequence;
+        }
+
+        $command->setTag($tag);
+
+        $result = new Result;
+
+        $this->setResult($result);
+
+        $result->addCommand($command);
+
+        foreach ($command->compile() as $line) {
+            $this->write($line);
+        }
     }
 
     /**

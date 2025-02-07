@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-use DirectoryTree\ImapEngine\Connection\Response;
+use DirectoryTree\ImapEngine\Connection\ResponseCollection;
 use Exception;
 
 class ResponseException extends Exception
@@ -10,7 +10,7 @@ class ResponseException extends Exception
     /**
      * Make a new ResponseException instance.
      */
-    public static function make(Response $response, bool $debug = false, ?Exception $exception = null): ResponseException
+    public static function make(ResponseCollection $response, bool $debug = false, ?Exception $exception = null): ResponseException
     {
         $message = "Command failed to process:\n";
         $message .= "Causes:\n";
@@ -37,7 +37,7 @@ class ResponseException extends Exception
     /**
      * Generate a debug message containing all commands send and responses received.
      */
-    protected static function debugMessage(Response $response): string
+    protected static function debugMessage(ResponseCollection $response): string
     {
         $commands = $response->getCommands();
 
