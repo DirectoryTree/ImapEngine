@@ -104,7 +104,7 @@ class ImapParser
 
         // If the end-of-response marker (CRLF) is present, consume it.
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
-            $this->advance();
+            $this->currentToken = null;
         } else {
             throw new ImapParseException('Unterminated untagged response');
         }
@@ -133,7 +133,7 @@ class ImapParser
 
         // Consume the CRLF marker if present.
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
-            $this->advance();
+            $this->currentToken = null;
         } else {
             throw new ImapParseException('Unterminated continuation response');
         }
@@ -160,7 +160,7 @@ class ImapParser
 
         // Consume the CRLF marker if present.
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
-            $this->advance();
+            $this->currentToken = null;
         } else {
             throw new ImapParseException('Unterminated tagged response');
         }
