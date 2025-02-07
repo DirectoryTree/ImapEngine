@@ -19,7 +19,7 @@ test('parses an untagged response including the asterisk token', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response = $parser->parse();
+    $response = $parser->next();
 
     expect($response)->toBeInstanceOf(UntaggedResponse::class);
     expect($response->tokens())->toHaveCount(4);
@@ -36,7 +36,7 @@ test('parses a list response', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response = $parser->parse();
+    $response = $parser->next();
 
     expect($response)->toBeInstanceOf(ListData::class);
     expect($response->tokens())->toHaveCount(3);
@@ -52,7 +52,7 @@ test('parses a quoted string', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response = $parser->parse();
+    $response = $parser->next();
 
     expect($response)->toBeInstanceOf(QuotedString::class);
     expect((string) $response)->toEqual('"Hello, world!"');
@@ -68,7 +68,7 @@ test('parses a literal block', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response = $parser->parse();
+    $response = $parser->next();
 
     expect($response)->toBeInstanceOf(Literal::class);
     expect((string) $response)->toEqual("{5}\r\nHello");
@@ -84,7 +84,7 @@ test('parses a nested list response', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response = $parser->parse();
+    $response = $parser->next();
 
     expect($response)->toBeInstanceOf(ListData::class);
     expect($response->tokens())->toHaveCount(3);
@@ -120,11 +120,11 @@ test('parses a several lines', function () {
 
     $parser = new ImapParser($tokenizer);
 
-    $response1 = $parser->parse();
-    $response2 = $parser->parse();
-    $response3 = $parser->parse();
-    $response4 = $parser->parse();
-    $response5 = $parser->parse();
+    $response1 = $parser->next();
+    $response2 = $parser->next();
+    $response3 = $parser->next();
+    $response4 = $parser->next();
+    $response5 = $parser->next();
 
     expect($response1)->toBeInstanceOf(UntaggedResponse::class);
     expect($response1->tokens())->toHaveCount(4);
@@ -162,8 +162,8 @@ test('parses quota response', function () {
     $tokenizer = new ImapTokenizer($stream);
     $parser = new ImapParser($tokenizer);
 
-    $response1 = $parser->parse();
-    $response2 = $parser->parse();
+    $response1 = $parser->next();
+    $response2 = $parser->next();
 
     expect($response1)->toBeInstanceOf(UntaggedResponse::class);
     expect($response1->tokens())->toHaveCount(4);
