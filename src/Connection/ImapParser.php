@@ -3,8 +3,8 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Connection\Data\Data;
-use DirectoryTree\ImapEngine\Connection\Data\GroupData;
 use DirectoryTree\ImapEngine\Connection\Data\ListData;
+use DirectoryTree\ImapEngine\Connection\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
@@ -13,8 +13,6 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
-use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
-use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
@@ -52,22 +50,16 @@ class ImapParser
      */
     public function parse(): Data|Token|Response|null
     {
-        $this->advance(); // Load the first token.
+        // Load the first token.
+        if (! $this->currentToken) {
+            $this->advance();
+        }
 
-        if ($this->currentToken === null) {
+        if (! $this->currentToken) {
             throw new ImapParseException('Empty response');
         }
 
-        // If the current token is a quoted string or a literal,
-        // return it directly as a simple element.
-        if (
-            $this->currentToken instanceof Literal ||
-            $this->currentToken instanceof QuotedString
-        ) {
-            return $this->parseElement();
-        }
-
-        // If the token indicates the beginning of a list, delegate to parseList().
+        // If the token indicates the beginning of a list, parse it.
         if ($this->currentToken instanceof ListOpen) {
             return $this->parseList();
         }
@@ -83,10 +75,12 @@ class ImapParser
             if ($this->currentToken->value === '+') {
                 return $this->parseContinuationResponse();
             }
+
+            // If it's an Atom and not '*' or '+', it's likely a TAGGED response.
+            return $this->parseTaggedResponse();
         }
 
-        // If none of the above, assume it's a tagged response.
-        return $this->parseTaggedResponse();
+        return $this->parseElement();
     }
 
     /**
@@ -103,14 +97,16 @@ class ImapParser
 
         $this->advance();
 
-        // Loop to collect the rest of the tokens for this response until we reach CRLF.
-        while ($this->currentToken !== null && ! $this->isEndOfResponseToken($this->currentToken)) {
+        // Collect all tokens until the end-of-response marker.
+        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
             $elements[] = $this->parseElement();
         }
 
         // If the end-of-response marker (CRLF) is present, consume it.
-        if ($this->currentToken !== null && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->advance();
+        } else {
+            throw new ImapParseException('Unterminated untagged response');
         }
 
         return new UntaggedResponse($elements);
@@ -131,13 +127,15 @@ class ImapParser
         $elements = [];
 
         // Collect all tokens until the CRLF marker.
-        while ($this->currentToken !== null && ! $this->isEndOfResponseToken($this->currentToken)) {
+        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
             $elements[] = $this->parseElement();
         }
 
         // Consume the CRLF marker if present.
-        if ($this->currentToken !== null && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->advance();
+        } else {
+            throw new ImapParseException('Unterminated continuation response');
         }
 
         return new ContinuationResponse($elements);
@@ -156,13 +154,15 @@ class ImapParser
         $this->advance();
 
         // Collect tokens until the end-of-response marker is reached.
-        while ($this->currentToken !== null && ! $this->isEndOfResponseToken($this->currentToken)) {
+        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
             $tokens[] = $this->parseElement();
         }
 
         // Consume the CRLF marker if present.
-        if ($this->currentToken !== null && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->advance();
+        } else {
+            throw new ImapParseException('Unterminated tagged response');
         }
 
         return new TaggedResponse($tokens);
@@ -173,7 +173,7 @@ class ImapParser
      *
      * @throws ImapParseException if the group is unterminated.
      */
-    protected function parseBracketGroup(): GroupData
+    protected function parseBracketGroup(): ResponseCodeData
     {
         // Consume the opening '[' token.
         $this->advance();
@@ -181,7 +181,7 @@ class ImapParser
         $elements = [];
 
         while (
-            $this->currentToken !== null
+            $this->currentToken
             && ! $this->currentToken instanceof ResponseCodeClose
             && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
@@ -195,7 +195,7 @@ class ImapParser
         // Consume the closing ']' token.
         $this->advance();
 
-        return new GroupData($elements);
+        return new ResponseCodeData($elements);
     }
 
     /**
@@ -214,7 +214,7 @@ class ImapParser
 
         // Continue to parse elements until we find the corresponding ')'.
         while (
-            $this->currentToken !== null
+            $this->currentToken
             && ! $this->currentToken instanceof ListClose
             && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
