@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ResponseException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
@@ -40,6 +41,8 @@ class Folder
 
     /**
      * Get the folder flags.
+     *
+     * @return string[]
      */
     public function flags(): array
     {
@@ -140,15 +143,13 @@ class Folder
      */
     public function delete(bool $expunge = true): array
     {
-        $status = $this->mailbox->connection()
-            ->deleteFolder($this->path)
-            ->getValidatedData();
+        $this->mailbox->connection()->deleteFolder($this->path);
 
         if ($expunge) {
-            $this->expunge();
+            return $this->expunge();
         }
 
-        return $status;
+        return [];
     }
 
     /**
@@ -160,37 +161,46 @@ class Folder
     }
 
     /**
-     * Get the folder's flags.
+     * Get the folder's status.
      */
     public function status(): array
     {
-        return $this->mailbox->connection()
-            ->folderStatus($this->path)
-            ->getValidatedData();
+        $response = $this->mailbox->connection()->folderStatus($this->path);
+
+        $tokens = $response->tokenAt(3)->tokens();
+
+        $values = [];
+
+        // Tokens are expected to alternate between keys and values.
+        for ($i = 0; $i < count($tokens); $i += 2) {
+            $values[$tokens[$i]->value] = $tokens[$i + 1]->value;
+        }
+
+        return $values;
     }
 
     /**
-     * Examine the current folder.
+     * Examine the current folder and get detailed status information.
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()
-            ->examineFolder($this->path)
-            ->getValidatedData();
+        return $this->mailbox->connection()->examineFolder($this->path)->map(
+            fn (UntaggedResponse $response) => $response->toArray()
+        );
     }
 
     /**
-     * Expunge the mailbox.
+     * Expunge the mailbox and return the expunged message sequence numbers.
      */
     public function expunge(): array
     {
-        return $this->mailbox->connection()
-            ->expunge()
-            ->getValidatedData();
+        return $this->mailbox->connection()->expunge()->map(
+            fn (UntaggedResponse $response) => $response->tokenAt(1)->value
+        );
     }
 
     /**
-     * Determine if the current connection has IDLE support.
+     * Determine if the mailbox has IDLE support.
      */
     protected function hasIdleSupport(): bool
     {
@@ -198,12 +208,10 @@ class Folder
     }
 
     /**
-     * Get the connection's capabilities.
+     * Get the mailboxes's capabilities.
      */
     protected function capabilities(): array
     {
-        return $this->capabilities ??= $this->mailbox->connection()
-            ->capability()
-            ->getValidatedData();
+        return $this->capabilities ??= $this->mailbox->capabilities();
     }
 }
