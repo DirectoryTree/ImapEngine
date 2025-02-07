@@ -232,7 +232,7 @@ test('tokenizer returns null with no feed', function () {
     expect($tokenizer->nextToken())->toBeNull();
 });
 
-test('tokenizer parsed tagged response', function () {
+test('tokenizer parses tagged response with response codes', function () {
     $stream = new FakeStream;
     $stream->open();
 
@@ -274,6 +274,65 @@ test('tokenizer parsed tagged response', function () {
 
     expect($tokenizer->nextToken())->toBeNull();
 });
+
+test('tokenizer parsers properly', function (array|string $feed, array $tokens) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed($feed);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    for ($i = 0; $i < count($tokens); $i++) {
+        $token = $tokenizer->nextToken();
+
+        expect($token->value)->toBe($tokens[$i]);
+    }
+})->with([
+    [
+        'TAG2 OK List completed (0.002 + 0.000 + 0.001 secs).',
+        ['TAG2', 'OK', 'List', 'completed', '(', '0.002', '+', '0.000', '+', '0.001', 'secs', ')'],
+    ],
+    [
+        'TAG1 OK [UIDNEXT 1000] Completed',
+        ['TAG1', 'OK', '[', 'UIDNEXT', '1000', ']', 'Completed'],
+    ],
+    [
+        '* OK [CAPABILITY IMAP4rev1 LITERAL+] Server ready',
+        ['*', 'OK', '[', 'CAPABILITY', 'IMAP4rev1', 'LITERAL+', ']', 'Server', 'ready'],
+    ],
+    [
+        '* BAD Command unknown',
+        ['*', 'BAD', 'Command', 'unknown'],
+    ],
+    [
+        'A1 NO (ALERT Unrecognized command)',
+        ['A1', 'NO', '(', 'ALERT', 'Unrecognized', 'command', ')'],
+    ],
+    [
+        'A142 FETCH (FLAGS (\\Seen) UID 48273)',
+        ['A142', 'FETCH', '(', 'FLAGS', '(', '\\Seen', ')', 'UID', '48273', ')'],
+    ],
+    [
+        'A002 OK [READ-ONLY] Mailbox opened',
+        ['A002', 'OK', '[', 'READ-ONLY', ']', 'Mailbox', 'opened'],
+    ],
+    [
+        ['A003 OK {4}', 'Test'],
+        ['A003', 'OK', 'Test'],
+    ],
+    [
+        '* LIST (\\HasNoChildren) "/" INBOX',
+        ['*', 'LIST', '(', '\\HasNoChildren', ')', '/', 'INBOX'],
+    ],
+    [
+        'A005 OK <user@example.com> Email sent',
+        ['A005', 'OK', 'user@example.com', 'Email', 'sent'],
+    ],
+    [
+        'A004 BAD Syntax error',
+        ['A004', 'BAD', 'Syntax', 'error'],
+    ],
+]);
 
 test('all tokens implement the token interface', function (string $data) {
     $stream = new FakeStream;
