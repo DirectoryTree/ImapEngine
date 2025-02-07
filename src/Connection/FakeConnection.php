@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Imap;
 use RuntimeException;
 
@@ -112,7 +113,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function capability(): ResponseCollection
+    public function capability(): UntaggedResponse
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
