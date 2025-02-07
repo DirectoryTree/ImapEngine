@@ -79,9 +79,7 @@ test('tokenizer returns list open and list close tokens', function () {
 
     // Feed a response that contains list delimiters.
     // The stream contains two separate tokens: "(" and ")".
-    $stream->feed([
-        '(', ')',
-    ]);
+    $stream->feed(['(', ')']);
 
     $tokenizer = new ImapTokenizer($stream);
 
