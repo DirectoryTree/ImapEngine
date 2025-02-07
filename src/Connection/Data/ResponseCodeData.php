@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Data;
 
-class GroupData extends Data
+class ResponseCodeData extends Data
 {
     /**
      * Get the group as a string.
