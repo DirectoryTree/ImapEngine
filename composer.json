@@ -32,8 +32,8 @@
         "zbateson/mail-mime-parser": "^3.0"
     },
     "require-dev": {
+        "pestphp/pest": "^2.0|^3.0",
         "laravel/pint": "^1.18",
-        "pestphp/pest": "^3.7",
         "spatie/ray": "^1.41"
     },
     "autoload": {
