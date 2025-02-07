@@ -4,10 +4,6 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use ErrorException;
 
 class Mailbox
 {
@@ -140,11 +136,7 @@ class Mailbox
         $this->connection->setConnectionTimeout($this->config('timeout'));
         $this->connection->setCertValidation($this->config('validate_cert'));
 
-        try {
-            $this->connection->connect($this->config('host'), $this->config('port'));
-        } catch (ErrorException|RuntimeException $e) {
-            throw new ConnectionFailedException('Connection setup failed', 0, $e);
-        }
+        $this->connection->connect($this->config('host'), $this->config('port'));
 
         $this->authenticate();
     }
@@ -155,19 +147,15 @@ class Mailbox
     protected function authenticate(): void
     {
         if ($this->config('authentication') === 'oauth') {
-            $authenticated = $this->connection->authenticate(
+            $this->connection->authenticate(
                 $this->config('username'),
                 $this->config('password')
-            )->getValidatedData();
+            );
         } else {
-            $authenticated = $this->connection->login(
+            $this->connection->login(
                 $this->config('username'),
                 $this->config('password'),
-            )->getValidatedData();
-        }
-
-        if (! $authenticated) {
-            throw new AuthFailedException('Authentication failed');
+            );
         }
     }
 

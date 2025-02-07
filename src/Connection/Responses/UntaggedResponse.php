@@ -4,14 +4,14 @@ namespace DirectoryTree\ImapEngine\Connection\Responses;
 
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
-class UntaggedResponse extends Response implements StatusResponse
+class UntaggedResponse extends Response
 {
     use HasStatus;
 
     /**
-     * Get the response status token.
+     * Get the response type token.
      */
-    public function status(): Atom
+    public function type(): Atom
     {
         return $this->tokens[1];
     }

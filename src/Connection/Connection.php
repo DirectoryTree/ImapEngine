@@ -2,26 +2,31 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Connection\Responses\Response;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
-use DirectoryTree\ImapEngine\Exceptions\ImapBadRequestException;
-use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Imap;
 use DirectoryTree\ImapEngine\Support\Str;
-use Exception;
-use Illuminate\Support\Arr;
 
 abstract class Connection implements ConnectionInterface
 {
+    use ParsesResponses;
+
     /**
      * The underlying stream.
      */
     protected StreamInterface $stream;
 
     /**
-     * Whether to debugging is enabled.
+     * Sequence number used to generate unique command tags.
+     */
+    protected int $sequence = 0;
+
+    /**
+     * Whether debugging is enabled.
      */
     protected bool $debug = false;
 
@@ -31,23 +36,23 @@ abstract class Connection implements ConnectionInterface
     protected ?string $encryption = null;
 
     /**
-     * Default connection timeout in seconds.
-     */
-    protected int $connectionTimeout = 30;
-
-    /**
      * Whether certificate validation is enabled.
      */
     protected bool $certValidation = true;
+
+    /**
+     * Default connection timeout in seconds.
+     */
+    protected int $connectionTimeout = 30;
 
     /**
      * The connection proxy settings.
      */
     protected array $proxy = [
         'socket' => null,
-        'request_fulluri' => false,
         'username' => null,
         'password' => null,
+        'request_fulluri' => false,
     ];
 
     /**
@@ -63,13 +68,14 @@ abstract class Connection implements ConnectionInterface
      */
     public function __destruct()
     {
-        $this->logout();
+        //        $this->logout();
+        //        $this->close();
     }
 
     /**
-     * Reset the current stream and uid cache.
+     * Close the current stream.
      */
-    public function reset(): void
+    public function close(): void
     {
         $this->stream->close();
     }
@@ -91,6 +97,7 @@ abstract class Connection implements ConnectionInterface
             return $this->stream->meta();
         }
 
+        // Return dummy metadata when stream is closed.
         return [
             'crypto' => [
                 'protocol' => '',
@@ -109,7 +116,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Set the encryption method.
+     * Set the connection encryption method.
      */
     public function setEncryption(string $encryption): void
     {
@@ -117,7 +124,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Get the encryption method.
+     * Get the connection encryption method.
      */
     public function getEncryption(): ?string
     {
@@ -125,7 +132,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Set SSL certificate validation.
+     * Set whether certificate validation is enabled.
      */
     public function setCertValidation(int $certValidation): Connection
     {
@@ -135,7 +142,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Should we validate SSL certificate?
+     * Get whether certificate validation is enabled.
      */
     public function getCertValidation(): bool
     {
@@ -143,7 +150,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Set connection proxy settings.
+     * Set the connection proxy settings.
      */
     public function setProxy(array $options): Connection
     {
@@ -157,7 +164,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Get the current proxy settings.
+     * Get the connection proxy settings.
      */
     public function getProxy(): array
     {
@@ -165,7 +172,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Enable or disable debug mode.
+     * Enable or disable debugging.
      */
     public function setDebug(bool $enabled): void
     {
@@ -203,13 +210,12 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Get an available cryptographic method.
+     * Get the best available crypto method.
      */
     public function getCryptoMethod(): int
     {
-        // Allow the best TLS version(s) we can.
+        // Use the best available TLS client method.
         $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
-
         if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
             $cryptoMethod = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
         } elseif (defined('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT')) {
@@ -220,11 +226,11 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Enable TLS on the current connection.
+     * Enable STARTTLS on the current connection.
      */
     protected function enableStartTls(): void
     {
-        $response = $this->requestAndResponse('STARTTLS');
+        $response = $this->send('STARTTLS');
 
         $result = $response->successful() && $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
 
@@ -234,7 +240,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Get the default socket options.
+     * Get the default socket options for the given transport.
      */
     protected function getDefaultSocketOptions(string $transport): array
     {
@@ -253,10 +259,7 @@ abstract class Connection implements ConnectionInterface
 
             if ($this->proxy['username'] != null) {
                 $auth = base64_encode($this->proxy['username'].':'.$this->proxy['password']);
-
-                $options[$transport]['header'] = [
-                    "Proxy-Authorization: Basic $auth",
-                ];
+                $options[$transport]['header'] = ["Proxy-Authorization: Basic $auth"];
             }
         }
 
@@ -264,10 +267,11 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Connect to a host.
+     * {@inheritDoc}
      */
     public function connect(string $host, ?int $port = null): void
     {
+
         $transport = 'tcp';
         $encryption = '';
 
@@ -282,42 +286,71 @@ abstract class Connection implements ConnectionInterface
 
         $port ??= 143;
 
-        try {
-            $response = new Response(0, $this->debug);
+        $this->parser = new ImapParser(
+            new ImapTokenizer($this->stream)
+        );
 
-            $this->stream->open(
-                $transport,
-                $host,
-                $port,
-                $this->connectionTimeout,
-                $this->getDefaultSocketOptions($transport),
-            );
+        $this->stream->open(
+            $transport,
+            $host,
+            $port,
+            $this->connectionTimeout,
+            $this->getDefaultSocketOptions($transport)
+        );
 
-            // Upon opening the connection, we should receive
-            // an initial IMAP greeting message from the
-            // server to indicate it was successful.
-            if (! $this->assumedNextLine($response, '* OK')) {
-                throw new ConnectionFailedException('Connection refused');
-            }
+        $this->assertNextResponse(
+            fn (Response $response) => $response instanceof UntaggedResponse,
+            fn (UntaggedResponse $response) => $response->type()->is('OK'),
+            fn () => new ConnectionFailedException("Connection to $host:$port failed")
+        );
 
-            $this->setStreamTimeout($this->connectionTimeout);
+        $this->setStreamTimeout($this->connectionTimeout);
 
-            if ($encryption == 'starttls') {
-                $this->enableStartTls();
-            }
-        } catch (Exception $e) {
-            throw new ConnectionFailedException('Connection failed', 0, $e);
+        if ($encryption == 'starttls') {
+            $this->enableStartTls();
         }
     }
 
     /**
-     * Get the next line from stream.
+     * Send an IMAP command.
      */
-    public function nextLine(Response $response): string
+    public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
-        $line = $this->stream->fgets();
+        $command = new ImapCommand($name, $tokens);
 
-        if ($line === false) {
+        if (! $tag) {
+            $this->sequence++;
+            $tag = 'TAG'.$this->sequence;
+        }
+
+        $command->setTag($tag);
+
+        $this->result = new Result;
+
+        $this->result->addCommand($command);
+
+        foreach ($command->compile() as $line) {
+            $this->write($line);
+        }
+    }
+
+    protected function untilTaggedResponse(string $tag, Result $result): void
+    {
+        while ($response = $this->nextResponse()) {
+            $result->addResponse($response);
+
+            if ($response instanceof TaggedResponse && $response->tag()->is($tag)) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Read the next reply from the stream.
+     */
+    public function nextReply(): Response
+    {
+        if (! $reply = $this->parser->next()) {
             $meta = $this->meta();
 
             throw match (true) {
@@ -327,33 +360,17 @@ abstract class Connection implements ConnectionInterface
             };
         }
 
-        $response->push($line);
-
         if ($this->debug) {
-            echo '<< '.$line;
+            echo '<< '.$reply;
         }
 
-        return $line;
+        return $reply;
     }
 
     /**
-     * Get the next tagged line along with the containing tag.
+     * Write data to the stream.
      */
-    protected function nextTaggedLine(Response $response, ?string &$tag): string
-    {
-        $line = $this->nextLine($response);
-
-        if (str_contains($line, ' ')) {
-            [$tag, $line] = explode(' ', $line, 2);
-        }
-
-        return $line ?? '';
-    }
-
-    /**
-     * Write data to the current stream.
-     */
-    protected function write(Response $response, string $data): void
+    protected function write(string $data): void
     {
         $command = $data."\r\n";
 
@@ -361,135 +378,16 @@ abstract class Connection implements ConnectionInterface
             echo '>> '.$command."\n";
         }
 
-        $response->addCommand($command);
-
         if ($this->stream->fwrite($command) === false) {
-            throw new RuntimeException('Failed to write - connection closed?');
+            throw new RuntimeException('Failed to write data to stream.');
         }
     }
 
     /**
-     * Send a request and get response.
-     */
-    public function requestAndResponse(string $command, array $tokens = [], bool $parse = true): Response
-    {
-        $response = $this->sendCommand($command, $tokens, $tag);
-
-        $response->setResult(
-            $this->readResponse($response, $tag, $parse)
-        );
-
-        return $response;
-    }
-
-    /**
-     * Send an IMAP command.
-     */
-    public function sendCommand(string $command, array $tokens = [], ?string &$tag = null): Response
-    {
-        $command = new ImapCommand($command, $tokens);
-
-        if (! $tag) {
-            $this->sequence++;
-
-            $tag = 'TAG'.$this->sequence;
-        }
-
-        $command->setTag($tag);
-
-        $response = new Response($this->sequence, $this->debug);
-
-        foreach ($command->compile() as $line) {
-            $this->write($response, $line);
-
-            // If the line doesn't end with a literal marker, move on.
-            if (! str_ends_with($line, '}')) {
-                continue;
-            }
-
-            // If the line does end with a literal marker, check for the expected continuation.
-            if ($this->assumedNextLine($response, '+ ')) {
-                continue;
-            }
-
-            // Early return: if we didn't get the continuation, throw immediately.
-            throw new RuntimeException('Failed to send literal string.');
-        }
-
-        return $response;
-    }
-
-    /**
-     * Get the next line and check if it starts with a given string.
-     */
-    protected function assumedNextLine(Response $response, string $start): bool
-    {
-        return str_starts_with($this->nextLine($response), $start);
-    }
-
-    /**
-     * Read and optionally parse a response line.
-     */
-    public function readLine(Response $response, array|string &$tokens = [], string $wantedTag = '*', bool $parse = true): bool
-    {
-        $line = $this->nextTaggedLine($response, $tag); // Get next tag via reference.
-
-        if ($parse) {
-            $tokens = $this->tokenize($line);
-        } else {
-            $tokens = $line;
-        }
-
-        return $tag == $wantedTag;
-    }
-
-    /**
-     * Read all lines of response until given tag is found.
-     */
-    public function readResponse(Response $response, string $tag, bool $parse = true): array
-    {
-        $lines = [];
-        $tokens = '';
-
-        do {
-            $readAll = $this->readLine($response, $tokens, $tag, $parse);
-
-            $lines[] = $tokens;
-        } while (! $readAll);
-
-        $original = $tokens;
-
-        if (! $parse) {
-            // First two chars are still needed for the response code.
-            $tokens = [trim(substr($tokens, 0, 3))];
-        }
-
-        $original = Arr::wrap($original);
-
-        // Last line has response code.
-        if ($tokens[0] == 'OK') {
-            return $lines ?: [true];
-        }
-
-        if (in_array($tokens[0], ['NO', 'BAD', 'BYE'])) {
-            throw ImapServerErrorException::fromResponseTokens($original);
-        }
-
-        throw ImapBadRequestException::fromResponseTokens($original);
-    }
-
-    /**
-     * Parse the line into tokens.
-     */
-    protected function tokenize(string $line): array
-    {
-        return $this->flattenTokens(
-            (new ImapStreamTokenizer)->tokenize($this->stream, $line)
-        );
-    }
-
-    /**
-     * Fetch one or more items of one or more messages.
+     * Fetch one or more items for one or more messages.
+     *
+     * This method compiles the FETCH command, sends it, and then uses the new parser
+     * to obtain the parsed result.
      */
     public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): Response
     {
@@ -506,119 +404,28 @@ abstract class Connection implements ConnectionInterface
         }
 
         $items = (array) $items;
+        $prefix = ($identifier === Imap::ST_UID) ? 'UID' : '';
 
-        $prefix = match ($identifier) {
-            Imap::ST_UID => 'UID',
-            default => '',
-        };
-
-        $response = $this->sendCommand(
+        // Send the FETCH command.
+        $response = $this->send(
             trim($prefix.' FETCH'),
             [$set, $this->escapeList($items)],
             $tag
         );
 
-        $result = [];
-        $tokens = [];
+        // Use the new parser to parse the FETCH response.
+        $tokenizer = new ImapTokenizer($this->stream);
+        $parser = new ImapParser($tokenizer);
+        $parsedData = $parser->next();
 
-        while (! $this->readLine($response, $tokens, $tag)) {
-            if (! isset($tokens[1])) {
-                continue;
-            }
+        // Process $parsedData as needed; here we simply assign it.
+        $response->setResult($parsedData);
 
-            // Ignore other responses.
-            if ($tokens[1] != 'FETCH') {
-                continue;
-            }
-
-            $uidKey = 0;
-            $data = [];
-
-            // Find array key of UID value; try the last elements, or search for it.
-            if ($identifier === Imap::ST_UID) {
-                $count = count($tokens[2]);
-
-                if ($tokens[2][$count - 2] == 'UID') {
-                    $uidKey = $count - 1;
-                } elseif ($tokens[2][0] == 'UID') {
-                    $uidKey = 1;
-                } else {
-                    $found = array_search('UID', $tokens[2]);
-
-                    if ($found === false || $found === -1) {
-                        continue;
-                    }
-
-                    $uidKey = $found + 1;
-                }
-            }
-
-            // Ignore other messages.
-            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] != $from : $tokens[0] != $from)) {
-                continue;
-            }
-
-            // If we only want one item we return that one directly.
-            if (count($items) == 1) {
-                if ($tokens[2][0] == $items[0]) {
-                    $data = $tokens[2][1];
-                } elseif ($identifier === Imap::ST_UID && $tokens[2][2] == $items[0]) {
-                    $data = $tokens[2][3];
-                } else {
-                    $expectedResponse = 0;
-
-                    // Maybe the server send another field we didn't wanted.
-                    $count = count($tokens[2]);
-
-                    // We start with 2, because 0 was already checked.
-                    for ($i = 2; $i < $count; $i += 2) {
-                        if ($tokens[2][$i] != $items[0]) {
-                            continue;
-                        }
-
-                        $data = $tokens[2][$i + 1];
-
-                        $expectedResponse = 1;
-
-                        break;
-                    }
-
-                    if (! $expectedResponse) {
-                        continue;
-                    }
-                }
-            } else {
-                while (key($tokens[2]) !== null) {
-                    $data[current($tokens[2])] = next($tokens[2]);
-
-                    next($tokens[2]);
-                }
-            }
-
-            // If we want only one message we can ignore everything else and just return.
-            if (is_null($to) && ! is_array($from) && ($identifier === Imap::ST_UID ? $tokens[2][$uidKey] == $from : $tokens[0] == $from)) {
-                // We still need to read all lines.
-                if (! $this->readLine($response, $tokens, $tag)) {
-                    return $response->setResult($data);
-                }
-            }
-
-            if ($identifier === Imap::ST_UID) {
-                $result[$tokens[2][$uidKey]] = $data;
-            } else {
-                $result[$tokens[0]] = $data;
-            }
-        }
-
-        if (is_null($to) && ! is_array($from)) {
-            throw new RuntimeException('The single id was not found in response');
-        }
-
-        return $response->setResult($result);
+        return $response;
     }
 
     /**
-     * Escape one or more literals.
+     * Escape one or more literal strings.
      */
     protected function escapeString(array|string ...$string): array|string
     {
@@ -626,7 +433,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Escape a list with literals or lists.
+     * Escape a list of literals.
      */
     protected function escapeList(array $list): string
     {
