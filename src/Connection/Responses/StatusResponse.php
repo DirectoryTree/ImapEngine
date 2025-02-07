@@ -12,12 +12,12 @@ interface StatusResponse
     public function status(): Atom;
 
     /**
-     * Determine if the response was successful.
-     */
-    public function successful(): bool;
-
-    /**
      * Determine if the response failed.
      */
     public function failed(): bool;
+
+    /**
+     * Determine if the response was successful.
+     */
+    public function successful(): bool;
 }
