@@ -164,7 +164,7 @@ class ImapTokenizer
      *
      * @throws ImapParseException
      */
-    protected function readQuotedString(): ?QuotedString
+    protected function readQuotedString(): QuotedString
     {
         // Skip the opening quote.
         $this->advance();
@@ -213,7 +213,7 @@ class ImapTokenizer
             $this->advance();
         }
 
-        return empty($value) ? null : new QuotedString($value);
+        return new QuotedString($value);
     }
 
     /**
@@ -418,18 +418,6 @@ class ImapTokenizer
     }
 
     /**
-     * Determine if the given character is a delimiter.
-     */
-    protected function isDelimiter(string $char): bool
-    {
-        return in_array($char, [
-            '%', '*', '"', '\\',
-            ' ', "\t", "\r", "\n",
-            '(', ')', '[', ']', '{', '}', '<', '>',
-        ], true);
-    }
-
-    /**
      * Determine if the given character is a valid atom character.
      */
     protected function isValidAtomCharacter(string $char): bool
@@ -448,5 +436,16 @@ class ImapTokenizer
         }
 
         return true;
+    }
+
+    /**
+     * Determine if the given character is a delimiter.
+     */
+    protected function isDelimiter(string $char): bool
+    {
+        return in_array($char, [
+            ' ', "\t", "\r", "\n",
+            '(', ')', '[', ']', '{', '}', '<', '>',
+        ], true);
     }
 }
