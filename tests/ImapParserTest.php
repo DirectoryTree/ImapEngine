@@ -151,7 +151,6 @@ test('parses a several lines', function () {
 
 test('parses quota response', function () {
     $stream = new FakeStream;
-
     $stream->open();
 
     $stream->feed([
@@ -173,3 +172,44 @@ test('parses quota response', function () {
     expect($response2->tokens())->toHaveCount(4);
     expect((string) $response2)->toBe('TAG1 OK GETQUOTA completed');
 });
+
+test('parses response tokens', function (array|string $feed, string $type, string $value) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed($feed);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf($type);
+    expect((string) $response)->toBe($value);
+})->with([
+    ['()', ListData::class, '()'],
+    ['(A B C)', ListData::class, '(A B C)'],
+    [['{0}', ''], Literal::class, "{0}\r\n"],
+    ['(A (B C) D)', ListData::class, '(A (B C) D)'],
+    [['{5}', 'Hello'], Literal::class, "{5}\r\nHello"],
+    ['((A) (B (C)))', ListData::class, '((A) (B (C)))'],
+    ['"Hello, world!"', QuotedString::class, '"Hello, world!"'],
+    [['{12}', 'Hello', 'Bye'], Literal::class, "{12}\r\nHello\r\nBye\r\n"],
+    ['* OK Dovecot ready.', UntaggedResponse::class, '* OK Dovecot ready.'],
+    ['* 2 FETCH (UID 102)', UntaggedResponse::class, '* 2 FETCH (UID 102)'],
+    ['TAG1 OK FETCH completed', TaggedResponse::class, 'TAG1 OK FETCH completed'],
+    [
+        '* QUOTA "#user/testuser" (STORAGE 512 1024)',
+        UntaggedResponse::class, '* QUOTA "#user/testuser" (STORAGE 512 1024)',
+    ],
+    ['* SEARCH 1 2 3', UntaggedResponse::class, '* SEARCH 1 2 3'],
+    ['A007 NO [ALERT] System busy', TaggedResponse::class, 'A007 NO [ALERT] System busy'],
+    [
+        [
+            '* 1 FETCH (BODY {14}',
+            'Hello World!',
+            ')',
+        ],
+        UntaggedResponse::class,
+        "* 1 FETCH (BODY {14}\r\nHello World!\r\n)",
+    ],
+]);
