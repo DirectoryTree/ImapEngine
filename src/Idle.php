@@ -3,7 +3,8 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
-use DirectoryTree\ImapEngine\Connection\Response;
+use DirectoryTree\ImapEngine\Connection\Responses\Response;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
@@ -24,7 +25,7 @@ class Idle
      */
     public function __destruct()
     {
-        $this->mailbox->disconnect();
+        $this->disconnect();
     }
 
     /**
@@ -40,25 +41,35 @@ class Idle
 
         $sequence = $this->mailbox->config('options.sequence', Imap::ST_MSGN);
 
-        while (true) {
-            try {
-                $line = $this->getNextLine();
-            } catch (ConnectionTimedOutException) {
-                $this->reidle();
+        try {
+            $this->listen($callback, $sequence, $ttl);
+        } catch (ConnectionTimedOutException) {
+            $this->reidle();
 
-                $ttl = $this->getNextTimeout();
+            $ttl = $this->getNextTimeout();
 
-                continue;
-            } catch (ConnectionClosedException) {
-                $this->reconnect();
+            $this->listen($callback, $sequence, $ttl);
+        } catch (ConnectionClosedException) {
+            $this->reconnect();
 
-                $ttl = $this->getNextTimeout();
+            $ttl = $this->getNextTimeout();
 
+            $this->listen($callback, $sequence, $ttl);
+        }
+    }
+
+    /**
+     * Start listening for new messages.
+     */
+    protected function listen(callable $callback, int $sequence, Carbon $ttl): void
+    {
+        while ($response = $this->getNextReply()) {
+            if (! $response instanceof UntaggedResponse) {
                 continue;
             }
 
-            if (($pos = strpos($line, 'EXISTS')) !== false) {
-                $msgn = (int) substr($line, 2, $pos - 2);
+            if ($response->tokenAt(2)?->is('EXISTS')) {
+                $msgn = (int) $response->tokenAt(1)->value;
 
                 $callback($msgn, $sequence);
 
@@ -87,6 +98,18 @@ class Idle
     }
 
     /**
+     * Connect the client and begin IDLE.
+     */
+    protected function connect(): void
+    {
+        $this->mailbox->connect();
+
+        $this->mailbox->select($this->folder(), true);
+
+        $this->mailbox->connection()->setStreamTimeout($this->timeout);
+    }
+
+    /**
      * Reconnect the client and restart IDLE.
      */
     protected function reconnect(): void
@@ -97,15 +120,13 @@ class Idle
     }
 
     /**
-     * Connect the client and begin IDLE.
+     * Disconnect the client.
      */
-    protected function connect(): void
+    protected function disconnect(): void
     {
-        $this->mailbox->connect();
+        $this->done();
 
-        $this->mailbox->select($this->folder(), true);
-
-        $this->mailbox->connection()->setStreamTimeout($this->timeout);
+        $this->mailbox->disconnect();
     }
 
     /**
@@ -147,13 +168,11 @@ class Idle
     }
 
     /**
-     * Get the next line from the connection.
-     *
-     * @throws ConnectionTimedOutException|ConnectionClosedException
+     * Get the next reply from the connection.
      */
-    protected function getNextLine(): string
+    protected function getNextReply(): Response
     {
-        return $this->mailbox->connection()->nextLine(Response::empty());
+        return $this->mailbox->connection()->nextReply();
     }
 
     /**
