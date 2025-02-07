@@ -48,7 +48,7 @@ class ImapParser
      *
      * @throws ImapParseException if the response is empty.
      */
-    public function parse(): Data|Token|Response|null
+    public function next(): Data|Token|Response|null
     {
         // Load the first token.
         if (! $this->currentToken) {
