@@ -66,13 +66,15 @@ class ImapTokenizer
 
         // Check for carriage return.
         if ($char === "\r") {
-            $this->advance();
+            $this->advance(); // Consume CR
 
             $this->ensureBuffer(1);
 
             if ($this->currentChar() !== "\n") {
-                throw new ImapParseException('Expected line feed (LF) after carriage return (CR)');
+                throw new ImapParseException('Expected LF after CR');
             }
+
+            $this->advance(); // Consume LF
 
             return new Crlf("\r\n");
         }
@@ -273,12 +275,18 @@ class ImapTokenizer
 
             $this->advance($length);
         } else {
+            // Consume whatever is available without flushing the whole buffer.
             $literal = substr($this->buffer, $this->position);
 
-            $this->flushBuffer();
+            $consumed = strlen($literal);
 
-            $remaining = $length - strlen($literal);
+            // Advance the pointer by the number of bytes we took.
+            $this->advance($consumed);
 
+            // Calculate how many bytes are still needed.
+            $remaining = $length - $consumed;
+
+            // Read the missing bytes from the stream.
             $data = $this->stream->read($remaining);
 
             if ($data === false || strlen($data) !== $remaining) {
@@ -415,6 +423,7 @@ class ImapTokenizer
     protected function isDelimiter(string $char): bool
     {
         return in_array($char, [
+            '%', '*', '"', '\\',
             ' ', "\t", "\r", "\n",
             '(', ')', '[', ']', '{', '}', '<', '>',
         ], true);
