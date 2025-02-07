@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
 class Mailbox
 {
@@ -20,7 +21,7 @@ class Mailbox
         'delimiter' => '/',
         'encryption' => 'ssl',
         'validate_cert' => true,
-        'authentication' => 'PLAIN',
+        'authentication' => 'plain',
         'proxy' => [
             'socket' => null,
             'username' => null,
@@ -178,6 +179,17 @@ class Mailbox
     {
         return new FolderRepository(
             tap($this)->connection()
+        );
+    }
+
+    /**
+     * Get the mailbox's capabilities.
+     */
+    public function capabilities(): array
+    {
+        return array_map(
+            fn (Atom $token) => $token->value,
+            $this->connection()->capability()->tokensAfter(1)
         );
     }
 
