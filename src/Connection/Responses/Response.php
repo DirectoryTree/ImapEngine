@@ -33,11 +33,21 @@ abstract class Response implements Arrayable, Stringable
     }
 
     /**
+     * Get the response tokens after the given index.
+     */
+    public function tokensAfter(int $index): array
+    {
+        return array_slice($this->tokens, $index);
+    }
+
+    /**
      * Get the instance as an array.
      */
     public function toArray(): array
     {
-        return $this->tokens;
+        return array_map(function (Token|Data $token) {
+            return $token instanceof Data ? $token->values() : $token->value;
+        }, $this->tokens);
     }
 
     /**
