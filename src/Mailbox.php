@@ -18,7 +18,6 @@ class Mailbox
         'debug' => false,
         'username' => '',
         'password' => '',
-        'delimiter' => '/',
         'encryption' => 'ssl',
         'validate_cert' => true,
         'authentication' => 'plain',
@@ -170,6 +169,14 @@ class Mailbox
         }
 
         $this->connection = null;
+    }
+
+    /**
+     * Get the mailbox's inbox folder.
+     */
+    public function inbox(): Folder
+    {
+        return $this->folders()->find('INBOX');
     }
 
     /**
