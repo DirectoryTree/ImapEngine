@@ -39,29 +39,27 @@ class Idle
 
         $ttl = $this->getNextTimeout();
 
-        $sequence = $this->mailbox->config('options.sequence', Imap::SEQUENCE_TYPE_MSG_NUMBER);
-
         try {
-            $this->listen($callback, $sequence, $ttl);
+            $this->listen($callback, $ttl);
         } catch (ConnectionTimedOutException) {
             $this->reidle();
 
             $ttl = $this->getNextTimeout();
 
-            $this->listen($callback, $sequence, $ttl);
+            $this->listen($callback, $ttl);
         } catch (ConnectionClosedException) {
             $this->reconnect();
 
             $ttl = $this->getNextTimeout();
 
-            $this->listen($callback, $sequence, $ttl);
+            $this->listen($callback, $ttl);
         }
     }
 
     /**
      * Start listening for new messages.
      */
-    protected function listen(callable $callback, int $sequence, Carbon $ttl): void
+    protected function listen(callable $callback, Carbon $ttl): void
     {
         while ($response = $this->getNextReply()) {
             if (! $response instanceof UntaggedResponse) {
@@ -71,7 +69,7 @@ class Idle
             if ($response->tokenAt(2)?->is('EXISTS')) {
                 $msgn = (int) $response->tokenAt(1)->value;
 
-                $callback($msgn, $sequence);
+                $callback($msgn);
 
                 $ttl = $this->getNextTimeout();
             }
@@ -134,7 +132,7 @@ class Idle
      */
     protected function folder(): Folder
     {
-        return $this->mailbox->folders()->findByPath($this->folder);
+        return $this->mailbox->folders()->find($this->folder);
     }
 
     /**
