@@ -3,7 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 /**
- * IMAP constants.
+ * Various IMAP constants.
  *
  * @see http://php.net/manual/en/imap.constants.php
  */

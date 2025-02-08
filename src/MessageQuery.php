@@ -621,7 +621,13 @@ class MessageQuery
      */
     protected function search(): Collection
     {
-        $response = $this->connection()->search([$this->getQuery()]);
+        if (empty($this->conditions)) {
+            $this->all();
+        }
+
+        $response = $this->connection()->search([
+            $this->getQuery(),
+        ]);
 
         return new Collection(array_map(
             fn (Atom $token) => $token->value,
@@ -752,10 +758,6 @@ class MessageQuery
      */
     public function get(): MessageCollection
     {
-        if (empty($this->conditions)) {
-            $this->all();
-        }
-
         return $this->process($this->search());
     }
 
@@ -764,45 +766,48 @@ class MessageQuery
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
-        $messages = $this->search();
-
         $startChunk = max($startChunk, 1);
         $chunkSize = max($chunkSize, 1);
 
-        $count = max($messages->count() - ($chunkSize * ($startChunk - 1)), 0);
+        // Get all search result tokens once.
+        $messages = $this->search();
 
-        if (! $count) {
+        // Calculate how many chunks there are
+        $totalChunks = (int) ceil($messages->count() / $chunkSize);
+
+        // If startChunk is beyond our total chunks, return early.
+        if ($startChunk > $totalChunks) {
             return;
         }
 
+        // Save previous state to restore later.
         $previousLimit = $this->limit;
         $previousPage = $this->page;
 
         $this->limit = $chunkSize;
-        $this->page = $startChunk;
 
-        $handledMessagesCount = 0;
+        // Iterate from the starting chunk to the last chunk.
+        for ($page = $startChunk; $page <= $totalChunks; $page++) {
+            $this->page = $page;
 
-        do {
+            // populate() will use $this->page to slice the results.
             $hydrated = $this->populate($messages);
 
-            $handledMessagesCount += $hydrated->count();
+            // If no messages are returned, break out to prevent infinite loop.
+            if ($hydrated->isEmpty()) {
+                break;
+            }
 
-            $callback($hydrated, $this->page);
+            $callback($hydrated, $page);
+        }
 
-            $this->page++;
-        } while ($handledMessagesCount < $count);
-
+        // Restore the original state.
         $this->limit = $previousLimit;
         $this->page = $previousPage;
     }
 
     /**
      * Paginate the current query.
-     *
-     * @param  int  $perPage  Results you which to receive per page
-     * @param  null  $page  The current page you are on (e.g. 0, 1, 2, ...) use `null` to enable auto mode
-     * @param  string  $pageName  The page name / uri parameter used for the generated links and the auto mode
      */
     public function paginate(int $perPage = 5, $page = null, string $pageName = 'page'): LengthAwarePaginator
     {
