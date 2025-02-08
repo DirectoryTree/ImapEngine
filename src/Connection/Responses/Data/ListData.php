@@ -1,6 +1,6 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Connection\Data;
+namespace DirectoryTree\ImapEngine\Connection\Responses\Data;
 
 class ListData extends Data
 {

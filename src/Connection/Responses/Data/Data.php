@@ -1,12 +1,15 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Connection\Data;
+namespace DirectoryTree\ImapEngine\Connection\Responses\Data;
 
+use DirectoryTree\ImapEngine\Connection\Responses\HasTokens;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Stringable;
 
 abstract class Data implements Stringable
 {
+    use HasTokens;
+
     /**
      * Constructor.
      */
