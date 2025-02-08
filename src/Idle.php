@@ -39,7 +39,7 @@ class Idle
 
         $ttl = $this->getNextTimeout();
 
-        $sequence = $this->mailbox->config('options.sequence', Imap::ST_MSGN);
+        $sequence = $this->mailbox->config('options.sequence', Imap::SEQUENCE_TYPE_MSG_NUMBER);
 
         try {
             $this->listen($callback, $sequence, $ttl);

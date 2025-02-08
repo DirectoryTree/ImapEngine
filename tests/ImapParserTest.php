@@ -1,9 +1,9 @@
 <?php
 
-use DirectoryTree\ImapEngine\Connection\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\FakeStream;
 use DirectoryTree\ImapEngine\Connection\ImapParser;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;

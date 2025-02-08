@@ -6,6 +6,9 @@ use Carbon\Carbon;
 use Closure;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -26,14 +29,19 @@ class MessageQuery
     protected int $page = 1;
 
     /**
+     * The fetch limit.
+     */
+    protected ?int $limit = null;
+
+    /**
      * The added search conditions.
      */
     protected array $conditions = [];
 
     /**
-     * The fetch limit.
+     * The date format to use for date based queries.
      */
-    protected ?int $limit = null;
+    protected string $dateFormat = 'd-M-Y';
 
     /**
      * Whether to fetch the message body.
@@ -55,12 +63,7 @@ class MessageQuery
      *
      * Leave messages unread by default.
      */
-    protected int $fetchOptions = Imap::FT_PEEK;
-
-    /**
-     * The date format to use for date based queries.
-     */
-    protected string $dateFormat = 'd-M-Y';
+    protected int $fetchOptions = Imap::DO_NOT_MARK_AS_READ;
 
     /**
      * Constructor.
@@ -75,7 +78,7 @@ class MessageQuery
      */
     public function leaveUnread(): static
     {
-        $this->setFetchOptions(Imap::FT_PEEK);
+        $this->setFetchOptions(Imap::FT_UID | Imap::DO_NOT_MARK_AS_READ);
 
         return $this;
     }
@@ -156,6 +159,24 @@ class MessageQuery
     public function getFetchOptions(): ?int
     {
         return $this->fetchOptions;
+    }
+
+    /**
+     * Set the fetch identifier.
+     */
+    public function setFetchIdentifier(int $fetchIdentifier): static
+    {
+        $this->fetchIdentifier = $fetchIdentifier;
+
+        return $this;
+    }
+
+    /**
+     * Get the fetch identifier.
+     */
+    public function getFetchIdentifier(): int
+    {
+        return $this->fetchIdentifier;
     }
 
     /**
@@ -281,8 +302,12 @@ class MessageQuery
     /**
      * Prepare the where value, escaping it as needed.
      */
-    protected function prepareWhereValue(mixed $value): string
+    protected function prepareWhereValue(mixed $value): ?string
     {
+        if (is_null($value)) {
+            return null;
+        }
+
         if ($value instanceof DateTimeInterface) {
             $value = Carbon::instance($value);
         }
@@ -292,26 +317,6 @@ class MessageQuery
         }
 
         return Str::escape($value);
-    }
-
-    /**
-     * Escape a value for safe inclusion in an IMAP quoted string.
-     *
-     * This function escapes backslashes and double quotes.
-     */
-    protected function escapeImapString(string $value): string
-    {
-        // Replace backslashes first to avoid double-escaping
-        $value = str_replace('\\', '\\\\', $value);
-
-        // Then escape double quotes
-        $value = str_replace('"', '\\"', $value);
-
-        // Optionally, you could also strip or encode control characters here.
-        // For example:
-        // $value = preg_replace('/[\x00-\x1F\x7F]/', '', $value);
-
-        return $value;
     }
 
     /**
@@ -631,12 +636,12 @@ class MessageQuery
      */
     protected function search(): Collection
     {
-        $messages = $this->folder->mailbox()
-            ->connection()
-            ->search([$this->getQuery()])
-            ->getValidatedData();
+        $response = $this->connection()->search([$this->getQuery()]);
 
-        return new Collection($messages);
+        return new Collection(array_map(
+            fn (Atom $token) => $token->value,
+            $response->tokensAfter(2)
+        ));
     }
 
     /**
@@ -658,23 +663,41 @@ class MessageQuery
 
         $uids = $messages->forPage($this->page, $this->limit)->toArray();
 
-        $flags = $this->folder->mailbox()
-            ->connection()
-            ->flags($uids)
-            ->getValidatedData();
+        $flags = $this->connection()->flags($uids)->mapWithKeys(
+            function (UntaggedResponse $response) {
+                $data = $response->tokenAt(3); // ListData
 
-        $headers = $this->folder->mailbox()
-            ->connection()
-            ->headers($uids, 'RFC822')
-            ->getValidatedData();
+                $uid = $data->tokenAt(1)->value; // UID
+                $flags = $data->tokenAt(3); // ListData (Flags)
 
-        $contents = [];
+                return [$uid => $flags->values()];
+            }
+        );
+
+        $headers = $this->connection()->headers($uids)->mapWithKeys(
+            function (UntaggedResponse $response) {
+                $data = $response->tokenAt(3); // ListData
+
+                $uid = $data->tokenAt(1)->value; // UID
+                $headers = $data->tokenAt(4)->value; // Headers
+
+                return [$uid => $headers];
+            }
+        );
+
+        $contents = new Collection;
 
         if ($this->isFetchingBody()) {
-            $contents = $this->folder->mailbox()
-                ->connection()
-                ->contents($uids, 'RFC822')
-                ->getValidatedData();
+            $contents = $this->connection()->contents($uids)->mapWithKeys(
+                function (UntaggedResponse $response) {
+                    $data = $response->tokenAt(3); // ListData
+
+                    $uid = $data->tokenAt(1)->value; // UID
+                    $contents = $data->tokenAt(4)->value; // Contents
+
+                    return [$uid => $contents];
+                }
+            );
         }
 
         return [
@@ -722,8 +745,9 @@ class MessageQuery
 
         $rawMessages = $this->fetch($uids);
 
-        foreach ($rawMessages['headers'] as $uid => $headers) {
+        foreach ($rawMessages['uids'] as $uid) {
             $flags = $rawMessages['flags'][$uid] ?? [];
+            $headers = $rawMessages['headers'][$uid] ?? '';
             $contents = $rawMessages['contents'][$uid] ?? '';
 
             $messages->push(
@@ -813,38 +837,28 @@ class MessageQuery
     }
 
     /**
-     * Get a message by its uid.
+     * Find a message by the given identifier type.
      */
-    public function findByUid(int $uid): Message
+    public function find(int $id, int $identifier = Imap::SEQUENCE_TYPE_UID): Message
     {
-        return $this->find($uid, Imap::ST_UID);
-    }
-
-    /**
-     * Get a message by its message number.
-     */
-    public function findByMsgn(int $msgn): Message
-    {
-        return $this->find($msgn, Imap::ST_MSGN);
-    }
-
-    /**
-     * Find a message by the specified sequence type.
-     */
-    protected function find(int $id, int $identifier): Message
-    {
-        $connection = $this->folder->mailbox()->connection();
-
         // If the sequence is not UID, we'll need to fetch the UID first.
         $uid = match ($identifier) {
-            Imap::ST_UID => $id,
-            Imap::ST_MSGN => $connection->uids([$id])->getValidatedData()[$id],
+            Imap::SEQUENCE_TYPE_UID => $id,
+            Imap::SEQUENCE_TYPE_MSG_NUMBER => $this->connection()->uids([10]) // ResponseCollection
+                ->firstOrFail() // Untagged response
+                ->tokenAt(3) // ListData
+                ->tokenAt(1) // Atom
+                ->value // UID
         };
 
-        $flags = $connection->flags([$uid])->getValidatedData()[$uid] ?? [];
-        $headers = $connection->headers([$uid], 'RFC822')->getValidatedData()[$uid] ?? '';
-        $contents = $connection->contents([$uid], 'RFC822')->getValidatedData()[$uid] ?? '';
+        return $this->process(new MessageCollection([$uid]))->first();
+    }
 
-        return new Message($this->folder, $uid, $flags, $headers, $contents);
+    /**
+     * Get the connection instance.
+     */
+    protected function connection(): ConnectionInterface
+    {
+        return $this->folder->mailbox()->connection();
     }
 }
