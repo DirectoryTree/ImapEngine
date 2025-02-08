@@ -62,7 +62,7 @@ class ImapTokenizer
             return null;
         }
 
-        // Check for carriage return.
+        // Check for carriage return. (\r\n)
         if ($char === "\r") {
             $this->advance(); // Consume CR
 
@@ -72,19 +72,19 @@ class ImapTokenizer
                 throw new ImapParseException('Expected LF after CR');
             }
 
-            $this->advance(); // Consume LF
+            $this->advance(); // Consume LF (\n)
 
             return new Crlf("\r\n");
         }
 
-        // Check for list opening.
+        // Check for parameter list opening.
         if ($char === '(') {
             $this->advance();
 
             return new ListOpen('(');
         }
 
-        // Check for a list closing.
+        // Check for a parameter list closing.
         if ($char === ')') {
             $this->advance();
 
@@ -105,7 +105,7 @@ class ImapTokenizer
             return new ResponseCodeClose(']');
         }
 
-        // Check for angle bracket open (for email addresses).
+        // Check for angle bracket open (email addresses).
         if ($char === '<') {
             $this->advance();
 
@@ -304,6 +304,8 @@ class ImapTokenizer
 
     /**
      * Reads an atom token.
+     *
+     * ATOMs are sequences of printable ASCII characters that do not contain delimiters.
      */
     protected function readAtom(): Atom
     {
@@ -332,6 +334,10 @@ class ImapTokenizer
 
     /**
      * Reads an email address token enclosed in angle brackets.
+     *
+     * Email addresses are enclosed in angle brackets ("<" and ">").
+     *
+     * For example "<johndoe@email.com>"
      */
     protected function readEmailAddress(): ?EmailAddress
     {
@@ -429,13 +435,15 @@ class ImapTokenizer
     }
 
     /**
-     * Determine if the given character is a delimiter.
+     * Determine if the given character is a delimiter for tokenizing responses.
      */
     protected function isDelimiter(string $char): bool
     {
-        return in_array($char, [
-            ' ', "\t", "\r", "\n",
-            '(', ')', '[', ']', '{', '}', '<', '>',
-        ], true);
+        // This delimiter list includes additional characters (such as square
+        // brackets, curly braces, and angle brackets) to ensure that tokens
+        // like the response code group brackets are split out. This is fine
+        // for tokenizing responses, even though it’s more restrictive
+        // than the IMAP atom definition in RFC 3501 (section 9).
+        return in_array($char, [' ', '(', ')', '[', ']', '{', '}', '<', '>'], true);
     }
 }
