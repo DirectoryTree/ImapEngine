@@ -7,6 +7,7 @@ use Closure;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
+use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -860,12 +861,12 @@ class MessageQuery
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, int $identifier = Imap::SEQUENCE_TYPE_UID): Message
+    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): Message
     {
         // If the sequence is not UID, we'll need to fetch the UID first.
         $uid = match ($identifier) {
-            Imap::SEQUENCE_TYPE_UID => $id,
-            Imap::SEQUENCE_TYPE_MSG_NUMBER => $this->connection()->uids([$id]) // ResponseCollection
+            ImapFetchIdentifier::Uid => $id,
+            ImapFetchIdentifier::MessageNumber => $this->connection()->uids([$id]) // ResponseCollection
                 ->firstOrFail() // Untagged response
                 ->tokenAt(3) // ListData
                 ->tokenAt(1) // Atom

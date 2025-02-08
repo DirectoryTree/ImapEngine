@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ResponseException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
@@ -95,7 +96,7 @@ class Folder
         }
 
         $fetch = function (int $msgn) {
-            return $this->messages()->withBody()->find($msgn, Imap::SEQUENCE_TYPE_MSG_NUMBER);
+            return $this->messages()->withBody()->find($msgn, ImapFetchIdentifier::MessageNumber);
         };
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
@@ -132,18 +133,6 @@ class Folder
         }
 
         $this->path = $newPath;
-    }
-
-    /**
-     * Delete the current folder.
-     */
-    public function delete(bool $expunge = true): void
-    {
-        $this->mailbox->connection()->deleteFolder($this->path);
-
-        if ($expunge) {
-            $this->expunge();
-        }
     }
 
     /**
@@ -194,6 +183,18 @@ class Folder
     }
 
     /**
+     * Delete the current folder.
+     */
+    public function delete(bool $expunge = true): void
+    {
+        $this->mailbox->connection()->deleteFolder($this->path);
+
+        if ($expunge) {
+            $this->expunge();
+        }
+    }
+
+    /**
      * Determine if the mailbox has the given capability.
      */
     public function hasCapability(string $capability): bool
@@ -202,7 +203,7 @@ class Folder
     }
 
     /**
-     * Get the mailboxes's capabilities.
+     * Get and in-memory cache the mailboxes's capabilities.
      */
     protected function capabilities(): array
     {

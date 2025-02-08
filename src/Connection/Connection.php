@@ -381,7 +381,7 @@ abstract class Connection implements ConnectionInterface
     /**
      * Fetch one or more items for one or more messages.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::SEQUENCE_TYPE_UID): ResponseCollection
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
     {
         if (is_array($from) && count($from) > 1) {
             $set = implode(',', $from);
@@ -397,7 +397,7 @@ abstract class Connection implements ConnectionInterface
 
         $items = (array) $items;
 
-        $prefix = ($identifier === Imap::SEQUENCE_TYPE_UID) ? 'UID' : '';
+        $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
 
         $this->send(trim($prefix.' FETCH'), [$set, $this->escapeList($items)], $tag);
 

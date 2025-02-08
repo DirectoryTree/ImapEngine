@@ -9,7 +9,6 @@ use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Imap;
 use Illuminate\Support\Arr;
 use Throwable;
 
@@ -282,7 +281,7 @@ class ImapConnection extends Connection
      */
     public function uids(int|array $msgns): ResponseCollection
     {
-        return $this->fetch(['UID'], (array) $msgns, null, Imap::SEQUENCE_TYPE_MSG_NUMBER);
+        return $this->fetch(['UID'], (array) $msgns, null, ImapFetchIdentifier::MessageNumber);
     }
 
     /**
