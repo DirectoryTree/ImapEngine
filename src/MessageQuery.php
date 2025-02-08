@@ -830,7 +830,7 @@ class MessageQuery
         // If the sequence is not UID, we'll need to fetch the UID first.
         $uid = match ($identifier) {
             Imap::SEQUENCE_TYPE_UID => $id,
-            Imap::SEQUENCE_TYPE_MSG_NUMBER => $this->connection()->uids([10]) // ResponseCollection
+            Imap::SEQUENCE_TYPE_MSG_NUMBER => $this->connection()->uids([$id]) // ResponseCollection
                 ->firstOrFail() // Untagged response
                 ->tokenAt(3) // ListData
                 ->tokenAt(1) // Atom
