@@ -27,10 +27,35 @@ composer require directorytree/imapengine
 
 ## Usage
 
-```php
-use DirectoryTree\ImapEngine\Mailbox;
-use DirectoryTree\ImapEngine\Message;
+### Configuration
 
+All default configuration options are shown below:
+
+```php
+$config = [
+    'port' => 993,
+    'host' => '',
+    'timeout' => 30,
+    'debug' => false,
+    'username' => '',
+    'password' => '',
+    'encryption' => 'ssl',
+    'validate_cert' => true,
+    'authentication' => 'plain',
+    'proxy' => [
+        'socket' => null,
+        'username' => null,
+        'password' => null,
+        'request_fulluri' => false,
+    ],
+];
+```
+
+### Connection
+
+To connect to a mailbox, create a new `Mailbox` instance with the above configuration options:
+
+```php
 $mailbox = new Mailbox([
     'port' => 993,
     'username' => '...',
@@ -38,27 +63,60 @@ $mailbox = new Mailbox([
     'encryption' => 'ssl',
     'host' => 'imap.example.com',
 ]);
+```
+
+To connect using an OAuth token, pass the token as the password, and set the `authentication` method to `oauth`:
+
+```php
+$token = '...';
+
+$mailbox = new Mailbox([
+    'port' => 993,
+    'username' => '...',
+    'password' => $token,
+    'encryption' => 'ssl',
+    'authentication' => 'oauth',
+    'host' => 'imap.example.com',
+]);
+```
+
+### Usage
+
+#### Retrieving Folders
+
+```php
+// Get the mailbox's inbox folder.
+$inbox = $mailbox->folders()->inbox();
 
 // Get all the mailbox's folders.
 $folders = $mailbox->folders()->get();
 
-// Get the first folder.
-$folder = $folders->first();
+// Get all mailbox's folders matching a glob pattern.
+$folders = $mailbox->folders('*/Subfolder')->get();
+
+// Find a specific folder.
+$folder = $mailbox->folders()->find('Folder Name');
+```
+
+#### Retrieving Messages
+
+```php
+$inbox = $mailbox->folders()->inbox();
 
 // Get all the folder's messages.
-$messages = $folder->messages()->get();
+$messages = $inbox->messages()->get();
 
 // Get all the folder's messages with their bodies.
-$messages = $folder->messages()->withBody()->get();
+$messages = $inbox->messages()->withBody()->get();
 
 // Get messages since a certain date.
-$messages = $folder->messages()->since(now()->subDays(7))->get();
+$messages = $inbox->messages()->since(now()->subDays(7))->get();
 
 // Get messages with a certain subject.
-$messages = $folder->messages()->subject('Hello World')->get();
+$messages = $inbox->messages()->subject('Hello World')->get();
 
-// Listen for new messages.
-$folder->idle(function (Message $message) {
+// Listen for new messages on the inbox.
+$inbox->idle(function (Message $message) {
     // Handle the new message.
 });
 ```
