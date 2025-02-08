@@ -147,29 +147,35 @@ class MessageQuery
     }
 
     /**
-     * Set the fetch option flag.
-     */
-    public function setFetchOptions(int $fetchOptions): static
-    {
-        $this->fetchOptions = $fetchOptions;
-
-        return $this;
-    }
-
-    /**
-     * Get the fetch option flag.
-     */
-    public function getFetchOptions(): ?int
-    {
-        return $this->fetchOptions;
-    }
-
-    /**
      * Determine if the body of messages is being fetched.
      */
     public function isFetchingBody(): bool
     {
         return $this->fetchBody;
+    }
+
+    /**
+     * Determine if the flags of messages is being fetched.
+     */
+    public function isFetchingFlags(): bool
+    {
+        return $this->fetchFlags;
+    }
+
+    /**
+     * Determine if the headers of messages is being fetched.
+     */
+    public function isFetchingHeaders(): bool
+    {
+        return $this->fetchHeaders;
+    }
+
+    /**
+     * Fetch the body of messages.
+     */
+    public function withFlags(): static
+    {
+        return $this->setFetchFlags(true);
     }
 
     /**
@@ -181,6 +187,14 @@ class MessageQuery
     }
 
     /**
+     * Fetch the body of messages.
+     */
+    public function withHeaders(): static
+    {
+        return $this->setFetchHeaders(true);
+    }
+
+    /**
      * Don't fetch the body of messages.
      */
     public function withoutBody(): static
@@ -189,9 +203,35 @@ class MessageQuery
     }
 
     /**
+     * Don't fetch the body of messages.
+     */
+    public function withoutHeaders(): static
+    {
+        return $this->setFetchHeaders(false);
+    }
+
+    /**
+     * Don't fetch the body of messages.
+     */
+    public function withoutFlags(): static
+    {
+        return $this->setFetchFlags(false);
+    }
+
+    /**
+     * Set whether to fetch the flags.
+     */
+    protected function setFetchFlags(bool $fetchFlags): static
+    {
+        $this->fetchFlags = $fetchFlags;
+
+        return $this;
+    }
+
+    /**
      * Set the fetch body flag.
      */
-    public function setFetchBody(bool $fetchBody): static
+    protected function setFetchBody(bool $fetchBody): static
     {
         $this->fetchBody = $fetchBody;
 
@@ -199,17 +239,9 @@ class MessageQuery
     }
 
     /**
-     * Get the fetch body flag.
+     * Set whether to fetch the headers.
      */
-    public function getFetchFlags(): bool
-    {
-        return $this->fetchFlags;
-    }
-
-    /**
-     * Set the fetch flag.
-     */
-    public function setFetchFlags(bool $fetchFlags): static
+    protected function setFetchHeaders(bool $fetchFlags): static
     {
         $this->fetchFlags = $fetchFlags;
 
@@ -259,14 +291,16 @@ class MessageQuery
      */
     public function where(mixed $criteria, mixed $value = null): static
     {
-        if (is_array($criteria)) {
-            foreach ($criteria as $key => $value) {
-                is_numeric($key)
-                    ? $this->where($value)
-                    : $this->where($key, $value);
-            }
-        } else {
-            $this->addCondition($criteria, $this->prepareWhereValue($value));
+        if (! is_array($criteria)) {
+            $this->addCondition(
+                $criteria, $this->prepareWhereValue($value)
+            );
+
+            return $this;
+        }
+
+        foreach ($criteria as $key => $value) {
+            $this->where($key, $value);
         }
 
         return $this;

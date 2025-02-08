@@ -69,8 +69,8 @@ abstract class Connection implements ConnectionInterface
      */
     public function __destruct()
     {
-        //        $this->logout();
-        //        $this->close();
+        $this->logout();
+        $this->close();
     }
 
     /**
