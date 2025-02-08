@@ -78,12 +78,12 @@ interface ConnectionInterface
     /**
      * Fetch message contents.
      */
-    public function contents(int|array $ids): ResponseCollection;
+    public function contents(int|array $ids, bool $peek = true): ResponseCollection;
 
     /**
      * Fetch message headers.
      */
-    public function headers(int|array $ids): ResponseCollection;
+    public function headers(int|array $ids, bool $peek = true): ResponseCollection;
 
     /**
      * Fetch message flags.

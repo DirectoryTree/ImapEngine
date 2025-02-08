@@ -2,7 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\FakeStream;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Connection\Response;
+use DirectoryTree\ImapEngine\Connection\ResponseCollection;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapServerErrorException;
@@ -65,9 +65,9 @@ test('next line reads line successfully', function () {
 
     $protocol = new ImapConnection($stream);
 
-    $response = new Response;
+    $response = new ResponseCollection;
 
-    $line = $protocol->nextLine($response);
+    $line = $protocol->nextReply($response);
 
     expect($line)->toBe('* OK IMAP4rev1 Service Ready');
     expect($response->getResponse())->toHaveCount(1);
@@ -87,15 +87,15 @@ test('next line multi line fixture', function () {
 
     $connection = new ImapConnection($stream);
 
-    $response = new Response;
+    $response = new ResponseCollection;
 
-    $line1 = $connection->nextLine($response);
+    $line1 = $connection->nextReply($response);
     expect($line1)->toBe('* OK Dovecot ready.');
 
-    $line2 = $connection->nextLine($response);
+    $line2 = $connection->nextReply($response);
     expect($line2)->toBe('* CAPABILITY IMAP4rev1 UIDPLUS');
 
-    $line3 = $connection->nextLine($response);
+    $line3 = $connection->nextReply($response);
     expect($line3)->toBe('1 OK CAPABILITY completed');
 
     expect($response->getResponse())->toHaveCount(3);

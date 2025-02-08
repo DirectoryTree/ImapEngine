@@ -282,17 +282,17 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(int|array $ids): ResponseCollection
+    public function contents(int|array $ids, bool $peek = true): ResponseCollection
     {
-        return $this->fetch(['BODY[TEXT]'], (array) $ids);
+        return $this->fetch([$peek ? 'BODY.PEEK[TEXT]' : 'BODY[TEXT]'], (array) $ids);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function headers(int|array $ids): ResponseCollection
+    public function headers(int|array $ids, bool $peek = true): ResponseCollection
     {
-        return $this->fetch(['BODY[HEADER]'], (array) $ids);
+        return $this->fetch([$peek ? 'BODY.PEEK[HEADER]' : 'BODY[HEADER]'], (array) $ids);
     }
 
     /**

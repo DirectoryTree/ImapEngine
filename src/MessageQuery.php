@@ -54,16 +54,19 @@ class MessageQuery
     protected bool $fetchFlags = true;
 
     /**
+     * Whether to fetch the message headers.
+     */
+    protected bool $fetchHeaders = true;
+
+    /**
      * The fetch order.
      */
     protected string $fetchOrder = 'desc';
 
     /**
-     * The fetch options.
-     *
-     * Leave messages unread by default.
+     * Whether to leave messages fetched as unread by default.
      */
-    protected int $fetchOptions = Imap::DO_NOT_MARK_AS_READ;
+    protected bool $fetchAsUnread = true;
 
     /**
      * Constructor.
@@ -78,7 +81,7 @@ class MessageQuery
      */
     public function leaveUnread(): static
     {
-        $this->setFetchOptions(Imap::FT_UID | Imap::DO_NOT_MARK_AS_READ);
+        $this->fetchAsUnread = true;
 
         return $this;
     }
@@ -88,7 +91,7 @@ class MessageQuery
      */
     public function markAsRead(): static
     {
-        $this->setFetchOptions(Imap::FT_UID);
+        $this->fetchAsUnread = false;
 
         return $this;
     }
@@ -159,24 +162,6 @@ class MessageQuery
     public function getFetchOptions(): ?int
     {
         return $this->fetchOptions;
-    }
-
-    /**
-     * Set the fetch identifier.
-     */
-    public function setFetchIdentifier(int $fetchIdentifier): static
-    {
-        $this->fetchIdentifier = $fetchIdentifier;
-
-        return $this;
-    }
-
-    /**
-     * Get the fetch identifier.
-     */
-    public function getFetchIdentifier(): int
-    {
-        return $this->fetchIdentifier;
     }
 
     /**
@@ -663,42 +648,38 @@ class MessageQuery
 
         $uids = $messages->forPage($this->page, $this->limit)->toArray();
 
-        $flags = $this->connection()->flags($uids)->mapWithKeys(
-            function (UntaggedResponse $response) {
+        $flags = $this->fetchFlags ? $this->connection()
+            ->flags($uids)
+            ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
                 $uid = $data->tokenAt(1)->value; // UID
                 $flags = $data->tokenAt(3); // ListData (Flags)
 
                 return [$uid => $flags->values()];
-            }
-        );
+            }) : new Collection;
 
-        $headers = $this->connection()->headers($uids)->mapWithKeys(
-            function (UntaggedResponse $response) {
+        $headers = $this->fetchHeaders ? $this->connection()
+            ->headers($uids, $this->fetchAsUnread)
+            ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
                 $uid = $data->tokenAt(1)->value; // UID
                 $headers = $data->tokenAt(4)->value; // Headers
 
                 return [$uid => $headers];
-            }
-        );
+            }) : new Collection;
 
-        $contents = new Collection;
+        $contents = $this->fetchBody ? $this->connection()
+            ->contents($uids, $this->fetchAsUnread)
+            ->mapWithKeys(function (UntaggedResponse $response) {
+                $data = $response->tokenAt(3); // ListData
 
-        if ($this->isFetchingBody()) {
-            $contents = $this->connection()->contents($uids)->mapWithKeys(
-                function (UntaggedResponse $response) {
-                    $data = $response->tokenAt(3); // ListData
+                $uid = $data->tokenAt(1)->value; // UID
+                $contents = $data->tokenAt(4)->value; // Contents
 
-                    $uid = $data->tokenAt(1)->value; // UID
-                    $contents = $data->tokenAt(4)->value; // Contents
-
-                    return [$uid => $contents];
-                }
-            );
-        }
+                return [$uid => $contents];
+            }) : new Collection;
 
         return [
             'uids' => $uids,

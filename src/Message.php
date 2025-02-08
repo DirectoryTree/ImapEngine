@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
+use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use Stringable;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
@@ -53,11 +54,27 @@ class Message implements Stringable
     }
 
     /**
+     * Determine if the message has headers.
+     */
+    public function hasHeaders(): bool
+    {
+        return ! empty($this->headers);
+    }
+
+    /**
      * Get the message's raw contents.
      */
     public function contents(): string
     {
         return $this->contents;
+    }
+
+    /**
+     * Determine if the message has contents.
+     */
+    public function hasContents(): bool
+    {
+        return ! empty($this->contents);
     }
 
     /**
@@ -383,6 +400,10 @@ class Message implements Stringable
      */
     public function parse(): MailMimeMessage
     {
+        if (! $this->hasHeaders() && ! $this->hasContents()) {
+            throw new RuntimeException('Cannot parse an empty message.');
+        }
+
         return $this->parsed ??= MessageParser::parse((string) $this);
     }
 
