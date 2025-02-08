@@ -655,6 +655,7 @@ class MessageQuery
      */
     protected function search(): Collection
     {
+        // If no conditions are set, default to fetching all.
         if (empty($this->conditions)) {
             $this->all();
         }

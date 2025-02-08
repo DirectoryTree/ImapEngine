@@ -68,7 +68,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc2971.
      */
-    public function id(?array $ids = null): ResponseCollection;
+    public function id(?array $ids = null): UntaggedResponse;
 
     /**
      * Fetch message UIDs using the given message numbers.

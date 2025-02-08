@@ -149,6 +149,42 @@ test('parses a several lines', function () {
     expect((string) $response5)->toBe('TAG2 OK FETCH completed');
 });
 
+test('parses list response', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* LIST (\Marked \NoInferiors) "/" "inbox"',
+        '* LIST () "/" "Fruit"',
+        '* LIST () "/" "Fruit/Apple"',
+        '* LIST () "/" "Fruit/Banana"',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response1 = $parser->next();
+    $response2 = $parser->next();
+    $response3 = $parser->next();
+    $response4 = $parser->next();
+
+    expect($response1)->toBeInstanceOf(UntaggedResponse::class);
+    expect($response1->tokens())->toHaveCount(5);
+    expect((string) $response1)->toBe('* LIST (\Marked \NoInferiors) "/" "inbox"');
+
+    expect($response2)->toBeInstanceOf(UntaggedResponse::class);
+    expect($response2->tokens())->toHaveCount(5);
+    expect((string) $response2)->toBe('* LIST () "/" "Fruit"');
+
+    expect($response3)->toBeInstanceOf(UntaggedResponse::class);
+    expect($response3->tokens())->toHaveCount(5);
+    expect((string) $response3)->toBe('* LIST () "/" "Fruit/Apple"');
+
+    expect($response4)->toBeInstanceOf(UntaggedResponse::class);
+    expect($response4->tokens())->toHaveCount(5);
+    expect((string) $response4)->toBe('* LIST () "/" "Fruit/Banana"');
+});
+
 test('parses quota response', function () {
     $stream = new FakeStream;
     $stream->open();

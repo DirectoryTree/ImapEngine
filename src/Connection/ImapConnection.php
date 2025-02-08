@@ -216,7 +216,7 @@ class ImapConnection extends Connection
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        $this->send('UID COPY', $tokens, false);
+        $this->send('UID COPY', $tokens);
     }
 
     /**
@@ -226,7 +226,7 @@ class ImapConnection extends Connection
     {
         $set = $this->buildSet($from, $to);
 
-        return $this->send('UID MOVE', [$set, $this->escapeString($folder)], false);
+        return $this->send('UID MOVE', [$set, $this->escapeString($folder)]);
     }
 
     /**
@@ -238,7 +238,7 @@ class ImapConnection extends Connection
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->send('UID MOVE', $tokens, false);
+        return $this->send('UID MOVE', $tokens);
     }
 
     /**
@@ -246,29 +246,19 @@ class ImapConnection extends Connection
      */
     public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection
     {
-        $flags = $this->escapeList(Arr::wrap($flags));
-
         $set = $this->buildSet($from, $to);
+
+        $flags = $this->escapeList(Arr::wrap($flags));
 
         $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
 
-        $response = $this->send('UID STORE', [$set, $item, $flags], ! $silent);
+        $this->send('UID STORE', [$set, $item, $flags], tag: $tag);
 
-        if ($silent) {
-            return $response;
-        }
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to store flags'));
 
-        $result = [];
-
-        foreach ($response->data() as $token) {
-            if ($token[1] != 'FETCH' || $token[2][0] != 'FLAGS') {
-                continue;
-            }
-
-            $result[$token[0]] = $token[2][1];
-        }
-
-        return $response->setResult($result);
+        return $silent ? new ResponseCollection : $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('FETCH')
+        );
     }
 
     /**
@@ -320,7 +310,7 @@ class ImapConnection extends Connection
 
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to search messages'));
 
-        return $this->result->responses()->untagged()->firstWhere(
+        return $this->result->responses()->untagged()->firstOrFail(
             fn (UntaggedResponse $response) => $response->type()->is('SEARCH')
         );
     }
@@ -334,7 +324,7 @@ class ImapConnection extends Connection
 
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch capabilities'));
 
-        return $this->result->responses()->untagged()->firstWhere(
+        return $this->result->responses()->untagged()->firstOrFail(
             fn (UntaggedResponse $response) => $response->type()->is('CAPABILITY')
         );
     }
@@ -342,7 +332,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function id(?array $ids = null): ResponseCollection
+    public function id(?array $ids = null): UntaggedResponse
     {
         $token = 'NIL';
 
@@ -356,7 +346,13 @@ class ImapConnection extends Connection
             $token = rtrim($token).')';
         }
 
-        return $this->requestAndResponse('ID', [$token], false);
+        $this->send('ID', [$token], tag: $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to send ID'));
+
+        return $this->result->responses()->untagged()->firstOrFail(
+            fn (UntaggedResponse $response) => $response->type()->is('CAPABILITY')
+        );
     }
 
     /**
