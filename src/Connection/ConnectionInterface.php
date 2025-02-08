@@ -128,22 +128,22 @@ interface ConnectionInterface
     /**
      * Copy message set from current folder to other folder.
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection;
+    public function copyMessage(string $folder, $from, ?int $to = null): void;
 
     /**
      * Copy multiple messages to the target folder.
      */
-    public function copyManyMessages(array $messages, string $folder): ResponseCollection;
+    public function copyManyMessages(array $messages, string $folder): void;
 
     /**
      * Move a message set from current folder to another folder.
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection;
+    public function moveMessage(string $folder, $from, ?int $to = null): void;
 
     /**
      * Move multiple messages to the target folder.
      */
-    public function moveManyMessages(array $messages, string $folder): ResponseCollection;
+    public function moveManyMessages(array $messages, string $folder): void;
 
     /**
      * Create a new folder.

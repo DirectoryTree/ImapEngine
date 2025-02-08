@@ -117,7 +117,13 @@ class ImapConnection extends Connection
      */
     public function createFolder(string $folder): ResponseCollection
     {
-        $this->send('CREATE', [$this->escapeString($folder)]);
+        $this->send('CREATE', [$this->escapeString($folder)], $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to create folder'));
+
+        return $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('LIST')
+        );
     }
 
     /**
@@ -193,52 +199,66 @@ class ImapConnection extends Connection
 
         $tokens[] = $this->escapeString($message);
 
-        return $this->send('APPEND', $tokens);
+        $this->send('APPEND', $tokens, tag: $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to append message'));
+
+        return $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('LIST')
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection
+    public function copyMessage(string $folder, $from, ?int $to = null): void
     {
-        return $this->send('UID COPY', [
+        $this->send('UID COPY', [
             $this->buildSet($from, $to),
             $this->escapeString($folder),
-        ]);
+        ], $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to copy message'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function copyManyMessages(array $messages, string $folder): ResponseCollection
+    public function copyManyMessages(array $messages, string $folder): void
     {
         $set = implode(',', $messages);
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        $this->send('UID COPY', $tokens);
+        $this->send('UID COPY', $tokens, $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to copy messages'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection
+    public function moveMessage(string $folder, $from, ?int $to = null): void
     {
         $set = $this->buildSet($from, $to);
 
-        return $this->send('UID MOVE', [$set, $this->escapeString($folder)]);
+        $this->send('UID MOVE', [$set, $this->escapeString($folder)], $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to move message'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function moveManyMessages(array $messages, string $folder): ResponseCollection
+    public function moveManyMessages(array $messages, string $folder): void
     {
         $set = implode(',', $messages);
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->send('UID MOVE', $tokens);
+        $this->send('UID MOVE', $tokens, $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to move messages'));
     }
 
     /**
