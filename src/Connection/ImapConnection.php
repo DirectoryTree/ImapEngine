@@ -3,6 +3,8 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\AuthFailedException;
@@ -25,7 +27,7 @@ class ImapConnection extends Connection
     {
         $this->send('LOGIN', $this->escapeString($user, $password), $tag);
 
-        return $this->assertTaggedResponse($tag, fn () => throw new AuthFailedException('Failed to login'));
+        return $this->assertTaggedResponse($tag, fn () => new AuthFailedException('Failed to login'));
     }
 
     /**
@@ -37,7 +39,7 @@ class ImapConnection extends Connection
 
         $this->send('AUTHENTICATE', $authenticateParams, $tag);
 
-        return $this->assertTaggedResponse($tag, fn () => throw new AuthFailedException('Failed to authenticate'));
+        return $this->assertTaggedResponse($tag, fn () => new AuthFailedException('Failed to authenticate'));
     }
 
     /**
@@ -52,7 +54,7 @@ class ImapConnection extends Connection
         }
 
         try {
-            $this->send('LOGOUT', [], $tag);
+            $this->send('LOGOUT', tag: $tag);
 
             return $this->nextTaggedResponse($tag);
         } catch (Throwable) {
@@ -89,81 +91,25 @@ class ImapConnection extends Connection
     protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): ResponseCollection
     {
         // Send the command and retrieve the tag.
-        $response = $this->send($command, [$this->escapeString($folder)], $tag);
+        $this->send($command, [$this->escapeString($folder)], $tag);
 
-        $result = [];
-        $tokens = [];
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to select folder'));
 
-        // Continuously read lines associate with the tag to collect the final response.
-        while (! $this->readLine($response, $tokens, $tag)) {
-            if ($tokens[0] == 'FLAGS') {
-                array_shift($tokens);
-
-                $result['flags'] = $tokens;
-
-                continue;
-            }
-
-            switch ($tokens[1]) {
-                case 'EXISTS':
-                case 'RECENT':
-                    $result[strtolower($tokens[1])] = (int) $tokens[0];
-                    break;
-                case '[UIDVALIDITY':
-                    $result['uidvalidity'] = (int) $tokens[2];
-                    break;
-                case '[UIDNEXT':
-                    $result['uidnext'] = (int) $tokens[2];
-                    break;
-                case '[UNSEEN':
-                    $result['unseen'] = (int) $tokens[2];
-                    break;
-                case '[NONEXISTENT]':
-                    throw new RuntimeException("Folder doesn't exist");
-                default:
-                    // ignore
-                    break;
-            }
-        }
-
-        $response->setResult($result);
-
-        if ($tokens[0] != 'OK') {
-            $response->addError('request failed');
-        }
-
-        return $response;
+        return $this->result->responses()->untagged();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection
+    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse
     {
         $this->send('STATUS', [$this->escapeString($folder), $this->escapeList($arguments)], $tag);
 
-        $data = $response->getValidatedData();
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to retrieve folder status'));
 
-        if (! isset($data[0]) || ! isset($data[0][2])) {
-            throw new RuntimeException('Folder status could not be fetched');
-        }
-
-        $result = [];
-
-        $key = null;
-
-        foreach ($data[0][2] as $value) {
-            if (is_null($key)) {
-                $key = $value;
-            } else {
-                $result[strtolower($key)] = (int) $value;
-                $key = null;
-            }
-        }
-
-        $response->setResult($result);
-
-        return $response;
+        return $this->result->responses()->untagged()->firstWhere(
+            fn (UntaggedResponse $response) => $response->type()->is('STATUS')
+        );
     }
 
     /**
@@ -171,39 +117,47 @@ class ImapConnection extends Connection
      */
     public function createFolder(string $folder): ResponseCollection
     {
-        return $this->requestAndResponse('CREATE', [$this->escapeString($folder)], false);
+        $this->send('CREATE', [$this->escapeString($folder)]);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $oldPath, string $newPath): ResponseCollection
+    public function deleteFolder(string $folder): TaggedResponse
     {
-        return $this->requestAndResponse('RENAME', $this->escapeString($oldPath, $newPath), false);
+        $this->send('DELETE', [$this->escapeString($folder)], tag: $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to delete folder'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function deleteFolder(string $folder): ResponseCollection
+    public function renameFolder(string $oldPath, string $newPath): TaggedResponse
     {
-        return $this->requestAndResponse('DELETE', [$this->escapeString($folder)], false);
+        $this->send('RENAME', $this->escapeString($oldPath, $newPath), tag: $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to rename folder'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function subscribeFolder(string $folder): ResponseCollection
+    public function subscribeFolder(string $folder): TaggedResponse
     {
-        return $this->requestAndResponse('SUBSCRIBE', [$this->escapeString($folder)], false);
+        $this->send('SUBSCRIBE', [$this->escapeString($folder)], tag: $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to subscribe to folder'));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function unsubscribeFolder(string $folder): ResponseCollection
+    public function unsubscribeFolder(string $folder): TaggedResponse
     {
-        return $this->requestAndResponse('UNSUBSCRIBE', [$this->escapeString($folder)], false);
+        $this->send('UNSUBSCRIBE', [$this->escapeString($folder)], tag: $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to subscribe to folder'));
     }
 
     /**
@@ -213,7 +167,7 @@ class ImapConnection extends Connection
     {
         $this->send('LIST', $this->escapeString($reference, $folder), $tag);
 
-        $this->assertTaggedResponse($tag, fn () => throw new RuntimeException('Failed to fetch folders'));
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch folders'));
 
         return $this->result->responses()->untagged()->filter(
             fn (UntaggedResponse $response) => $response->type()->is('LIST')
@@ -239,7 +193,7 @@ class ImapConnection extends Connection
 
         $tokens[] = $this->escapeString($message);
 
-        return $this->requestAndResponse('APPEND', $tokens, false);
+        return $this->send('APPEND', $tokens);
     }
 
     /**
@@ -247,10 +201,10 @@ class ImapConnection extends Connection
      */
     public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection
     {
-        return $this->requestAndResponse('UID COPY', [
+        return $this->send('UID COPY', [
             $this->buildSet($from, $to),
             $this->escapeString($folder),
-        ], false);
+        ]);
     }
 
     /**
@@ -262,7 +216,7 @@ class ImapConnection extends Connection
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->requestAndResponse('UID COPY', $tokens, false);
+        $this->send('UID COPY', $tokens, false);
     }
 
     /**
@@ -272,7 +226,7 @@ class ImapConnection extends Connection
     {
         $set = $this->buildSet($from, $to);
 
-        return $this->requestAndResponse('UID MOVE', [$set, $this->escapeString($folder)], false);
+        return $this->send('UID MOVE', [$set, $this->escapeString($folder)], false);
     }
 
     /**
@@ -284,7 +238,7 @@ class ImapConnection extends Connection
 
         $tokens = [$set, $this->escapeString($folder)];
 
-        return $this->requestAndResponse('UID MOVE', $tokens, false);
+        return $this->send('UID MOVE', $tokens, false);
     }
 
     /**
@@ -298,7 +252,7 @@ class ImapConnection extends Connection
 
         $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
 
-        $response = $this->requestAndResponse('UID STORE', [$set, $item, $flags], ! $silent);
+        $response = $this->send('UID STORE', [$set, $item, $flags], ! $silent);
 
         if ($silent) {
             return $response;
@@ -320,7 +274,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function uids(int|array $msgns): ResponseCollection
+    public function uids(int|array $msgns): UntaggedResponse
     {
         return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
     }
@@ -328,7 +282,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(int|array $ids): ResponseCollection
+    public function contents(int|array $ids): UntaggedResponse
     {
         return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
     }
@@ -336,7 +290,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function headers(int|array $ids): ResponseCollection
+    public function headers(int|array $ids): UntaggedResponse
     {
         return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
     }
@@ -344,7 +298,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function flags(int|array $ids): ResponseCollection
+    public function flags(int|array $ids): UntaggedResponse
     {
         return $this->fetch(['FLAGS'], Arr::wrap($ids));
     }
@@ -352,7 +306,7 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function sizes(int|array $ids): ResponseCollection
+    public function sizes(int|array $ids): UntaggedResponse
     {
         return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
     }
@@ -380,16 +334,14 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function capability(): ResponseCollection
+    public function capability(): UntaggedResponse
     {
-        $response = $this->requestAndResponse('CAPABILITY');
+        $this->send('CAPABILITY', tag: $tag);
 
-        if (! $response->getResponse()) {
-            return $response;
-        }
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch capabilities'));
 
-        return $response->setResult(
-            $response->getValidatedData()[0]
+        return $this->result->responses()->untagged()->firstWhere(
+            fn (UntaggedResponse $response) => $response->type()->is('CAPABILITY')
         );
     }
 
@@ -418,15 +370,21 @@ class ImapConnection extends Connection
      */
     public function expunge(): ResponseCollection
     {
-        return $this->requestAndResponse('EXPUNGE');
+        $this->send('EXPUNGE', tag: $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to expunge messages'));
+
+        return $this->result->responses()->untagged();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function noop(): ResponseCollection
+    public function noop(): TaggedResponse
     {
-        return $this->requestAndResponse('NOOP');
+        $this->send('NOOP', tag: $tag);
+
+        return $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to send NOOP'));
     }
 
     /**
@@ -434,24 +392,12 @@ class ImapConnection extends Connection
      */
     public function idle(): void
     {
-        $response = $this->send('IDLE');
+        $this->send('IDLE', tag: $tag);
 
-        while (true) {
-            $line = $this->nextReply($response);
-
-            // Server indicates it's ready for IDLE.
-            if (str_starts_with($line, '+ ')) {
-                return;
-            }
-
-            // Typical untagged or tagged "OK" lines.
-            if (preg_match('/^\* /i', $line) || preg_match('/^TAG\d+ OK/i', $line)) {
-                continue;
-            }
-
-            // Unexpected response.
-            throw new RuntimeException('Idle failed. Unexpected response: '.trim($line));
-        }
+        $this->assertContinuationResponse(
+            fn (ContinuationResponse $response) => true,
+            fn () => new RuntimeException('Failed to send IDLE')
+        );
     }
 
     /**
@@ -459,26 +405,13 @@ class ImapConnection extends Connection
      */
     public function done(): void
     {
-        $response = new ResponseCollection($this->sequence, $this->debug);
+        $this->write('DONE');
 
-        $this->write($response, 'DONE');
-
-        while (true) {
-            $line = $this->nextReply($response);
-
-            // Typical tagged "OK" line.
-            if (preg_match('/^TAG\d+ OK/i', $line)) {
-                break;
-            }
-
-            // Handle untagged notifications (e.g. "* 4 EXISTS").
-            if (preg_match('/^\* /i', $line)) {
-                continue;
-            }
-
-            // Unexpected response.
-            throw new RuntimeException('Done failed. Unexpected response: '.trim($line));
-        }
+        $this->assertNextResponse(
+            fn (Response $response) => $response instanceof TaggedResponse,
+            fn (TaggedResponse $response) => $response->successful(),
+            fn () => new RuntimeException('Failed to send DONE')
+        );
     }
 
     /**
