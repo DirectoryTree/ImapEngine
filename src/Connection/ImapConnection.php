@@ -274,61 +274,55 @@ class ImapConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function uids(int|array $msgns): UntaggedResponse
+    public function uids(int|array $msgns): ResponseCollection
     {
-        return $this->fetch(['UID'], Arr::wrap($msgns), null, Imap::ST_MSGN);
+        return $this->fetch(['UID'], (array) $msgns, null, Imap::SEQUENCE_TYPE_MSG_NUMBER);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function contents(int|array $ids): UntaggedResponse
+    public function contents(int|array $ids): ResponseCollection
     {
-        return $this->fetch(['BODY[TEXT]'], Arr::wrap($ids));
+        return $this->fetch(['BODY[TEXT]'], (array) $ids);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function headers(int|array $ids): UntaggedResponse
+    public function headers(int|array $ids): ResponseCollection
     {
-        return $this->fetch(['BODY[HEADER]'], Arr::wrap($ids));
+        return $this->fetch(['BODY[HEADER]'], (array) $ids);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function flags(int|array $ids): UntaggedResponse
+    public function flags(int|array $ids): ResponseCollection
     {
-        return $this->fetch(['FLAGS'], Arr::wrap($ids));
+        return $this->fetch(['FLAGS'], (array) $ids);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function sizes(int|array $ids): UntaggedResponse
+    public function sizes(int|array $ids): ResponseCollection
     {
-        return $this->fetch(['RFC822.SIZE'], Arr::wrap($ids));
+        return $this->fetch(['RFC822.SIZE'], (array) $ids);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function search(array $params): ResponseCollection
+    public function search(array $params): UntaggedResponse
     {
-        $response = $this->requestAndResponse('UID SEARCH', $params);
+        $this->send('UID SEARCH', $params, tag: $tag);
 
-        $response->setCanBeEmpty(true);
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to search messages'));
 
-        foreach ($response->data() as $ids) {
-            if ($ids[0] === 'SEARCH') {
-                array_shift($ids);
-
-                return $response->setResult($ids);
-            }
-        }
-
-        return $response;
+        return $this->result->responses()->untagged()->firstWhere(
+            fn (UntaggedResponse $response) => $response->type()->is('SEARCH')
+        );
     }
 
     /**

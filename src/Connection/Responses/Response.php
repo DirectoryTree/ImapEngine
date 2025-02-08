@@ -2,13 +2,15 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Responses;
 
-use DirectoryTree\ImapEngine\Connection\Data\Data;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\Data;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Illuminate\Contracts\Support\Arrayable;
 use Stringable;
 
 abstract class Response implements Arrayable, Stringable
 {
+    use HasTokens;
+
     /**
      * Constructor.
      */
@@ -22,22 +24,6 @@ abstract class Response implements Arrayable, Stringable
     public function tokens(): array
     {
         return $this->tokens;
-    }
-
-    /**
-     * Get the response token at the given index.
-     */
-    public function tokenAt(int $index): Token|Data|null
-    {
-        return $this->tokens[$index] ?? null;
-    }
-
-    /**
-     * Get the response tokens after the given index.
-     */
-    public function tokensAfter(int $index): array
-    {
-        return array_slice($this->tokens, $index);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
@@ -230,13 +231,13 @@ abstract class Connection implements ConnectionInterface
      */
     protected function enableStartTls(): void
     {
-        $response = $this->send('STARTTLS');
+        $this->send('STARTTLS', tag: $tag);
 
-        $result = $response->successful() && $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
+        $this->assertTaggedResponse($tag, fn () => (
+            new ConnectionFailedException('Failed to enable STARTTLS')
+        ));
 
-        if (! $result) {
-            throw new ConnectionFailedException('Failed to enable TLS');
-        }
+        $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
     }
 
     /**
@@ -248,19 +249,21 @@ abstract class Connection implements ConnectionInterface
 
         if ($this->encryption) {
             $options['ssl'] = [
-                'verify_peer_name' => $this->getCertValidation(),
                 'verify_peer' => $this->getCertValidation(),
+                'verify_peer_name' => $this->getCertValidation(),
             ];
         }
 
-        if ($this->proxy['socket']) {
-            $options[$transport]['proxy'] = $this->proxy['socket'];
-            $options[$transport]['request_fulluri'] = $this->proxy['request_fulluri'];
+        if (! $this->proxy['socket']) {
+            return $options;
+        }
 
-            if ($this->proxy['username'] != null) {
-                $auth = base64_encode($this->proxy['username'].':'.$this->proxy['password']);
-                $options[$transport]['header'] = ["Proxy-Authorization: Basic $auth"];
-            }
+        $options[$transport]['proxy'] = $this->proxy['socket'];
+        $options[$transport]['request_fulluri'] = $this->proxy['request_fulluri'];
+
+        if ($this->proxy['username']) {
+            $auth = base64_encode($this->proxy['username'].':'.$this->proxy['password']);
+            $options[$transport]['header'] = ["Proxy-Authorization: Basic $auth"];
         }
 
         return $options;
@@ -377,11 +380,8 @@ abstract class Connection implements ConnectionInterface
 
     /**
      * Fetch one or more items for one or more messages.
-     *
-     * This method compiles the FETCH command, sends it, and then uses the new parser
-     * to obtain the parsed result.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::ST_UID): UntaggedResponse
+    public function fetch(array|string $items, array|int $from, mixed $to = null, $identifier = Imap::SEQUENCE_TYPE_UID): ResponseCollection
     {
         if (is_array($from) && count($from) > 1) {
             $set = implode(',', $from);
@@ -396,18 +396,14 @@ abstract class Connection implements ConnectionInterface
         }
 
         $items = (array) $items;
-        $prefix = ($identifier === Imap::ST_UID) ? 'UID' : '';
 
-        $this->send(
-            trim($prefix.' FETCH'),
-            [$set, $this->escapeList($items)],
-            $tag
-        );
+        $prefix = ($identifier === Imap::SEQUENCE_TYPE_UID) ? 'UID' : '';
 
-        return $this->assertUntaggedResponse(
-            fn (UntaggedResponse $response) => $response->tokenAt(2)?->is('FETCH'),
-            fn () => new RuntimeException('Failed to fetch items')
-        );
+        $this->send(trim($prefix.' FETCH'), [$set, $this->escapeList($items)], $tag);
+
+        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch items'));
+
+        return $this->result->responses()->untagged();
     }
 
     /**

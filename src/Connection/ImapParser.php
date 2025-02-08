@@ -2,10 +2,10 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use DirectoryTree\ImapEngine\Connection\Data\Data;
-use DirectoryTree\ImapEngine\Connection\Data\ListData;
-use DirectoryTree\ImapEngine\Connection\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\Data;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;

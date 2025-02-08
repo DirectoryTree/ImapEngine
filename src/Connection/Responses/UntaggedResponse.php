@@ -6,8 +6,6 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
 class UntaggedResponse extends Response
 {
-    use HasStatus;
-
     /**
      * Get the response type token.
      */

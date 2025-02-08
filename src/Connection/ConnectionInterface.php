@@ -60,10 +60,8 @@ interface ConnectionInterface
 
     /**
      * Execute a search request.
-     *
-     * @return ResponseCollection containing the message ids
      */
-    public function search(array $params): ResponseCollection;
+    public function search(array $params): UntaggedResponse;
 
     /**
      * Exchange identification information.
@@ -75,27 +73,27 @@ interface ConnectionInterface
     /**
      * Fetch message UIDs using the given message numbers.
      */
-    public function uids(int|array $msgns): UntaggedResponse;
+    public function uids(int|array $msgns): ResponseCollection;
 
     /**
      * Fetch message contents.
      */
-    public function contents(int|array $ids): UntaggedResponse;
+    public function contents(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message headers.
      */
-    public function headers(int|array $ids): UntaggedResponse;
+    public function headers(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message flags.
      */
-    public function flags(int|array $ids): UntaggedResponse;
+    public function flags(int|array $ids): ResponseCollection;
 
     /**
      * Fetch message sizes.
      */
-    public function sizes(int|array $ids): UntaggedResponse;
+    public function sizes(int|array $ids): ResponseCollection;
 
     /**
      * Select the given folder.
