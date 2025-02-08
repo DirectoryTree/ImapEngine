@@ -284,6 +284,22 @@ class Message implements Stringable
     }
 
     /**
+     * Mark the message as read. Alias for markSeen.
+     */
+    public function markRead(bool $expunge = true): void
+    {
+        $this->markSeen($expunge);
+    }
+
+    /**
+     * Mark the message as unread. Alias for unmarkSeen.
+     */
+    public function markUnread(bool $expunge = true): void
+    {
+        $this->unmarkSeen($expunge);
+    }
+
+    /**
      * Mark the message as seen.
      */
     public function markSeen(bool $expunge = true): void
@@ -380,15 +396,15 @@ class Message implements Stringable
     }
 
     /**
-     * Set or remove a flag from the message.
+     * Add or remove a flag from the message.
      */
     public function flag(array|string $flag, string $operation = '+', bool $expunge = true): void
     {
         $flag = '\\'.trim(is_array($flag) ? implode(' \\', $flag) : $flag);
 
-        $this->folder->mailbox()->connection()
-            ->store([$flag], $this->uid, null, $operation, true)
-            ->getValidatedData();
+        $this->folder->mailbox()
+            ->connection()
+            ->store([$flag], $this->uid, null, $operation, true);
 
         if ($expunge) {
             $this->folder->expunge();

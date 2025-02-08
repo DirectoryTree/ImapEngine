@@ -90,7 +90,7 @@ class Folder
      */
     public function idle(callable $callback, int $timeout = 300): void
     {
-        if (! $this->hasIdleSupport()) {
+        if (! $this->hasCapability('IDLE')) {
             throw new RuntimeException('IMAP server does not support IDLE');
         }
 
@@ -123,33 +123,27 @@ class Folder
     /**
      * Move or rename the current folder.
      */
-    public function move(string $newPath, bool $expunge = true): array
+    public function move(string $newPath, bool $expunge = true): void
     {
-        $status = $this->mailbox->connection()
-            ->renameFolder($this->path, $newPath)
-            ->getValidatedData();
+        $this->mailbox->connection()->renameFolder($this->path, $newPath);
 
         if ($expunge) {
             $this->expunge();
         }
 
         $this->path = $newPath;
-
-        return $status;
     }
 
     /**
      * Delete the current folder.
      */
-    public function delete(bool $expunge = true): array
+    public function delete(bool $expunge = true): void
     {
         $this->mailbox->connection()->deleteFolder($this->path);
 
         if ($expunge) {
-            return $this->expunge();
+            $this->expunge();
         }
-
-        return [];
     }
 
     /**
@@ -186,7 +180,7 @@ class Folder
     {
         return $this->mailbox->connection()->examineFolder($this->path)->map(
             fn (UntaggedResponse $response) => $response->toArray()
-        );
+        )->all();
     }
 
     /**
@@ -196,15 +190,15 @@ class Folder
     {
         return $this->mailbox->connection()->expunge()->map(
             fn (UntaggedResponse $response) => $response->tokenAt(1)->value
-        );
+        )->all();
     }
 
     /**
-     * Determine if the mailbox has IDLE support.
+     * Determine if the mailbox has the given capability.
      */
-    protected function hasIdleSupport(): bool
+    public function hasCapability(string $capability): bool
     {
-        return in_array('IDLE', $this->capabilities());
+        return in_array($capability, $this->capabilities());
     }
 
     /**

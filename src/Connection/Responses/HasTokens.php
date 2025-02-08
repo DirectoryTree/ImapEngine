@@ -9,6 +9,8 @@ trait HasTokens
 {
     /**
      * Get the response tokens.
+     *
+     * @return Token[]|Data[]
      */
     abstract public function tokens(): array;
 

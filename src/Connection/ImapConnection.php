@@ -35,9 +35,9 @@ class ImapConnection extends Connection
      */
     public function authenticate(string $user, string $token): TaggedResponse
     {
-        $authenticateParams = ['XOAUTH2', base64_encode("user=$user\1auth=Bearer $token\1\1")];
+        $credentials = base64_encode("user=$user\1auth=Bearer $token\1\1");
 
-        $this->send('AUTHENTICATE', $authenticateParams, $tag);
+        $this->send('AUTHENTICATE', ['XOAUTH2', $credentials], $tag);
 
         return $this->assertTaggedResponse($tag, fn () => new AuthFailedException('Failed to authenticate'));
     }
@@ -84,13 +84,9 @@ class ImapConnection extends Connection
 
     /**
      * Examine and select have the same response.
-     *
-     * @param  string  $command  can be 'EXAMINE' or 'SELECT'
-     * @param  string  $folder  target folder
      */
     protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): ResponseCollection
     {
-        // Send the command and retrieve the tag.
         $this->send($command, [$this->escapeString($folder)], $tag);
 
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to select folder'));

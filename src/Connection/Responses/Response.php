@@ -20,6 +20,8 @@ abstract class Response implements Arrayable, Stringable
 
     /**
      * Get the response tokens.
+     *
+     * @return Token[]|Data[]
      */
     public function tokens(): array
     {

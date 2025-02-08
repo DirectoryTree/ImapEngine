@@ -19,6 +19,8 @@ abstract class Data implements Stringable
 
     /**
      * Get the tokens.
+     *
+     * @return Token[]|Data[]
      */
     public function tokens(): array
     {
