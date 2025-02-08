@@ -412,6 +412,46 @@ class Message implements Stringable
     }
 
     /**
+     * Copy the message to the given folder.
+     */
+    public function copy(string $folder, bool $expunge = true): void
+    {
+        $this->folder->mailbox()
+            ->connection()
+            ->copyMessage($folder, $this->folder->path(), $this->uid);
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+    }
+
+    /**
+     * Move the message to the given folder.
+     */
+    public function move(string $folder, bool $expunge = true): void
+    {
+        $this->folder->mailbox()
+            ->connection()
+            ->moveMessage($folder, $this->folder->path(), $this->uid);
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+    }
+
+    /**
+     * Delete the message.
+     */
+    public function delete(bool $expunge = true): void
+    {
+        $this->markDeleted();
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+    }
+
+    /**
      * Parse the message into a MailMimeMessage instance.
      */
     public function parse(): MailMimeMessage
