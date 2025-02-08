@@ -53,7 +53,7 @@ trait ParsesResponses
     }
 
     /**
-     * Assert the next response is a tagged response.
+     * Assert the next response is a successful tagged response.
      */
     protected function assertTaggedResponse(string $tag, callable $exception): TaggedResponse
     {
