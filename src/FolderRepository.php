@@ -17,43 +17,31 @@ class FolderRepository
     /**
      * Find a folder.
      */
-    public function find(string $nameOrPath, ?string $delimiter = null): ?Folder
+    public function find(string $folder): ?Folder
     {
-        $delimiter ?? $this->mailbox->config('delimiter', '/');
+        return $this->get($folder)->first();
+    }
 
-        if (str_contains($nameOrPath, $delimiter)) {
-            return $this->findByPath($nameOrPath);
+    /**
+     * Create a new folder.
+     */
+    public function create(string $folder, bool $expunge = true): Folder
+    {
+        $this->mailbox->connection()->createFolder($folder);
+
+        if ($expunge) {
+            $this->mailbox->connection()->expunge();
         }
 
-        return $this->findByName($nameOrPath);
-    }
-
-    /**
-     * Get a folder instance by a folder name.
-     */
-    public function findByName(string $name): ?Folder
-    {
-        return $this->get()->filter(
-            fn (Folder $folder) => $folder->name() === $name
-        )->first();
-    }
-
-    /**
-     * Find a folder by the given path.
-     */
-    public function findByPath(string $path): Folder
-    {
-        return $this->get()->filter(
-            fn (Folder $folder) => $folder->path() === $path
-        )->first();
+        return $this->find($folder);
     }
 
     /**
      * Get the mailboxes folders.
      */
-    public function get(?string $parentFolder = null): FolderCollection
+    public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        return $this->mailbox->connection()->folders('', $parentFolder.'*')->map(
+        return $this->mailbox->connection()->folders($reference, $match)->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,
@@ -61,29 +49,5 @@ class FolderRepository
                 delimiter: $response->tokenAt(3)->value,
             )
         )->pipeInto(FolderCollection::class);
-    }
-
-    /**
-     * Create a new folder.
-     */
-    public function create(string $folderPath, bool $expunge = true): Folder
-    {
-        $response = $this->mailbox->connection()->createFolder($folderPath);
-
-        if ($expunge) {
-            $this->expunge();
-        }
-
-        return $this->findByPath($folderPath);
-    }
-
-    /**
-     * Expunge the mailbox.
-     */
-    public function expunge(): array
-    {
-        return $this->mailbox->connection()
-            ->expunge()
-            ->getValidatedData();
     }
 }
