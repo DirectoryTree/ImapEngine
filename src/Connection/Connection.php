@@ -232,7 +232,7 @@ abstract class Connection implements ConnectionInterface
         $this->send('STARTTLS', tag: $tag);
 
         $this->assertTaggedResponse($tag, fn () => (
-            new ConnectionFailedException('Failed to enable STARTTLS')
+        new ConnectionFailedException('Failed to enable STARTTLS')
         ));
 
         $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
@@ -391,6 +391,21 @@ abstract class Connection implements ConnectionInterface
 
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch items'));
 
-        return $this->result->responses()->untagged();
+        // Some IMAP servers can send unsolicited untagged responses along with fetch
+        // requests. We'll need to filter these out so that we can return only the
+        // responses that are relevant to the fetch command. For example:
+        // TAG123 FETCH (UID 456 BODY[TEXT])
+        // * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
+        // * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
+        return $this->result->responses()->untagged()->filter(function (UntaggedResponse $response) use ($items, $identifier) {
+            // The third token will always be a list of data items.
+            return match ($identifier) {
+                // If we're fetching UIDs, we can check if a UID token is contained in the list.
+                ImapFetchIdentifier::Uid => $response->tokenAt(3)->contains('UID'),
+
+                // If we're fetching message numbers, we can check if the requested items are all contained in the list.
+                ImapFetchIdentifier::MessageNumber => $response->tokenAt(3)->contains($items),
+            };
+        });
     }
 }
