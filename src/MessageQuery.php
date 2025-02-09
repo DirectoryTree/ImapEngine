@@ -786,7 +786,7 @@ class MessageQuery
      */
     public function first(): ?Message
     {
-        return $this->get()->first();
+        return $this->limit(1)->get()->first();
     }
 
     /**
