@@ -5,10 +5,12 @@ namespace DirectoryTree\ImapEngine\Connection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\Data;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
@@ -20,12 +22,20 @@ use Generator;
 
 class ImapConnection implements ConnectionInterface
 {
-    use ParsesResponses;
-
     /**
      * Sequence number used to generate unique command tags.
      */
     protected int $sequence = 0;
+
+    /**
+     * The result instance.
+     */
+    protected ?Result $result = null;
+
+    /**
+     * The parser instance.
+     */
+    protected ?ImapParser $parser = null;
 
     /**
      * Constructor.
@@ -496,7 +506,8 @@ class ImapConnection implements ConnectionInterface
 
         $this->send('IDLE', tag: $tag);
 
-        $this->assertContinuationResponse(
+        $this->assertNextResponse(
+            fn (Response $response) => $response instanceof ContinuationResponse,
             fn (ContinuationResponse $response) => true,
             fn (ContinuationResponse $response) => CommandFailedException::make(new ImapCommand('', 'IDLE'), $response),
         );
@@ -521,30 +532,6 @@ class ImapConnection implements ConnectionInterface
             fn (TaggedResponse $response) => $response->successful(),
             fn (TaggedResponse $response) => CommandFailedException::make(new ImapCommand('', 'DONE'), $response),
         );
-    }
-
-    /**
-     * Read the next reply from the stream.
-     */
-    public function nextReply(): Response
-    {
-        if (! $this->parser) {
-            throw new RuntimeException('Connection must be opened before reading replies.');
-        }
-
-        if (! $reply = $this->parser->next()) {
-            $meta = $this->stream->meta();
-
-            throw match (true) {
-                $meta['timed_out'] ?? false => new ConnectionTimedOutException('Stream timed out, no response'),
-                $meta['eof'] ?? false => new ConnectionClosedException('Server closed the connection (EOF)'),
-                default => new RuntimeException('Unknown read error, no response: '.json_encode($meta)),
-            };
-        }
-
-        $this->logger?->received($reply);
-
-        return $reply;
     }
 
     /**
@@ -575,7 +562,7 @@ class ImapConnection implements ConnectionInterface
     protected function write(string $data): void
     {
         if ($this->stream->fwrite($data."\r\n") === false) {
-            throw new RuntimeException('Failed to write data to stream.');
+            throw new RuntimeException('Failed to write data to stream');
         }
 
         $this->logger?->sent($data);
@@ -611,5 +598,125 @@ class ImapConnection implements ConnectionInterface
                 ImapFetchIdentifier::MessageNumber => $response->tokenAt(3)->contains($items),
             };
         });
+    }
+
+    /**
+     * Set the current result instance.
+     */
+    protected function setResult(Result $result): void
+    {
+        $this->result = $result;
+    }
+
+    /**
+     * Set the current parser instance.
+     */
+    protected function setParser(ImapParser $parser): void
+    {
+        $this->parser = $parser;
+    }
+
+    /**
+     * Create a new parser instance.
+     */
+    protected function newParser(StreamInterface $stream): ImapParser
+    {
+        return new ImapParser($this->newTokenizer($stream));
+    }
+
+    /**
+     * Create a new tokenizer instance.
+     */
+    protected function newTokenizer(StreamInterface $stream): ImapTokenizer
+    {
+        return new ImapTokenizer($stream);
+    }
+
+    /**
+     * Assert the next response is a successful tagged response.
+     */
+    protected function assertTaggedResponse(string $tag, ?callable $exception = null): TaggedResponse
+    {
+        return $this->assertNextResponse(
+            fn (Response $response) => (
+                $response instanceof TaggedResponse && $response->tag()->is($tag)
+            ),
+            fn (TaggedResponse $response) => (
+                $response->successful()
+            ),
+            $exception ?? fn (TaggedResponse $response) => (
+                CommandFailedException::make($this->result->command(), $response)
+            ),
+        );
+    }
+
+    /**
+     * Assert the next response matches the given filter and assertion.
+     *
+     * @template T of Response
+     *
+     * @param  callable(Response): bool  $filter
+     * @return T
+     */
+    protected function assertNextResponse(callable $filter, callable $assertion, callable $exception): Response
+    {
+        while ($response = $this->nextResponse($filter)) {
+            if ($assertion($response)) {
+                return $response;
+            }
+
+            throw $exception($response);
+        }
+
+        throw new RuntimeException('No matching response found');
+    }
+
+    /**
+     * Returns the next response matching the given filter.
+     *
+     * @template T of Response
+     *
+     * @param  callable(Response): bool  $filter
+     * @return T
+     */
+    protected function nextResponse(callable $filter): Response
+    {
+        if (! $this->parser) {
+            throw new RuntimeException('No parser instance set');
+        }
+
+        while ($response = $this->nextReply()) {
+            if (! $response instanceof Response) {
+                continue;
+            }
+
+            $this->result?->addResponse($response);
+
+            if ($filter($response)) {
+                return $response;
+            }
+        }
+
+        throw new RuntimeException('No matching response found');
+    }
+
+    /**
+     * Read the next reply from the stream.
+     */
+    protected function nextReply(): Data|Token|Response|null
+    {
+        if (! $reply = $this->parser->next()) {
+            $meta = $this->stream->meta();
+
+            throw match (true) {
+                $meta['timed_out'] ?? false => new ConnectionTimedOutException('Stream timed out, no response'),
+                $meta['eof'] ?? false => new ConnectionClosedException('Server closed the connection (EOF)'),
+                default => new RuntimeException('Unknown read error, no response: '.json_encode($meta)),
+            };
+        }
+
+        $this->logger?->received($reply);
+
+        return $reply;
     }
 }

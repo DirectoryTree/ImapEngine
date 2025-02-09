@@ -465,7 +465,7 @@ class Message implements Stringable
     public function parse(): MailMimeMessage
     {
         if (! $this->hasHeaders() && ! $this->hasContents()) {
-            throw new RuntimeException('Cannot parse an empty message.');
+            throw new RuntimeException('Cannot parse an empty message');
         }
 
         return $this->parsed ??= MessageParser::parse((string) $this);

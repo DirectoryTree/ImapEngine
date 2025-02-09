@@ -296,7 +296,7 @@ class FakeConnection implements ConnectionInterface
     {
         if (
             ! isset($this->expectations[$method])) {
-            throw new RuntimeException("No expectations set for method [$method].");
+            throw new RuntimeException("No expectations set for method [$method]");
         }
 
         foreach ($this->expectations[$method] as $index => $expectation) {
