@@ -96,7 +96,11 @@ class Folder
         }
 
         $fetch = function (int $msgn) {
-            return $this->messages()->withBody()->find($msgn, ImapFetchIdentifier::MessageNumber);
+            return $this->messages()
+                ->withHeaders()
+                ->withFlags()
+                ->withBody()
+                ->find($msgn, ImapFetchIdentifier::MessageNumber);
         };
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(

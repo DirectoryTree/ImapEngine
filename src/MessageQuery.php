@@ -52,12 +52,12 @@ class MessageQuery
     /**
      * Whether to fetch the message flags.
      */
-    protected bool $fetchFlags = true;
+    protected bool $fetchFlags = false;
 
     /**
      * Whether to fetch the message headers.
      */
-    protected bool $fetchHeaders = true;
+    protected bool $fetchHeaders = false;
 
     /**
      * The fetch order.
@@ -798,7 +798,17 @@ class MessageQuery
     }
 
     /**
-     * Fetch the current query as chunked requests.
+     * Execute a callback over each message via a chunked query.
+     */
+    public function each(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
+    {
+        $this->chunk(fn (MessageCollection $messages) => (
+            $messages->each($callback)
+        ), $chunkSize, $startChunk);
+    }
+
+    /**
+     * Execute a callback over each chunk of messages.
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
