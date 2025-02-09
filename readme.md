@@ -92,7 +92,7 @@ $inbox = $mailbox->folders()->inbox();
 $folders = $mailbox->folders()->get();
 
 // Get all mailbox's folders matching a glob pattern.
-$folders = $mailbox->folders('*/Subfolder')->get();
+$folders = $mailbox->folders()->get('*/Subfolder');
 
 // Find a specific folder.
 $folder = $mailbox->folders()->find('Folder Name');
@@ -100,23 +100,153 @@ $folder = $mailbox->folders()->find('Folder Name');
 
 #### Retrieving Messages
 
+ImapEngine provides a fluent, chainable API for building advanced message search queries.
+
+This allows you to combine various search criteria and options to retrieve exactly the messages you need.
+
+For example, you can easily fetch all messages in a folder:
+
 ```php
 $inbox = $mailbox->folders()->inbox();
 
-// Get all the folder's messages.
+// Get all message UIDs in the inbox.
 $messages = $inbox->messages()->get();
 
-// Get all the folder's messages with their bodies.
-$messages = $inbox->messages()->withBody()->get();
+// Get all messages in the inbox with various content.
+$messages = $inbox->messages()
+    ->withHeaders() // Enable fetching message headers.
+    ->withFlags() // Enable fetching message flags.
+    ->withBody() // Enable fetching message bodies.
+    ->get();
+```
 
-// Get messages since a certain date.
-$messages = $inbox->messages()->since(now()->subDays(7))->get();
+> [!important]
+> It's paramount to understand that the `get()` method fetches all messages in the folder, and will be slow for large mailboxes.
+> When working with large mailboxes, consider using since(), and other criteria filters to limit the number of messages
+> your IMAP server returns, along with pagination or chunking to avoid memory issues.
+> 
+> A typical approach when dealing with large mailboxes is to store all messages (either in a cache or DB)
+> once, and then only fetch new messages since the last time the mailbox was checked.
 
-// Get messages with a certain subject.
-$messages = $inbox->messages()->subject('Hello World')->get();
+#####  Filtering By Criteria
 
-// Listen for new messages on the inbox.
-$inbox->idle(function (Message $message) {
-    // Handle the new message.
-});
+The MessageQuery supports many common IMAP search criteria. You can chain methods such as:
+
+- `all()`
+- `new()`
+- `not()`
+- `old()`
+- `seen()`
+- `recent()`
+- `unseen()`
+- `deleted()`
+- `on($date)`
+- `uid($uid)`
+- `answered()`
+- `cc($value)`
+- `to($value)`
+- `bcc($value)`
+- `undeleted()`
+- `unflagged()`
+- `body($value)`
+- `from($email)`
+- `since($date)`
+- `text($value)`
+- `unanswered()`
+- `before($date)`
+- `flagged($value)`
+- `keyword($value)`
+- `subject($value)`
+- `unkeyword($value)`
+- `messageId($messageId)`
+- `inReplyTo($messageId)`
+- `language($countryCode)`
+- `header($header, $value)`
+
+For example, to retrieve messages from the last 7 days with a specific subject:
+
+```php
+$messages = $inbox->messages()
+    ->since(now()->subDays(7))
+    ->subject('Hello World')
+    ->get();
+```
+
+If a method doesn't exist for a specific search criteria, you can use the `where()` method to add custom criteria:
+
+```php
+$messages = $inbox->messages()
+    ->where('CRITERIA', 'value')
+    ->get();
+```
+
+##### Fetching Additional Message Data
+
+You can control what parts of the message are fetched by enabling or disabling them on the query builder:
+
+**Message Headers:**
+Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to exclude them.
+
+**Message Body:**
+Use `withBody()` to fetch the full body content, or `withoutBody()` to skip it.
+
+**Message Flags:**
+Use `withFlags()` to retrieve flags, or `withoutFlags()` to omit them.
+
+For example, to fetch messages with both their bodies, headers, and flags:
+
+```php
+$messages = $inbox->messages()
+    ->withHeaders()
+    ->withFlags()
+    ->withBody()
+    ->get();
+```
+
+The less data you fetch, the faster your query will be. Only fetch the data you need.
+
+##### Message Pagination
+
+You can paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
+
+> [!important] 
+> IMAP does not support native pagination, as you would expect from a SQL database. Instead,
+> ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's 
+> that corresponds to the current page, and fetches the messages for those UID's.
+
+```php
+// Paginate messages with 10 messages per page.
+$paginatedMessages = $inbox->messages()->paginate(10);
+```
+
+##### Message Chunking
+
+If you need to process a large number of messages without loading them all at once, you can use the chunk() method:
+
+```php
+$inbox->messages()->chunk(function ($chunk, $page) {
+    foreach ($chunk as $message) {
+        // Process each message in the current chunk.
+    }
+}, 20); // Process 20 messages per chunk.
+```
+
+##### Finding a Specific Message
+
+You can retrieve a single message by its unique identifier using the `find()` method.
+
+The method accepts an ID and an ImapFetchIdentifier (an enum) that specifies whether the ID is a UID or a message sequence number.
+
+For example, to find a message by UID:
+
+```php
+use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
+
+$message = $inbox->messages()->find(12345, ImapFetchIdentifier::Uid);
+```
+
+Or by message sequence number:
+
+```php
+$message = $inbox->messages()->find(1, ImapFetchIdentifier::MessageNumber);
 ```
