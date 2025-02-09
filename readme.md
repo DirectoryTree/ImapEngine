@@ -215,7 +215,7 @@ The less data you fetch, the faster your query will be. Only fetch the data you 
 You can paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
 
 > [!important] 
-> IMAP does not support native pagination, as you would expect from a SQL database. Instead,
+> IMAP does not support native pagination, as you would typically expect, like a SQL database. Instead,
 > ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's 
 > that corresponds to the current page, and fetches the messages for those UID's.
 
