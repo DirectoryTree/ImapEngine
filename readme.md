@@ -13,6 +13,16 @@
 <a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/l/directorytree/imapengine.svg?style=flat-square"></a>
 </p>
 
+## Index
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Connecting](#connecting)
+  - [Retrieving Folders](#retrieving-folders)
+  - [Retrieving Messages](#retrieving-messages)
+  - [Interacting With Messages](#interacting-with-messages)
+
 ## Requirements
 
 PHP >= 8.1
@@ -230,10 +240,21 @@ If you need to process a large number of messages without loading them all at on
 
 ```php
 $inbox->messages()->chunk(function ($chunk, $page) {
+    /** @var \DirectoryTree\ImapEngine\Message $message */
     foreach ($chunk as $message) {
         // Process each message in the current chunk.
     }
-}, 20); // Process 20 messages per chunk.
+}, chunkSize: 20); // Process 20 messages per chunk.
+```
+
+You may also use the `each()` method to iterate over messages in every chunk:
+
+```php
+use DirectoryTree\ImapEngine\Message;
+
+$inbox->messages()->each(function (Message $message) {
+    // Do something with the message.
+}, chunkSize: 20);
 ```
 
 #### Finding a Specific Message
@@ -258,7 +279,7 @@ $message = $inbox->messages()->find(1, ImapFetchIdentifier::MessageNumber);
 
 ### Interacting With Messages
 
-Once you retrieve messages from a folder using methods like `$inbox->messages()->get()`, you'll receive instances of the `Message` class.
+Once you retrieve messages from a folder using methods like `$inbox->messages()->get()`, you'll receive instances of the `DirectoryTree\ImapEngine\Message` class.
 
 This class offers a rich set of helper methods for interacting with individual emails, making it easy to inspect, modify, and manipulate messages.
 
@@ -282,7 +303,7 @@ The `Message` class provides several methods to access basic properties:
 
 #### Address Handling
 
-To conveniently work with email addresses, the `Message` class includes methods that return addresses as instances of the `Address` class:
+To conveniently work with email addresses, the `Message` class includes methods that return addresses as instances of the `DirectoryTree\ImapEngine\Address` class:
 
 - `from()`: The sender’s address.
 - `sender()`: The actual sender (if different from "from").
@@ -332,14 +353,6 @@ Beyond just flagging, you can move or copy messages between folders, or even del
 - `copy(string $folder, bool $expunge = true)`: Copies the message to the specified folder.
 - `move(string $folder, bool $expunge = true)`: Moves the message to the specified folder.
 - `delete(bool $expunge = true)`: Marks the message as deleted and, if desired, expunges it from the folder.
-
-#### Parsing and String Conversion
-
-- `parse()`: Parses the raw message data into a `MailMimeMessage` instance for deeper inspection (e.g., extracting structured content, attachments, etc.).
-  > **Note:** An exception is thrown if both headers and contents are empty.
-- `__toString()`: Converts the message back to its full raw string (headers and contents combined), which is useful for logging or re-sending the email.
-
----
 
 #### Example: Interacting with a Retrieved Message
 
