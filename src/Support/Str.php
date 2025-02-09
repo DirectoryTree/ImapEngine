@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine\Support;
 class Str
 {
     /**
-     * Make a range set.
+     * Make a range set for use in a search command.
      */
     public static function set(array|int $from, int|float|null $to = null): string
     {
@@ -63,7 +63,7 @@ class Str
     }
 
     /**
-     * Make a list with literals or lists.
+     * Make a list with literals or nested lists.
      */
     public static function list(array $list): string
     {
