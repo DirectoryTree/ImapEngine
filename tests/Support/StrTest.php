@@ -6,8 +6,16 @@ test('set', function () {
     expect(Str::set(5, 10))->toBe('5:10');
     expect(Str::set(5, INF))->toBe('5:*');
     expect(Str::set([5, 10]))->toBe('5,10');
-    expect(Str::set([5]))->toBe('5:5');
+    expect(Str::set([5]))->toBe('5');
     expect(Str::set(5))->toBe('5');
+});
+
+test('set ignores $to when $from is a single-element array', function () {
+    expect(Str::set([5], 10))->toBe('5');
+});
+
+test('set ignores $to when $from is a multi-element array', function () {
+    expect(Str::set([5, 6], 10))->toBe('5,6');
 });
 
 test('escape removes newlines/control characters and escapes backslashes and double quotes', function () {

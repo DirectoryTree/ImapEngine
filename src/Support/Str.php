@@ -49,22 +49,27 @@ class Str
      */
     public static function set(array|int $from, int|float|null $to = null): string
     {
+        // If $from is an array with multiple elements, return them as a comma-separated list.
         if (is_array($from) && count($from) > 1) {
             return implode(',', $from);
         }
 
+        // If $from is an array with a single element, return that element.
         if (is_array($from) && count($from) === 1) {
-            return $from[0].':'.$from[0];
+            return (string) reset($from);
         }
 
+        // At this point, $from is an integer. No upper bound provided, return $from as a string.
         if (is_null($to)) {
-            return $from;
+            return (string) $from;
         }
 
+        // If the upper bound is infinite, use the '*' notation.
         if ($to == INF) {
             return $from.':*';
         }
 
+        // Otherwise, return a typical range string.
         return $from.':'.$to;
     }
 
