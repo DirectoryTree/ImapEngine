@@ -13,10 +13,15 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-state-and-flow-diagram
      */
-    public function connect(string $host, ?int $port = null): void;
+    public function connect(string $host, ?int $port = null, array $options = []): void;
 
     /**
-     * Check if the current session is connected.
+     * Close the current connection.
+     */
+    public function disconnect(): void;
+
+    /**
+     * Determine if the current session is connected.
      */
     public function connected(): bool;
 
@@ -36,7 +41,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-logout-command
      */
-    public function logout(): ?TaggedResponse;
+    public function logout(): void;
 
     /**
      * Send an "AUTHENTICATE" command.

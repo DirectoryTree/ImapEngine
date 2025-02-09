@@ -3,21 +3,130 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Support\Str;
 
-class ImapConnection extends Connection
+class ImapConnection implements ConnectionInterface
 {
+    use ParsesResponses;
+
     /**
-     * The current request sequence.
+     * Sequence number used to generate unique command tags.
      */
     protected int $sequence = 0;
+
+    /**
+     * Constructor.
+     */
+    public function __construct(
+        protected StreamInterface $stream,
+        protected ?LoggerInterface $logger = null,
+    ) {}
+
+    /**
+     * Tear down the connection.
+     */
+    public function __destruct()
+    {
+        $this->logout();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function connect(string $host, ?int $port = null, array $options = []): void
+    {
+        $transport = strtolower($options['encryption'] ?? 'tcp');
+
+        if (in_array($transport, ['ssl', 'tls'])) {
+            $port ??= 993;
+        } else {
+            $port ??= 143;
+        }
+
+        $this->setParser(
+            $this->newParser($this->stream)
+        );
+
+        $this->stream->open(
+            $transport,
+            $host,
+            $port,
+            $options['timeout'] ?? 30,
+            $this->getDefaultSocketOptions(
+                $transport,
+                $options['proxy'] ?? [],
+                $options['validate_cert'] ?? true
+            )
+        );
+
+        $this->assertNextResponse(
+            fn (Response $response) => $response instanceof UntaggedResponse,
+            fn (UntaggedResponse $response) => $response->type()->is('OK'),
+            fn () => new ConnectionFailedException("Connection to $host:$port failed")
+        );
+
+        if ($transport === 'starttls') {
+            $this->startTls();
+        }
+    }
+
+    /**
+     * Get the default socket options for the given transport.
+     */
+    protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true): array
+    {
+        $options = [];
+
+        if (in_array($transport, ['ssl', 'tls'])) {
+            $options['ssl'] = [
+                'verify_peer' => $validateCert,
+                'verify_peer_name' => $validateCert,
+            ];
+        }
+
+        if (! isset($proxy['socket'])) {
+            return $options;
+        }
+
+        $options[$transport]['proxy'] = $proxy['socket'];
+        $options[$transport]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
+
+        if (isset($proxy['username'])) {
+            $auth = base64_encode($proxy['username'].':'.$proxy['password']);
+
+            $options[$transport]['header'] = ["Proxy-Authorization: Basic $auth"];
+        }
+
+        return $options;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function disconnect(): void
+    {
+        $this->stream->close();
+    }
+
+    /**
+     * Check if the current stream is open.
+     */
+    public function connected(): bool
+    {
+        return $this->stream->isOpen();
+    }
 
     /**
      * {@inheritDoc}
@@ -27,6 +136,21 @@ class ImapConnection extends Connection
         $this->send('LOGIN', Str::literal([$user, $password]), $tag);
 
         return $this->assertTaggedResponse($tag);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function logout(): void
+    {
+        try {
+            // It's generally acceptable to send a logout command to an IMAP server
+            // and not wait for a response. If the server encounters an error
+            // processing the request, we will have to reconnect anyway.
+            $this->send('LOGOUT', tag: $tag);
+        } catch (Exception) {
+            // Do nothing.
+        }
     }
 
     /**
@@ -49,32 +173,14 @@ class ImapConnection extends Connection
         $this->send('STARTTLS', tag: $tag);
 
         $this->assertTaggedResponse($tag, fn () => (
-            new ConnectionFailedException('Failed to enable STARTTLS')
+        new ConnectionFailedException('Failed to enable STARTTLS')
         ));
 
-        $this->stream->setSocketSetCrypto(true, $this->getCryptoMethod());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function logout(): ?TaggedResponse
-    {
-        if (! $this->stream->isOpen() || ($this->meta()['timed_out'] ?? false)) {
-            $this->close();
-
-            return null;
-        }
-
-        try {
-            $this->send('LOGOUT', tag: $tag);
-        } catch (Exception) {
-            // Do nothing.
-        }
-
-        $this->close();
-
-        return null;
+        $this->stream->setSocketSetCrypto(true, match (true) {
+            defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT') => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
+            defined('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT') => STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT,
+            default => STREAM_CRYPTO_METHOD_TLS_CLIENT,
+        });
     }
 
     /**
@@ -408,5 +514,109 @@ class ImapConnection extends Connection
             fn (TaggedResponse $response) => $response->successful(),
             fn (TaggedResponse $response) => CommandFailedException::make(new ImapCommand('', 'DONE'), $response),
         );
+    }
+
+    /**
+     * Set the stream timeout.
+     */
+    public function setStreamTimeout(int $streamTimeout): Connection
+    {
+        if (! $this->stream->setTimeout($streamTimeout)) {
+            throw new ConnectionFailedException('Failed to set stream timeout');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Read the next reply from the stream.
+     */
+    public function nextReply(): Response
+    {
+        if (! $this->parser) {
+            throw new RuntimeException('Connection must be opened before reading replies.');
+        }
+
+        if (! $reply = $this->parser->next()) {
+            $meta = $this->stream->meta();
+
+            throw match (true) {
+                $meta['timed_out'] ?? false => new ConnectionTimedOutException('Stream timed out, no response'),
+                $meta['eof'] ?? false => new ConnectionClosedException('Server closed the connection (EOF)'),
+                default => new RuntimeException('Unknown read error, no response: '.json_encode($meta)),
+            };
+        }
+
+        $this->logger?->received($reply);
+
+        return $reply;
+    }
+
+    /**
+     * Send an IMAP command.
+     */
+    public function send(string $name, array $tokens = [], ?string &$tag = null): void
+    {
+        if (! $tag) {
+            $this->sequence++;
+            $tag = 'TAG'.$this->sequence;
+        }
+
+        $command = new ImapCommand($tag, $name, $tokens);
+
+        // After every command, we'll overwrite any previous result
+        // with the new command and its responses, so that we can
+        // easily access the commands responses for assertion.
+        $this->setResult(new Result($command));
+
+        foreach ($command->compile() as $line) {
+            $this->write($line);
+        }
+    }
+
+    /**
+     * Write data to the connected stream.
+     */
+    protected function write(string $data): void
+    {
+        $command = $data."\r\n";
+
+        $this->logger?->sent($command);
+
+        if ($this->stream->fwrite($command) === false) {
+            throw new RuntimeException('Failed to write data to stream.');
+        }
+    }
+
+    /**
+     * Fetch one or more items for one or more messages.
+     */
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    {
+        $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
+
+        $this->send(trim($prefix.' FETCH'), [
+            Str::set($from, $to),
+            Str::list((array) $items),
+        ], $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        // Some IMAP servers can send unsolicited untagged responses along with fetch
+        // requests. We'll need to filter these out so that we can return only the
+        // responses that are relevant to the fetch command. For example:
+        // TAG123 FETCH (UID 456 BODY[TEXT])
+        // * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
+        // * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
+        return $this->result->responses()->untagged()->filter(function (UntaggedResponse $response) use ($items, $identifier) {
+            // The third token will always be a list of data items.
+            return match ($identifier) {
+                // If we're fetching UIDs, we can check if a UID token is contained in the list.
+                ImapFetchIdentifier::Uid => $response->tokenAt(3)->contains('UID'),
+
+                // If we're fetching message numbers, we can check if the requested items are all contained in the list.
+                ImapFetchIdentifier::MessageNumber => $response->tokenAt(3)->contains($items),
+            };
+        });
     }
 }

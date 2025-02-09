@@ -4,6 +4,9 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Loggers\EchoLogger;
+use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
+use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
 class Mailbox
@@ -100,13 +103,7 @@ class Mailbox
      */
     public function isClosed(): bool
     {
-        if (! $this->isConnected()) {
-            return true;
-        }
-
-        $meta = $this->connection->meta();
-
-        return $meta['timed_out'] || $meta['eof'];
+        return ! $this->isConnected();
     }
 
     /**
@@ -128,15 +125,22 @@ class Mailbox
             return;
         }
 
-        $this->connection = $connection ?? new ImapConnection;
+        $debug = $this->config('debug');
 
-        $this->connection->setProxy($this->config('proxy'));
-        $this->connection->setDebug($this->config('debug'));
-        $this->connection->setEncryption($this->config('encryption'));
-        $this->connection->setConnectionTimeout($this->config('timeout'));
-        $this->connection->setCertValidation($this->config('validate_cert'));
+        $this->connection = $connection ?? new ImapConnection(new ImapStream, match (true) {
+            class_exists($debug) => new $debug,
+            is_string($debug) => new FileLogger($debug),
+            is_bool($debug) && $debug => new EchoLogger,
+            default => null,
+        });
 
-        $this->connection->connect($this->config('host'), $this->config('port'));
+        $this->connection->connect($this->config('host'), $this->config('port'), [
+            'proxy' => $this->config('proxy'),
+            'debug' => $this->config('debug'),
+            'timeout' => $this->config('timeout'),
+            'encryption' => $this->config('encryption'),
+            'validate_cert' => $this->config('validate_cert'),
+        ]);
 
         $this->authenticate();
     }
@@ -166,6 +170,7 @@ class Mailbox
     {
         if ($this->isConnected()) {
             $this->connection->logout();
+            $this->connection->disconnect();
         }
 
         $this->connection = null;

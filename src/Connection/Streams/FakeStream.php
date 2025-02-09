@@ -1,6 +1,6 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Connection;
+namespace DirectoryTree\ImapEngine\Connection\Streams;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -99,9 +99,9 @@ class FakeStream implements StreamInterface
     /**
      * {@inheritDoc}
      */
-    public function open(?string $transport = null, ?string $host = null, ?int $port = null, ?int $timeout = null): bool
+    public function open(?string $transport = null, ?string $host = null, ?int $port = null, ?int $timeout = null, array $options = []): bool
     {
-        $this->connection = compact('transport', 'host', 'port', 'timeout');
+        $this->connection = compact('transport', 'host', 'port', 'timeout', 'options');
 
         return true;
     }

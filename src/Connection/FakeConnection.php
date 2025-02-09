@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use RuntimeException;
 
-class FakeConnection extends Connection
+class FakeConnection implements ConnectionInterface
 {
     /**
      * All calls recorded, keyed by method name.
@@ -39,7 +39,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function connect(string $host, ?int $port = null): void
+    public function connect(string $host, ?int $port = null, array $options = []): void
     {
         $this->getExpectationResponse(__FUNCTION__, func_get_args());
     }
@@ -63,9 +63,22 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function logout(): TaggedResponse
+    public function connected(): bool {}
+
+    /**
+     * {@inheritDoc}
+     */
+    public function startTls(): void
     {
-        return $this->getExpectationResponse(__FUNCTION__, func_get_args());
+        $this->getExpectationResponse(__FUNCTION__, func_get_args());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function logout(): void
+    {
+        $this->getExpectationResponse(__FUNCTION__, func_get_args());
     }
 
     /**

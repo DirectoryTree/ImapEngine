@@ -1,13 +1,13 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Connection;
+namespace DirectoryTree\ImapEngine\Connection\Streams;
 
 interface StreamInterface
 {
     /**
      * Open the underlying stream.
      */
-    public function open(string $transport, string $host, int $port, int $timeout): bool;
+    public function open(string $transport, string $host, int $port, int $timeout, array $options = []): bool;
 
     /**
      * Close the underlying stream.
