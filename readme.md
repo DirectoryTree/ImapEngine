@@ -217,7 +217,7 @@ You can paginate messages using the `paginate()` method. This method accepts the
 > [!important] 
 > IMAP does not support native pagination, as you would typically expect, like a SQL database. Instead,
 > ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's 
-> that corresponds to the current page, and fetches the messages for those UID's.
+> that corresponds to the current page, and fetches the requested email message parts specifically for those UID's.
 
 ```php
 // Paginate messages with 10 messages per page.
