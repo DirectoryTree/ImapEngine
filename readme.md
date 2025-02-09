@@ -82,7 +82,7 @@ $mailbox = new Mailbox([
 
 ```php
 // Get the mailbox's inbox folder.
-$inbox = $mailbox->folders()->inbox();
+$inbox = $mailbox->inbox();
 
 // Get all the mailbox's folders.
 $folders = $mailbox->folders()->get();
