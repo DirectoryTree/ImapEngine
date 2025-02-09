@@ -103,8 +103,6 @@ class Idle
         $this->mailbox->connect();
 
         $this->mailbox->select($this->folder(), true);
-
-        $this->mailbox->connection()->setStreamTimeout($this->timeout);
     }
 
     /**
@@ -162,7 +160,7 @@ class Idle
      */
     protected function idle(): void
     {
-        $this->mailbox->connection()->idle();
+        $this->mailbox->connection()->idle($this->timeout);
     }
 
     /**

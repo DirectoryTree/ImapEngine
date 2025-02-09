@@ -66,7 +66,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-idle-command
      */
-    public function idle(): void;
+    public function idle(int $timeout): void;
 
     /**
      * Send a "DONE" command.

@@ -173,7 +173,7 @@ class ImapConnection implements ConnectionInterface
         $this->send('STARTTLS', tag: $tag);
 
         $this->assertTaggedResponse($tag, fn () => (
-        new ConnectionFailedException('Failed to enable STARTTLS')
+            new ConnectionFailedException('Failed to enable STARTTLS')
         ));
 
         $this->stream->setSocketSetCrypto(true, match (true) {
@@ -489,8 +489,10 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(): void
+    public function idle(int $timeout): void
     {
+        $this->stream->setTimeout($timeout);
+
         $this->send('IDLE', tag: $tag);
 
         $this->assertContinuationResponse(
@@ -514,18 +516,6 @@ class ImapConnection implements ConnectionInterface
             fn (TaggedResponse $response) => $response->successful(),
             fn (TaggedResponse $response) => CommandFailedException::make(new ImapCommand('', 'DONE'), $response),
         );
-    }
-
-    /**
-     * Set the stream timeout.
-     */
-    public function setStreamTimeout(int $streamTimeout): Connection
-    {
-        if (! $this->stream->setTimeout($streamTimeout)) {
-            throw new ConnectionFailedException('Failed to set stream timeout');
-        }
-
-        return $this;
     }
 
     /**
