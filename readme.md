@@ -345,18 +345,36 @@ Beyond just flagging, you can move or copy messages between folders, or even del
 
 ```php
 // Retrieve the first message from the inbox.
-$message = $inbox->messages()->get()->first();
+$message = $inbox->messages()->first();
 
-// Print basic information.
-echo 'UID: ' . $message->uid() . PHP_EOL;
-echo 'Subject: ' . $message->subject() . PHP_EOL;
-echo 'Date: ' . ($message->date() ? $message->date()->toDateTimeString() : 'N/A') . PHP_EOL;
+// Get the message UID.
+$message->uid();
+
+// Get the message subject.
+$message->subject();
+
+// Get the message sender.
+$message->from(); // Address
+
+// Get the message date.
+$message->date(); // Carbon\Carbon
 
 // Check if the message has attachments and list them.
-if ($message->hasAttachments()) {
-    foreach ($message->attachments() as $attachment) {
-        echo 'Attachment: ' . $attachment->filename() . ' (' . $attachment->contentType() . ')' . PHP_EOL;
-    }
+foreach ($message->attachments() as $attachment) {
+    // Get the attachment's filename.
+    $attachment->filename();
+    
+    // Get the attachment's content type.
+    $attachment->contentType();
+    
+    // Get the attachment's contents.
+    $attachment->contents();
+    
+    // Get the attachment's extension.
+    $extension = $attachment->extension();
+    
+    // Save the attachment to a local file.
+    $attachment->save("/path/to/save/attachment.$extension");
 }
 
 // Mark the message as read.
