@@ -122,8 +122,9 @@ $messages = $inbox->messages()
 > using `since($date)`, and other criteria filters to limit the number of messages your IMAP server returns,
 > along with pagination or chunking to avoid possible memory issues.
 > 
-> You may also consider restricting the parts of the message you fetch using `withHeaders()`, `withFlags()`, and `withBody()`.
-> This will reduce the amount of data fetched from the server, and speed up your queries.
+> You may also consider restricting the parts of the message you fetch by omitting the use of `withHeaders()`, 
+> `withFlags()`, and `withBody()`. This will reduce the amount of data fetched from the server, 
+> and speed up your queries.
 > 
 > A typical approach when dealing with large mailboxes is to store all messages (either in a cache or DB)
 > once, and then only fetch new messages since the last time the mailbox was checked.
