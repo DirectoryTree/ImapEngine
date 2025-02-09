@@ -29,7 +29,7 @@ composer require directorytree/imapengine
 
 ### Connecting
 
-To connect to a mailbox, create a new `Mailbox` instance with the above configuration options:
+To connect to a mailbox, create a new `Mailbox` instance with the configuration options:
 
 ```php
 $mailbox = new Mailbox([
@@ -82,7 +82,7 @@ $mailbox = new Mailbox([
 
 ```php
 // Get the mailbox's inbox folder.
-$inbox = $mailbox->folders()->inbox();
+$inbox = $mailbox->inbox();
 
 // Get all the mailbox's folders.
 $folders = $mailbox->folders()->get();
@@ -131,7 +131,7 @@ $messages = $inbox->messages()
 
 ####  Filtering By Criteria
 
-The MessageQuery supports many common IMAP search criteria. You can chain methods such as:
+The query builder supports many common IMAP search criteria. You can chain methods such as:
 
 - `all()`
 - `new()`
@@ -215,9 +215,9 @@ The less data you fetch, the faster your query will be. Only fetch the data you 
 You can paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
 
 > [!important] 
-> IMAP does not support native pagination, as you would expect from a SQL database. Instead,
+> IMAP does not support native pagination, as you would typically expect, like a SQL database. Instead,
 > ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's 
-> that corresponds to the current page, and fetches the messages for those UID's.
+> that corresponds to the current page, and fetches the requested email message parts specifically for those UID's.
 
 ```php
 // Paginate messages with 10 messages per page.
