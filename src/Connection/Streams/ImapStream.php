@@ -11,7 +11,7 @@ class ImapStream implements StreamInterface
      *
      * @var resource|null
      */
-    protected $stream = null;
+    protected mixed $stream = null;
 
     /**
      * {@inheritDoc}
@@ -30,8 +30,6 @@ class ImapStream implements StreamInterface
         if (! $this->stream) {
             throw new ConnectionFailedException('Stream failed to open: '.$errstr, $errno);
         }
-
-        stream_set_blocking($this->stream, true);
 
         return true;
     }
@@ -93,25 +91,7 @@ class ImapStream implements StreamInterface
      */
     public function meta(): array
     {
-        if (! $this->isOpen()) {
-            return [
-                'crypto' => [
-                    'protocol' => '',
-                    'cipher_name' => '',
-                    'cipher_bits' => 0,
-                    'cipher_version' => '',
-                ],
-                'timed_out' => true,
-                'blocked' => true,
-                'eof' => true,
-                'stream_type' => 'tcp_socket/unknown',
-                'mode' => 'c',
-                'unread_bytes' => 0,
-                'seekable' => false,
-            ];
-        }
-
-        return stream_get_meta_data($this->stream);
+        return $this->isOpen() ? stream_get_meta_data($this->stream) : [];
     }
 
     /**
