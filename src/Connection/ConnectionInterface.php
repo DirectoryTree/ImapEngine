@@ -10,6 +10,8 @@ interface ConnectionInterface
 {
     /**
      * Open a new connection.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-state-and-flow-diagram
      */
     public function connect(string $host, ?int $port = null): void;
 
@@ -19,51 +21,92 @@ interface ConnectionInterface
     public function connected(): bool;
 
     /**
+     * Send a "LOGIN" command.
+     *
      * Login to a new session.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-login-command
      */
     public function login(string $user, string $password): TaggedResponse;
 
     /**
+     * Send a "LOGOUT" command.
+     *
      * Logout of the current server session.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-logout-command
      */
     public function logout(): ?TaggedResponse;
 
     /**
+     * Send an "AUTHENTICATE" command.
+     *
      * Authenticate the current session.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-authenticate-command
      */
     public function authenticate(string $user, string $token): TaggedResponse;
 
     /**
-     * Send idle command.
+     * Send a "STARTTLS" command.
+     *
+     * Upgrade the current plaintext connection to a secure TLS-encrypted connection.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-starttls-command
+     */
+    public function startTls(): void;
+
+    /**
+     * Send an "IDLE" command.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-idle-command
      */
     public function idle(): void;
 
     /**
-     * Send done command.
+     * Send a "DONE" command.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.3.13
      */
     public function done(): void;
 
     /**
-     * Send noop command.
+     * Send a "NOOP" command.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-noop-command
      */
     public function noop(): TaggedResponse;
 
     /**
+     * Send a "EXPUNGE" command.
+     *
      * Apply session saved changes to the server.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-expunge-command
      */
     public function expunge(): ResponseCollection;
 
     /**
-     * Get the mailboxes available capabilities.
+     * Send a "CAPABILITY" command.
+     *
+     * Get the mailbox's available capabilities.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-capability-command
      */
     public function capability(): UntaggedResponse;
 
     /**
+     * Send a "SEARCH" command.
+     *
      * Execute a search request.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
     public function search(array $params): UntaggedResponse;
 
     /**
+     * Send a "FETCH" command.
+     *
      * Exchange identification information.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc2971.
@@ -71,102 +114,164 @@ interface ConnectionInterface
     public function id(?array $ids = null): UntaggedResponse;
 
     /**
+     * Send a "FETCH UID" command.
+     *
      * Fetch message UIDs using the given message numbers.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-uid-command
      */
-    public function uids(int|array $msgns): ResponseCollection;
+    public function uid(int|array $msgns): ResponseCollection;
 
     /**
-     * Fetch message contents.
+     * Send a "FETCH BODY[TEXT]" command.
+     *
+     * Fetch message text contents.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function contents(int|array $ids, bool $peek = true): ResponseCollection;
+    public function text(int|array $ids, bool $peek = true): ResponseCollection;
 
     /**
+     * Send a "FETCH BODY[HEADER]" command.
+     *
      * Fetch message headers.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function headers(int|array $ids, bool $peek = true): ResponseCollection;
+    public function header(int|array $ids, bool $peek = true): ResponseCollection;
 
     /**
-     * Fetch message flags.
+     * Send a "FETCH FLAGS" command.
+     *
+     * Fetch a message flags.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.17
      */
     public function flags(int|array $ids): ResponseCollection;
 
     /**
+     * Send a "RFC822.SIZE" command.
+     *
      * Fetch message sizes.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
      */
     public function sizes(int|array $ids): ResponseCollection;
 
     /**
-     * Select the given folder.
+     * Send a "SELECT" command.
+     *
+     * Select the specified folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-select-command
      */
-    public function selectFolder(string $folder): ResponseCollection;
+    public function select(string $folder): ResponseCollection;
 
     /**
+     * Send a "EXAMINE" command.
+     *
      * Examine a given folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-examine-command
      */
-    public function examineFolder(string $folder): ResponseCollection;
+    public function examine(string $folder): ResponseCollection;
 
     /**
+     * Send a "LIST" command.
+     *
      * Get a list of available folders.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-list-command
      */
-    public function folders(string $reference = '', string $folder = '*'): ResponseCollection;
+    public function list(string $reference = '', string $folder = '*'): ResponseCollection;
 
     /**
+     * Send a "STATUS" command.
+     *
      * Get the status of a given folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-status-command
      */
-    public function folderStatus(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse;
+    public function status(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse;
 
     /**
+     * Send a "STORE" command.
+     *
      * Set message flags.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
      */
     public function store(array|string $flags, int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection;
 
     /**
+     * Send a "APPEND" command.
+     *
      * Append a new message to given folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-append-command
      */
-    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection;
+    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection;
 
     /**
+     * Send a "UID COPY" command.
+     *
      * Copy message set from current folder to other folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-copy-command
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): void;
+    public function copy(string $folder, array|int $from, ?int $to = null): void;
 
     /**
-     * Copy multiple messages to the target folder.
-     */
-    public function copyManyMessages(array $messages, string $folder): void;
-
-    /**
+     * Send a "UID MOVE" command.
+     *
      * Move a message set from current folder to another folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-move-command
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): void;
+    public function move(string $folder, array|int $from, ?int $to = null): void;
 
     /**
-     * Move multiple messages to the target folder.
-     */
-    public function moveManyMessages(array $messages, string $folder): void;
-
-    /**
+     * Send a "CREATE" command.
+     *
      * Create a new folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-create-command
      */
-    public function createFolder(string $folder): ResponseCollection;
+    public function create(string $folder): ResponseCollection;
 
     /**
+     * Send a "DELETE" command.
+     *
      * Delete a folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-delete-command
      */
-    public function deleteFolder(string $folder): TaggedResponse;
+    public function delete(string $folder): TaggedResponse;
 
     /**
-     * Subscribe to a folder.
-     */
-    public function subscribeFolder(string $folder): TaggedResponse;
-
-    /**
-     * Unsubscribe from a folder.
-     */
-    public function unsubscribeFolder(string $folder): TaggedResponse;
-
-    /**
+     * Send a "RENAME" command.
+     *
      * Rename an existing folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-rename-command
      */
-    public function renameFolder(string $oldPath, string $newPath): TaggedResponse;
+    public function rename(string $oldPath, string $newPath): TaggedResponse;
+
+    /**
+     * Send a "SUBSCRIBE" command.
+     *
+     * Subscribe to a folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-subscribe-command
+     */
+    public function subscribe(string $folder): TaggedResponse;
+
+    /**
+     * Send a "UNSUBSCRIBE" command.
+     *
+     * Unsubscribe from a folder.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-unsubscribe-command
+     */
+    public function unsubscribe(string $folder): TaggedResponse;
 }
