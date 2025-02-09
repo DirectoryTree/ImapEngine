@@ -1,7 +1,7 @@
 <?php
 
-use DirectoryTree\ImapEngine\Connection\FakeStream;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
 use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
