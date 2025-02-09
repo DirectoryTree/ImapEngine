@@ -18,13 +18,6 @@
     ],
     "require": {
         "php": "^8.1",
-        "ext-zip": "*",
-        "ext-json": "*",
-        "ext-iconv": "*",
-        "ext-libxml": "*",
-        "ext-openssl": "*",
-        "ext-mbstring": "*",
-        "ext-fileinfo": "*",
         "symfony/mime": ">=6.0",
         "nesbot/carbon": ">=2.0",
         "illuminate/support": ">=9.0",
