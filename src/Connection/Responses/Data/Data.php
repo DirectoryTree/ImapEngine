@@ -33,7 +33,9 @@ abstract class Data implements Stringable
     public function values(): array
     {
         return array_map(function (Token|Data $token) {
-            return $token instanceof Data ? $token->values() : $token->value;
+            return $token instanceof Data
+                ? $token->values()
+                : $token->value;
         }, $this->tokens);
     }
 }

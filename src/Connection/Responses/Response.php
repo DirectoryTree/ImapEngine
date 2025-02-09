@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Illuminate\Contracts\Support\Arrayable;
 use Stringable;
 
-abstract class Response implements Arrayable, Stringable
+class Response implements Arrayable, Stringable
 {
     use HasTokens;
 
@@ -34,7 +34,9 @@ abstract class Response implements Arrayable, Stringable
     public function toArray(): array
     {
         return array_map(function (Token|Data $token) {
-            return $token instanceof Data ? $token->values() : $token->value;
+            return $token instanceof Data
+                ? $token->values()
+                : $token->value;
         }, $this->tokens);
     }
 
