@@ -52,8 +52,9 @@ class FakeStream implements StreamInterface
      */
     public function feed(array|string $lines): self
     {
-        // We'll ensure that each line ends with a newline character
-        // as this is the expected behavior of the IMAP a stream.
+        // We'll ensure that each line ends with a CRLF,
+        // as this is the expected behavior of every
+        // reply that comes from an IMAP server.
         $lines = array_map(fn (string $line) => (
             rtrim($line, "\r\n")."\r\n"
         ), (array) $lines);
@@ -132,7 +133,8 @@ class FakeStream implements StreamInterface
         $availableLength = strlen($data);
 
         if ($availableLength === 0) {
-            // No data available right now (but not EOF). Simulate non-blocking behavior.
+            // No data available right now (but not EOF).
+            // Simulate non-blocking behavior.
             return '';
         }
 

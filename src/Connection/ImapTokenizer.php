@@ -12,6 +12,8 @@ use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 
 class ImapTokenizer
 {

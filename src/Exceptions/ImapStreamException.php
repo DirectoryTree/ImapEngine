@@ -1,6 +1,6 @@
 <?php
 
-namespace DirectoryTree\ImapEngine\Connection;
+namespace DirectoryTree\ImapEngine\Exceptions;
 
 use Exception;
 

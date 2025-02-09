@@ -389,7 +389,7 @@ abstract class Connection implements ConnectionInterface
             Str::list((array) $items),
         ], $tag);
 
-        $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch items'));
+        $this->assertTaggedResponse($tag);
 
         // Some IMAP servers can send unsolicited untagged responses along with fetch
         // requests. We'll need to filter these out so that we can return only the
