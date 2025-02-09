@@ -34,12 +34,8 @@ test('literal returns a literal indicator and the original string if it contains
     expect(Str::literal($input))->toBe($expected);
 });
 
-test('literal handles multiple arguments by returning an array of literals', function () {
-    expect(Str::literal('first', 'second'))
-        ->toBe([
-            '"first"',
-            '"second"',
-        ]);
+test('literal handles an array of literals', function () {
+    expect(Str::literal(['first', 'second']))->toBe(['"first"', '"second"']);
 });
 
 test('list returns a properly formatted parenthesized list for a flat array', function () {

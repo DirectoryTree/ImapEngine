@@ -69,7 +69,6 @@ abstract class Connection implements ConnectionInterface
     public function __destruct()
     {
         $this->logout();
-        $this->close();
     }
 
     /**
@@ -343,14 +342,14 @@ abstract class Connection implements ConnectionInterface
     /**
      * Send an IMAP command.
      */
-    public function send(string $name, array|string $tokens = [], ?string &$tag = null): void
+    public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
         if (! $tag) {
             $this->sequence++;
             $tag = 'TAG'.$this->sequence;
         }
 
-        $command = new ImapCommand($name, $tag, (array) $tokens);
+        $command = new ImapCommand($tag, $name, $tokens);
 
         // After every command, we'll overwrite any previous result
         // with the new command and its responses, so that we can
@@ -393,13 +392,5 @@ abstract class Connection implements ConnectionInterface
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch items'));
 
         return $this->result->responses()->untagged();
-    }
-
-    /**
-     * Escape a list of literals.
-     */
-    protected function escapeList(array $list): string
-    {
-        return Str::list($list);
     }
 }

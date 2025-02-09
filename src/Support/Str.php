@@ -5,6 +5,46 @@ namespace DirectoryTree\ImapEngine\Support;
 class Str
 {
     /**
+     * Make a list with literals or nested lists.
+     */
+    public static function list(array $list): string
+    {
+        $values = [];
+
+        foreach ($list as $value) {
+            if (is_array($value)) {
+                $values[] = static::list($value);
+            } else {
+                $values[] = $value;
+            }
+        }
+
+        return sprintf('(%s)', implode(' ', $values));
+    }
+
+    /**
+     * Make one or more literals.
+     */
+    public static function literal(array|string $string): array|string
+    {
+        if (is_array($string)) {
+            $result = [];
+
+            foreach ($string as $value) {
+                $result[] = static::literal($value);
+            }
+
+            return $result;
+        }
+
+        if (str_contains($string, "\n")) {
+            return ['{'.strlen($string).'}', $string];
+        }
+
+        return '"'.static::escape($string).'"';
+    }
+
+    /**
      * Make a range set for use in a search command.
      */
     public static function set(array|int $from, int|float|null $to = null): string
@@ -38,45 +78,5 @@ class Str
 
         // Escape backslashes first to avoid double-escaping and then escape double quotes.
         return str_replace(['\\', '"'], ['\\\\', '\\"'], $string);
-    }
-
-    /**
-     * Make one or more literals.
-     */
-    public static function literal(array|string $string): array|string
-    {
-        if (func_num_args() >= 2) {
-            $result = [];
-
-            foreach (func_get_args() as $string) {
-                $result[] = static::literal($string);
-            }
-
-            return $result;
-        }
-
-        if (str_contains($string, "\n")) {
-            return ['{'.strlen($string).'}', $string];
-        }
-
-        return '"'.static::escape($string).'"';
-    }
-
-    /**
-     * Make a list with literals or nested lists.
-     */
-    public static function list(array $list): string
-    {
-        $values = [];
-
-        foreach ($list as $value) {
-            if (is_array($value)) {
-                $values[] = static::list($value);
-            } else {
-                $values[] = $value;
-            }
-        }
-
-        return sprintf('(%s)', implode(' ', $values));
     }
 }

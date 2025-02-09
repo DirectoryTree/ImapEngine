@@ -56,9 +56,9 @@ class FakeStream implements StreamInterface
         // as this is the expected behavior of the IMAP a stream.
         $lines = array_map(fn (string $line) => (
             rtrim($line, "\r\n")."\r\n"
-        ), Arr::wrap($lines));
+        ), (array) $lines);
 
-        array_push($this->buffer, ...(array) $lines);
+        array_push($this->buffer, ...$lines);
 
         return $this;
     }

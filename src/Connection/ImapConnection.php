@@ -11,7 +11,6 @@ use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Support\Str;
-use Illuminate\Support\Arr;
 
 class ImapConnection extends Connection
 {
@@ -69,8 +68,6 @@ class ImapConnection extends Connection
 
         try {
             $this->send('LOGOUT', tag: $tag);
-
-            return $this->nextTaggedResponse($tag);
         } catch (Exception) {
             // Do nothing.
         }
@@ -101,7 +98,7 @@ class ImapConnection extends Connection
      */
     protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): ResponseCollection
     {
-        $this->send($command, Str::literal($folder), $tag);
+        $this->send($command, [Str::literal($folder)], $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -130,7 +127,7 @@ class ImapConnection extends Connection
      */
     public function create(string $folder): ResponseCollection
     {
-        $this->send('CREATE', Str::literal($folder), $tag);
+        $this->send('CREATE', [Str::literal($folder)], $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -144,7 +141,7 @@ class ImapConnection extends Connection
      */
     public function delete(string $folder): TaggedResponse
     {
-        $this->send('DELETE', Str::literal($folder), tag: $tag);
+        $this->send('DELETE', [Str::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -164,7 +161,7 @@ class ImapConnection extends Connection
      */
     public function subscribe(string $folder): TaggedResponse
     {
-        $this->send('SUBSCRIBE', Str::literal($folder), tag: $tag);
+        $this->send('SUBSCRIBE', [Str::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -174,7 +171,7 @@ class ImapConnection extends Connection
      */
     public function unsubscribe(string $folder): TaggedResponse
     {
-        $this->send('UNSUBSCRIBE', Str::literal($folder), tag: $tag);
+        $this->send('UNSUBSCRIBE', [Str::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -203,7 +200,7 @@ class ImapConnection extends Connection
         $tokens[] = Str::literal($folder);
 
         if ($flags) {
-            $tokens[] = $this->escapeList($flags);
+            $tokens[] = Str::list($flags);
         }
 
         if ($date) {
@@ -254,7 +251,7 @@ class ImapConnection extends Connection
     {
         $set = Str::set($from, $to);
 
-        $flags = $this->escapeList(Arr::wrap($flags));
+        $flags = Str::list((array) $flags);
 
         $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
 
