@@ -30,6 +30,14 @@ class Message implements Stringable
     ) {}
 
     /**
+     * Get the names of properties that should be serialized.
+     */
+    public function __sleep(): array
+    {
+        return ['folder', 'uid', 'flags', 'headers', 'contents'];
+    }
+
+    /**
      * Get the message's identifier.
      */
     public function uid(): int
