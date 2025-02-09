@@ -29,7 +29,7 @@ composer require directorytree/imapengine
 
 ### Connecting
 
-To connect to a mailbox, create a new `Mailbox` instance with the above configuration options:
+To connect to a mailbox, create a new `Mailbox` instance with the configuration options:
 
 ```php
 $mailbox = new Mailbox([
