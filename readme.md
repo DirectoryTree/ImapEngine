@@ -22,6 +22,7 @@
   - [Retrieving Folders](#retrieving-folders)
   - [Retrieving Messages](#retrieving-messages)
   - [Interacting With Messages](#interacting-with-messages)
+  - [Idling on Folders](#idling-on-folders)
 
 ## Requirements
 
@@ -399,3 +400,30 @@ $message->move('Archive');
 // Delete the message.
 $message->delete();
 ```
+
+### Idling on Folders
+
+ImapEngine supports real-time monitoring of folders via the IMAP IDLE command. 
+
+This lets you listen for new messages as they arrive without polling repeatedly.
+
+> [!important]
+> The `idle()` method is fully blocking (as in, it enters an infinite loop), so consider 
+> running it in a background process or a worker when used in a web application.
+
+```php
+use DirectoryTree\ImapEngine\Message;
+
+// Get the inbox folder.
+$inbox = $mailbox->inbox();
+
+// Start idling on the inbox folder. The callback will be
+// triggered whenever a new message is detected.
+// The second parameter is an optional timeout in seconds (default is 300).
+$inbox->idle(function (Message $message) {
+    // Do something with the newly received message.
+}, timeout: 300);
+```
+
+> [!important]
+> Messages received in idle will always be fetched with all their content (flags, headers, and body with attachments).
