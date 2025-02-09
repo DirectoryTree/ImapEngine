@@ -25,9 +25,7 @@ You can install the package via composer:
 composer require directorytree/imapengine
 ```
 
-## Usage
-
-### Configuration
+## Configuration
 
 All default configuration options are shown below:
 
@@ -51,7 +49,7 @@ $config = [
 ];
 ```
 
-### Connection
+## Connection
 
 To connect to a mailbox, create a new `Mailbox` instance with the above configuration options:
 
@@ -80,9 +78,9 @@ $mailbox = new Mailbox([
 ]);
 ```
 
-### Usage
+## Usage
 
-#### Retrieving Folders
+### Retrieving Folders
 
 ```php
 // Get the mailbox's inbox folder.
@@ -98,7 +96,7 @@ $folders = $mailbox->folders()->get('*/Subfolder');
 $folder = $mailbox->folders()->find('Folder Name');
 ```
 
-#### Retrieving Messages
+### Retrieving Messages
 
 ImapEngine provides a fluent, chainable API for building advanced message search queries.
 
@@ -112,7 +110,7 @@ $inbox = $mailbox->folders()->inbox();
 // Get all message UIDs in the inbox.
 $messages = $inbox->messages()->get();
 
-// Get all messages in the inbox with various content.
+// Get all messages in the inbox with various content enabled.
 $messages = $inbox->messages()
     ->withHeaders() // Enable fetching message headers.
     ->withFlags() // Enable fetching message flags.
@@ -132,7 +130,7 @@ $messages = $inbox->messages()
 > A typical approach when dealing with large mailboxes is to store all messages (either in a cache or DB)
 > once, and then only fetch new messages since the last time the mailbox was checked.
 
-#####  Filtering By Criteria
+####  Filtering By Criteria
 
 The MessageQuery supports many common IMAP search criteria. You can chain methods such as:
 
@@ -184,9 +182,9 @@ $messages = $inbox->messages()
     ->get();
 ```
 
-##### Fetching Additional Message Data
+#### Fetching Additional Message Data
 
-You can control what parts of the message are fetched by enabling or disabling them on the query builder:
+By default, ImapEngine only fetches UIDs. To fetch additional message data, you have to enable it explicitly.
 
 **Message Headers:**
 Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to exclude them.
@@ -213,7 +211,7 @@ $messages = $inbox->messages()
 
 The less data you fetch, the faster your query will be. Only fetch the data you need.
 
-##### Message Pagination
+#### Message Pagination
 
 You can paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
 
@@ -227,7 +225,7 @@ You can paginate messages using the `paginate()` method. This method accepts the
 $paginatedMessages = $inbox->messages()->paginate(10);
 ```
 
-##### Message Chunking
+#### Message Chunking
 
 If you need to process a large number of messages without loading them all at once, you can use the chunk() method:
 
@@ -239,7 +237,7 @@ $inbox->messages()->chunk(function ($chunk, $page) {
 }, 20); // Process 20 messages per chunk.
 ```
 
-##### Finding a Specific Message
+#### Finding a Specific Message
 
 You can retrieve a single message by its unique identifier using the `find()` method.
 
@@ -259,13 +257,13 @@ Or by message sequence number:
 $message = $inbox->messages()->find(1, ImapFetchIdentifier::MessageNumber);
 ```
 
-#### Interacting With Messages
+### Interacting With Messages
 
 Once you retrieve messages from a folder using methods like `$inbox->messages()->get()`, you'll receive instances of the `Message` class.
 
 This class offers a rich set of helper methods for interacting with individual emails, making it easy to inspect, modify, and manipulate messages.
 
-##### Retrieving Message Information
+#### Retrieving Message Information
 
 The `Message` class provides several methods to access basic properties:
 
@@ -283,7 +281,7 @@ The `Message` class provides several methods to access basic properties:
 - `date()`: Returns the message’s date as a Carbon instance (if available).
 - `messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
 
-##### Address Handling
+#### Address Handling
 
 To conveniently work with email addresses, the `Message` class includes methods that return addresses as instances of the `Address` class:
 
@@ -295,14 +293,14 @@ To conveniently work with email addresses, the `Message` class includes methods 
 - `cc()`: An array of CC addresses.
 - `bcc()`: An array of BCC addresses.
 
-##### Content Retrieval
+#### Content Retrieval
 
 For accessing the message content in different formats:
 
 - `html()`: Returns the HTML version of the message (if available).
 - `text()`: Returns the plain text version of the message (if available).
 
-##### Attachment Handling
+#### Attachment Handling
 
 Messages that include attachments can be inspected with:
 
@@ -310,7 +308,7 @@ Messages that include attachments can be inspected with:
 - `hasAttachments()`: Checks if the message contains any attachments.
 - `attachmentCount()`: Returns the number of attachments in the message.
 
-##### Flag Operations
+#### Flag Operations
 
 The class also provides methods to modify message flags, which help you manage the state of a message:
 
@@ -328,7 +326,7 @@ The class also provides methods to modify message flags, which help you manage t
 
 All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation), and optionally expunging the folder afterward.
 
-##### Message Manipulation
+#### Message Manipulation
 
 Beyond just flagging, you can move or copy messages between folders, or even delete them:
 
@@ -336,7 +334,7 @@ Beyond just flagging, you can move or copy messages between folders, or even del
 - `move(string $folder, bool $expunge = true)`: Moves the message to the specified folder.
 - `delete(bool $expunge = true)`: Marks the message as deleted and, if desired, expunges it from the folder.
 
-##### Parsing and String Conversion
+#### Parsing and String Conversion
 
 - `parse()`: Parses the raw message data into a `MailMimeMessage` instance for deeper inspection (e.g., extracting structured content, attachments, etc.).
   > **Note:** An exception is thrown if both headers and contents are empty.
@@ -344,7 +342,7 @@ Beyond just flagging, you can move or copy messages between folders, or even del
 
 ---
 
-##### Example: Interacting with a Retrieved Message
+#### Example: Interacting with a Retrieved Message
 
 ```php
 // Retrieve the first message from the inbox.
