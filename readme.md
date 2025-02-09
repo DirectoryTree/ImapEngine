@@ -25,31 +25,9 @@ You can install the package via composer:
 composer require directorytree/imapengine
 ```
 
-## Configuration
+## Usage
 
-All default configuration options are shown below:
-
-```php
-$config = [
-    'port' => 993,
-    'host' => '',
-    'timeout' => 30,
-    'debug' => false,
-    'username' => '',
-    'password' => '',
-    'encryption' => 'ssl',
-    'validate_cert' => true,
-    'authentication' => 'plain',
-    'proxy' => [
-        'socket' => null,
-        'username' => null,
-        'password' => null,
-        'request_fulluri' => false,
-    ],
-];
-```
-
-## Connection
+### Connecting
 
 To connect to a mailbox, create a new `Mailbox` instance with the above configuration options:
 
@@ -78,7 +56,27 @@ $mailbox = new Mailbox([
 ]);
 ```
 
-## Usage
+There are also many other configuration options available:
+
+```php
+$mailbox = new Mailbox([
+    'port' => 993,
+    'host' => '',
+    'timeout' => 30,
+    'debug' => false,
+    'username' => '',
+    'password' => '',
+    'encryption' => 'ssl',
+    'validate_cert' => true,
+    'authentication' => 'plain',
+    'proxy' => [
+        'socket' => null,
+        'username' => null,
+        'password' => null,
+        'request_fulluri' => false,
+    ],
+]);
+```
 
 ### Retrieving Folders
 
