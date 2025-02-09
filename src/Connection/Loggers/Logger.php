@@ -14,7 +14,7 @@ abstract class Logger implements LoggerInterface
      */
     public function sent(string $message): void
     {
-        $this->write(sprintf('>> %s: %s', $this->date(), $message));
+        $this->write(sprintf('%s: >> %s', $this->date(), $message).PHP_EOL);
     }
 
     /**
@@ -22,7 +22,7 @@ abstract class Logger implements LoggerInterface
      */
     public function received(string $message): void
     {
-        $this->write(sprintf('<< %s: %s', $this->date(), $message));
+        $this->write(sprintf('%s: << %s', $this->date(), $message).PHP_EOL);
     }
 
     /**

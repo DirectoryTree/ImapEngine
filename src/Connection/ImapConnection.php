@@ -574,13 +574,11 @@ class ImapConnection implements ConnectionInterface
      */
     protected function write(string $data): void
     {
-        $command = $data."\r\n";
-
-        $this->logger?->sent($command);
-
-        if ($this->stream->fwrite($command) === false) {
+        if ($this->stream->fwrite($data."\r\n") === false) {
             throw new RuntimeException('Failed to write data to stream.');
         }
+
+        $this->logger?->sent($data);
     }
 
     /**
