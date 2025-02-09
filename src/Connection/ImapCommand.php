@@ -2,52 +2,25 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-class ImapCommand
+use Stringable;
+
+class ImapCommand implements Stringable
 {
     /**
-     * The IMAP command name.
+     * The compiled command lines.
+     *
+     * @var string[]
      */
-    protected string $command;
-
-    /**
-     * The IMAP command tokens.
-     */
-    protected array $tokens;
-
-    /**
-     * The IMAP command tag.
-     */
-    protected ?string $tag = null;
+    protected ?array $compiled = null;
 
     /**
      * Constructor.
-     *
-     * @param  string  $command  The IMAP command name (e.g. 'LOGIN', 'FETCH', etc.)
-     * @param  array  $tokens  Any additional parameters for the command.
      */
-    public function __construct(string $command, array $tokens = [])
-    {
-        $this->command = $command;
-        $this->tokens = $tokens;
-    }
-
-    /**
-     * Set the tag for this command.
-     */
-    public function setTag(string $tag): self
-    {
-        $this->tag = $tag;
-
-        return $this;
-    }
-
-    /**
-     * Get the command tag.
-     */
-    public function getTag(): ?string
-    {
-        return $this->tag;
-    }
+    public function __construct(
+        protected string $tag,
+        protected string $command,
+        protected array $tokens = [],
+    ) {}
 
     /**
      * Build the command lines for transmission.
@@ -60,6 +33,10 @@ class ImapCommand
      */
     public function compile(): array
     {
+        if ($this->compiled) {
+            return $this->compiled;
+        }
+
         $lines = [];
 
         $base = trim(($this->tag ?? '').' '.$this->command);
@@ -81,5 +58,13 @@ class ImapCommand
         $lines[] = $base;
 
         return $lines;
+    }
+
+    /**
+     * Get the command as a string.
+     */
+    public function __toString(): string
+    {
+        return implode("\r\n", $this->compile());
     }
 }

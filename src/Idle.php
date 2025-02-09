@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 
 class Idle
 {
@@ -83,7 +83,7 @@ class Idle
                 // This will keep the server from killing the connection.
                 // Some Servers require this to avoid disconnection.
                 $this->done();
-            } catch (RuntimeException) {
+            } catch (Exception) {
                 // If done fails, we're likely already disconnected.
                 // We'll attempt to reconnect and restart the IDLE.
                 $this->reconnect();
@@ -142,7 +142,7 @@ class Idle
     {
         try {
             $this->done();
-        } catch (RuntimeException) {
+        } catch (Exception) {
             $this->reconnect();
         }
 

@@ -210,7 +210,7 @@ class Mailbox
     public function select(Folder $folder, bool $force = false): void
     {
         if (! $this->selected?->is($folder) || $force) {
-            $this->connection()->selectFolder($folder->path());
+            $this->connection()->select($folder->path());
         }
 
         $this->selected = $folder;

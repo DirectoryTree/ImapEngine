@@ -418,7 +418,7 @@ class Message implements Stringable
     {
         $this->folder->mailbox()
             ->connection()
-            ->copyMessage($folder, $this->folder->path(), $this->uid);
+            ->copy($folder, $this->folder->path(), $this->uid);
 
         if ($expunge) {
             $this->folder->expunge();
@@ -432,7 +432,7 @@ class Message implements Stringable
     {
         $this->folder->mailbox()
             ->connection()
-            ->moveMessage($folder, $this->folder->path(), $this->uid);
+            ->move($folder, $this->folder->path(), $this->uid);
 
         if ($expunge) {
             $this->folder->expunge();

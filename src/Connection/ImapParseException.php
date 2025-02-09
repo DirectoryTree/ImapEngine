@@ -2,6 +2,6 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
-use Exception;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 
 class ImapParseException extends Exception {}

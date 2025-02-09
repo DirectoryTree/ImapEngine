@@ -702,7 +702,7 @@ class MessageQuery
             }) : new Collection;
 
         $headers = $this->fetchHeaders ? $this->connection()
-            ->headers($uids, $this->fetchAsUnread)
+            ->header($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
@@ -713,7 +713,7 @@ class MessageQuery
             }) : new Collection;
 
         $contents = $this->fetchBody ? $this->connection()
-            ->contents($uids, $this->fetchAsUnread)
+            ->text($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
@@ -866,7 +866,7 @@ class MessageQuery
         // If the sequence is not UID, we'll need to fetch the UID first.
         $uid = match ($identifier) {
             ImapFetchIdentifier::Uid => $id,
-            ImapFetchIdentifier::MessageNumber => $this->connection()->uids([$id]) // ResponseCollection
+            ImapFetchIdentifier::MessageNumber => $this->connection()->uid([$id]) // ResponseCollection
                 ->firstOrFail() // Untagged response
                 ->tokenAt(3) // ListData
                 ->tokenAt(1) // Atom

@@ -5,6 +5,30 @@ namespace DirectoryTree\ImapEngine\Support;
 class Str
 {
     /**
+     * Make a range set.
+     */
+    public static function set(array|int $from, int|float|null $to = null): string
+    {
+        if (is_array($from) && count($from) > 1) {
+            return implode(',', $from);
+        }
+
+        if (is_array($from) && count($from) === 1) {
+            return $from[0].':'.$from[0];
+        }
+
+        if (is_null($to)) {
+            return $from;
+        }
+
+        if ($to == INF) {
+            return $from.':*';
+        }
+
+        return $from.':'.$to;
+    }
+
+    /**
      * Escape a string for use in a list.
      */
     public static function escape(string $string): string

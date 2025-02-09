@@ -9,7 +9,6 @@ use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use DirectoryTree\ImapEngine\Imap;
 use DirectoryTree\ImapEngine\Support\Str;
 
 abstract class Connection implements ConnectionInterface
@@ -229,7 +228,7 @@ abstract class Connection implements ConnectionInterface
     /**
      * Enable STARTTLS on the current connection.
      */
-    protected function enableStartTls(): void
+    public function startTls(): void
     {
         $this->send('STARTTLS', tag: $tag);
 
@@ -303,7 +302,7 @@ abstract class Connection implements ConnectionInterface
         $this->setStreamTimeout($this->connectionTimeout);
 
         if ($transport === 'starttls') {
-            $this->enableStartTls();
+            $this->startTls();
         }
     }
 
@@ -320,6 +319,10 @@ abstract class Connection implements ConnectionInterface
      */
     public function nextReply(): Response
     {
+        if (! $this->parser) {
+            throw new RuntimeException('Connection must be opened before reading replies.');
+        }
+
         if (! $reply = $this->parser->next()) {
             $meta = $this->meta();
 
@@ -340,22 +343,19 @@ abstract class Connection implements ConnectionInterface
     /**
      * Send an IMAP command.
      */
-    public function send(string $name, array $tokens = [], ?string &$tag = null): void
+    public function send(string $name, array|string $tokens = [], ?string &$tag = null): void
     {
-        $command = new ImapCommand($name, $tokens);
-
         if (! $tag) {
             $this->sequence++;
             $tag = 'TAG'.$this->sequence;
         }
 
-        $command->setTag($tag);
+        $command = new ImapCommand($name, $tag, (array) $tokens);
 
-        $result = new Result;
-
-        $this->setResult($result);
-
-        $result->addCommand($command);
+        // After every command, we'll overwrite any previous result
+        // with the new command and its responses, so that we can
+        // easily access the commands responses for assertion.
+        $this->setResult(new Result($command));
 
         foreach ($command->compile() as $line) {
             $this->write($line);
@@ -363,7 +363,7 @@ abstract class Connection implements ConnectionInterface
     }
 
     /**
-     * Write data to the stream.
+     * Write data to the connected stream.
      */
     protected function write(string $data): void
     {
@@ -383,35 +383,16 @@ abstract class Connection implements ConnectionInterface
      */
     public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
     {
-        if (is_array($from) && count($from) > 1) {
-            $set = implode(',', $from);
-        } elseif (is_array($from) && count($from) === 1) {
-            $set = $from[0].':'.$from[0];
-        } elseif (is_null($to)) {
-            $set = $from.':'.$from;
-        } elseif ($to == INF) {
-            $set = $from.':*';
-        } else {
-            $set = $from.':'.(int) $to;
-        }
-
-        $items = (array) $items;
-
         $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
 
-        $this->send(trim($prefix.' FETCH'), [$set, $this->escapeList($items)], $tag);
+        $this->send(trim($prefix.' FETCH'), [
+            Str::set($from, $to),
+            Str::list((array) $items),
+        ], $tag);
 
         $this->assertTaggedResponse($tag, fn () => new RuntimeException('Failed to fetch items'));
 
         return $this->result->responses()->untagged();
-    }
-
-    /**
-     * Escape one or more literal strings.
-     */
-    protected function escapeString(array|string ...$string): array|string
-    {
-        return Str::literal(...$string);
     }
 
     /**

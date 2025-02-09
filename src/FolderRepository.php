@@ -27,7 +27,7 @@ class FolderRepository
      */
     public function create(string $folder, bool $expunge = true): Folder
     {
-        $this->mailbox->connection()->createFolder($folder);
+        $this->mailbox->connection()->create($folder);
 
         if ($expunge) {
             $this->mailbox->connection()->expunge();
@@ -41,7 +41,7 @@ class FolderRepository
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        return $this->mailbox->connection()->folders($reference, $match)->map(
+        return $this->mailbox->connection()->list($reference, $match)->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,

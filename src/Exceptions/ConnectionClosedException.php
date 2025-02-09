@@ -2,4 +2,4 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-class ConnectionClosedException extends RuntimeException {}
+class ConnectionClosedException extends Exception {}

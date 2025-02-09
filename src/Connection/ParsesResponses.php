@@ -6,6 +6,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
 trait ParsesResponses
@@ -55,11 +56,19 @@ trait ParsesResponses
     /**
      * Assert the next response is a successful tagged response.
      */
-    protected function assertTaggedResponse(string $tag, callable $exception): TaggedResponse
+    protected function assertTaggedResponse(string $tag, ?callable $exception = null): TaggedResponse
     {
-        return $this->assertNextResponse(fn (Response $response) => (
-            $response instanceof TaggedResponse && $response->tag()->is($tag)
-        ), fn (TaggedResponse $response) => $response->successful(), $exception);
+        return $this->assertNextResponse(
+            fn (Response $response) => (
+                $response instanceof TaggedResponse && $response->tag()->is($tag)
+            ),
+            fn (TaggedResponse $response) => (
+                $response->successful()
+            ),
+            $exception ?? fn (TaggedResponse $response) => (
+                CommandFailedException::make($this->result->command(), $response)
+            ),
+        );
     }
 
     /**

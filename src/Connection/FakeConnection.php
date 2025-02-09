@@ -3,7 +3,6 @@
 namespace DirectoryTree\ImapEngine\Connection;
 
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Imap;
 use RuntimeException;
 
 /**
@@ -121,7 +120,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function selectFolder(string $folder = 'INBOX'): ResponseCollection
+    public function select(string $folder = 'INBOX'): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -129,7 +128,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function examineFolder(string $folder = 'INBOX'): ResponseCollection
+    public function examine(string $folder = 'INBOX'): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -137,7 +136,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function folderStatus(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection
+    public function status(string $folder = 'INBOX', array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -145,7 +144,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function uids(int|array $msgns): ResponseCollection
+    public function uid(int|array $msgns): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -153,7 +152,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function contents(array|int $ids): ResponseCollection
+    public function text(array|int $ids): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -161,7 +160,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function headers(array|int $ids): ResponseCollection
+    public function header(array|int $ids): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -185,7 +184,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function folders(string $reference = '', string $folder = '*'): ResponseCollection
+    public function list(string $reference = '', string $folder = '*'): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -201,7 +200,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function appendMessage(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection
+    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -209,7 +208,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function copyMessage(string $folder, $from, ?int $to = null): ResponseCollection
+    public function copy(string $folder, $from, ?int $to = null): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -225,7 +224,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function moveMessage(string $folder, $from, ?int $to = null): ResponseCollection
+    public function move(string $folder, $from, ?int $to = null): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -249,7 +248,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function createFolder(string $folder): ResponseCollection
+    public function create(string $folder): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -257,7 +256,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function renameFolder(string $oldPath, string $newPath): ResponseCollection
+    public function rename(string $oldPath, string $newPath): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -265,7 +264,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function deleteFolder(string $folder): ResponseCollection
+    public function delete(string $folder): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -273,7 +272,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function subscribeFolder(string $folder): ResponseCollection
+    public function subscribe(string $folder): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }
@@ -281,7 +280,7 @@ class FakeConnection extends Connection
     /**
      * {@inheritDoc}
      */
-    public function unsubscribeFolder(string $folder): ResponseCollection
+    public function unsubscribe(string $folder): ResponseCollection
     {
         return $this->getExpectationResponse(__FUNCTION__, func_get_args()) ?? ResponseCollection::make();
     }

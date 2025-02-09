@@ -4,7 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Exceptions\ResponseException;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
 class Folder
@@ -108,7 +108,7 @@ class Folder
 
                 try {
                     $message = $fetch($msgn);
-                } catch (RuntimeException|ResponseException) {
+                } catch (Exception) {
                     // If fetching the message fails, we'll attempt
                     // reconnecting and re-fetching the message.
                     $this->mailbox->reconnect();
@@ -126,7 +126,7 @@ class Folder
      */
     public function move(string $newPath, bool $expunge = true): void
     {
-        $this->mailbox->connection()->renameFolder($this->path, $newPath);
+        $this->mailbox->connection()->rename($this->path, $newPath);
 
         if ($expunge) {
             $this->expunge();
@@ -148,7 +148,7 @@ class Folder
      */
     public function status(): array
     {
-        $response = $this->mailbox->connection()->folderStatus($this->path);
+        $response = $this->mailbox->connection()->status($this->path);
 
         $tokens = $response->tokenAt(3)->tokens();
 
@@ -167,7 +167,7 @@ class Folder
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()->examineFolder($this->path)->map(
+        return $this->mailbox->connection()->examine($this->path)->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }
@@ -187,7 +187,7 @@ class Folder
      */
     public function delete(bool $expunge = true): void
     {
-        $this->mailbox->connection()->deleteFolder($this->path);
+        $this->mailbox->connection()->delete($this->path);
 
         if ($expunge) {
             $this->expunge();
