@@ -116,14 +116,18 @@ $messages = $inbox->messages()->get();
 $messages = $inbox->messages()
     ->withHeaders() // Enable fetching message headers.
     ->withFlags() // Enable fetching message flags.
-    ->withBody() // Enable fetching message bodies.
+    ->withBody() // Enable fetching message bodies (including attachments).
     ->get();
 ```
 
 > [!important]
-> It's paramount to understand that the `get()` method fetches all messages in the folder, and will be slow for large mailboxes.
-> When working with large mailboxes, consider using since(), and other criteria filters to limit the number of messages
-> your IMAP server returns, along with pagination or chunking to avoid memory issues.
+> It's paramount to understand that, without any query criteria specified, the `get()` method fetches all messages 
+> in the folder by default, and will be slow for large mailboxes. When working with large mailboxes, consider
+> using `since($date)`, and other criteria filters to limit the number of messages your IMAP server returns,
+> along with pagination or chunking to avoid possible memory issues.
+> 
+> You may also consider restricting the parts of the message you fetch using `withHeaders()`, `withFlags()`, and `withBody()`.
+> This will reduce the amount of data fetched from the server, and speed up your queries.
 > 
 > A typical approach when dealing with large mailboxes is to store all messages (either in a cache or DB)
 > once, and then only fetch new messages since the last time the mailbox was checked.
@@ -190,6 +194,10 @@ Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to e
 **Message Body:**
 Use `withBody()` to fetch the full body content, or `withoutBody()` to skip it.
 
+> [!important]
+> The `withBody()` method fetches the full body content of the message, including attachments.
+> Keep this in mind when fetching messages, as it can be slow for large messages.
+
 **Message Flags:**
 Use `withFlags()` to retrieve flags, or `withoutFlags()` to omit them.
 
@@ -249,4 +257,117 @@ Or by message sequence number:
 
 ```php
 $message = $inbox->messages()->find(1, ImapFetchIdentifier::MessageNumber);
+```
+
+#### Interacting With Messages
+
+Once you retrieve messages from a folder using methods like `$inbox->messages()->get()`, you'll receive instances of the `Message` class.
+
+This class offers a rich set of helper methods for interacting with individual emails, making it easy to inspect, modify, and manipulate messages.
+
+##### Retrieving Message Information
+
+The `Message` class provides several methods to access basic properties:
+
+- **UID and Flags**
+- `uid()`: Returns the unique identifier (UID) of the message.
+- `flags()`: Returns an array of flags currently set on the message.
+
+- **Headers and Contents**
+- `headers()`: Returns the raw headers as a string.
+- `contents()`: Returns the raw message content.
+- `hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
+
+- **Metadata**
+- `subject()`: Returns the subject of the message.
+- `date()`: Returns the message’s date as a Carbon instance (if available).
+- `messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
+
+##### Address Handling
+
+To conveniently work with email addresses, the `Message` class includes methods that return addresses as instances of the `Address` class:
+
+- `from()`: The sender’s address.
+- `sender()`: The actual sender (if different from "from").
+- `replyTo()`: The reply-to address.
+- `inReplyTo()`: The In-Reply-To address.
+- `to()`: An array of recipient addresses.
+- `cc()`: An array of CC addresses.
+- `bcc()`: An array of BCC addresses.
+
+##### Content Retrieval
+
+For accessing the message content in different formats:
+
+- `html()`: Returns the HTML version of the message (if available).
+- `text()`: Returns the plain text version of the message (if available).
+
+##### Attachment Handling
+
+Messages that include attachments can be inspected with:
+
+- `attachments()`: Returns an array of `Attachment` objects.
+- `hasAttachments()`: Checks if the message contains any attachments.
+- `attachmentCount()`: Returns the number of attachments in the message.
+
+##### Flag Operations
+
+The class also provides methods to modify message flags, which help you manage the state of a message:
+
+- **Marking as Seen/Unseen**
+- `markSeen($expunge = true)`: Marks the message as read.
+- `unmarkSeen($expunge = true)`: Marks the message as unread.
+- *Aliases:* `markRead()` and `markUnread()`.
+
+- **Other Flags**
+- `markAnswered()` / `unmarkAnswered()`
+- `markFlagged()` / `unmarkFlagged()`
+- `markDeleted()` / `unmarkDeleted()`
+- `markDraft()` / `unmarkDraft()`
+- `markRecent()` / `unmarkRecent()`
+
+All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation), and optionally expunging the folder afterward.
+
+##### Message Manipulation
+
+Beyond just flagging, you can move or copy messages between folders, or even delete them:
+
+- `copy(string $folder, bool $expunge = true)`: Copies the message to the specified folder.
+- `move(string $folder, bool $expunge = true)`: Moves the message to the specified folder.
+- `delete(bool $expunge = true)`: Marks the message as deleted and, if desired, expunges it from the folder.
+
+##### Parsing and String Conversion
+
+- `parse()`: Parses the raw message data into a `MailMimeMessage` instance for deeper inspection (e.g., extracting structured content, attachments, etc.).
+  > **Note:** An exception is thrown if both headers and contents are empty.
+- `__toString()`: Converts the message back to its full raw string (headers and contents combined), which is useful for logging or re-sending the email.
+
+---
+
+##### Example: Interacting with a Retrieved Message
+
+```php
+// Retrieve the first message from the inbox.
+$message = $inbox->messages()->get()->first();
+
+// Print basic information.
+echo 'UID: ' . $message->uid() . PHP_EOL;
+echo 'Subject: ' . $message->subject() . PHP_EOL;
+echo 'Date: ' . ($message->date() ? $message->date()->toDateTimeString() : 'N/A') . PHP_EOL;
+
+// Check if the message has attachments and list them.
+if ($message->hasAttachments()) {
+    foreach ($message->attachments() as $attachment) {
+        echo 'Attachment: ' . $attachment->filename() . ' (' . $attachment->contentType() . ')' . PHP_EOL;
+    }
+}
+
+// Mark the message as read.
+$message->markSeen();
+
+// Move the message to an "Archive" folder.
+$message->move('Archive');
+
+// Delete the message.
+$message->delete();
 ```
