@@ -22,9 +22,7 @@ test('status', function () {
         new Atom('c'),
     ]);
 
-    expect($response->status())->toEqual([
-        new Atom('b'),
-    ]);
+    expect($response->status())->toEqual(new Atom('b'));
 });
 
 test('data', function () {
