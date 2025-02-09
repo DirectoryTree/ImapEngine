@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use Generator;
 
 interface ConnectionInterface
 {
@@ -66,7 +67,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-idle-command
      */
-    public function idle(int $timeout): void;
+    public function idle(int $timeout): Generator;
 
     /**
      * Send a "DONE" command.

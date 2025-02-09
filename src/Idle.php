@@ -3,11 +3,11 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
-use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use Generator;
 
 class Idle
 {
@@ -35,33 +35,27 @@ class Idle
     {
         $this->connect();
 
-        $this->idle();
-
-        $ttl = $this->getNextTimeout();
-
-        try {
-            $this->listen($callback, $ttl);
-        } catch (ConnectionTimedOutException) {
-            $this->reidle();
-
+        // Loop indefinitely, restarting IDLE sessions as needed.
+        while (true) {
             $ttl = $this->getNextTimeout();
 
-            $this->listen($callback, $ttl);
-        } catch (ConnectionClosedException) {
-            $this->reconnect();
-
-            $ttl = $this->getNextTimeout();
-
-            $this->listen($callback, $ttl);
+            try {
+                $this->listen($callback, $ttl);
+            } catch (ConnectionTimedOutException) {
+                $this->restart();
+            } catch (ConnectionClosedException) {
+                $this->reconnect();
+            }
         }
     }
 
     /**
-     * Start listening for new messages.
+     * Start listening for new messages using the idle() generator.
      */
     protected function listen(callable $callback, Carbon $ttl): void
     {
-        while ($response = $this->getNextReply()) {
+        // Iterate over responses yielded by the idle generator.
+        foreach ($this->idle() as $response) {
             if (! $response instanceof UntaggedResponse) {
                 continue;
             }
@@ -74,55 +68,13 @@ class Idle
                 $ttl = $this->getNextTimeout();
             }
 
-            if (! Carbon::now()->greaterThanOrEqualTo($ttl)) {
-                continue;
+            // If we've been idle too long, break out to restart the session.
+            if (Carbon::now()->greaterThanOrEqualTo($ttl)) {
+                $this->restart();
+
+                break;
             }
-
-            try {
-                // If we've been idle too long, we'll send a DONE and re-IDLE.
-                // This will keep the server from killing the connection.
-                // Some Servers require this to avoid disconnection.
-                $this->done();
-            } catch (Exception) {
-                // If done fails, we're likely already disconnected.
-                // We'll attempt to reconnect and restart the IDLE.
-                $this->reconnect();
-            }
-
-            $this->idle();
-
-            $ttl = $this->getNextTimeout();
         }
-    }
-
-    /**
-     * Connect the client and begin IDLE.
-     */
-    protected function connect(): void
-    {
-        $this->mailbox->connect();
-
-        $this->mailbox->select($this->folder(), true);
-    }
-
-    /**
-     * Reconnect the client and restart IDLE.
-     */
-    protected function reconnect(): void
-    {
-        $this->mailbox->disconnect();
-
-        $this->connect();
-    }
-
-    /**
-     * Disconnect the client.
-     */
-    protected function disconnect(): void
-    {
-        $this->done();
-
-        $this->mailbox->disconnect();
     }
 
     /**
@@ -134,17 +86,51 @@ class Idle
     }
 
     /**
-     * End the current IDLE session and start a new one.
+     * Issue a done command and restart the idle session.
      */
-    protected function reidle(): void
+    protected function restart(): void
     {
         try {
+            // Send DONE to terminate the current IDLE session gracefully.
             $this->done();
         } catch (Exception) {
             $this->reconnect();
         }
+    }
 
-        $this->idle();
+    /**
+     * Reconnect the client and restart the idle session.
+     */
+    protected function reconnect(): void
+    {
+        $this->mailbox->disconnect();
+
+        $this->connect();
+    }
+
+    /**
+     * Connect the client and select the folder to idle.
+     */
+    protected function connect(): void
+    {
+        $this->mailbox->connect();
+
+        $this->mailbox->select($this->folder(), true);
+    }
+
+    /**
+     * Disconnect the client.
+     */
+    protected function disconnect(): void
+    {
+        try {
+            // Attempt to terminate IDLE gracefully.
+            $this->done();
+        } catch (Exception) {
+            // Do nothing.
+        }
+
+        $this->mailbox->disconnect();
     }
 
     /**
@@ -156,23 +142,15 @@ class Idle
     }
 
     /**
-     * Being a new IDLE session.
+     * Begin a new IDLE session as a generator.
      */
-    protected function idle(): void
+    protected function idle(): Generator
     {
-        $this->mailbox->connection()->idle($this->timeout);
+        yield from $this->mailbox->connection()->idle($this->timeout);
     }
 
     /**
-     * Get the next reply from the connection.
-     */
-    protected function getNextReply(): Response
-    {
-        return $this->mailbox->connection()->nextReply();
-    }
-
-    /**
-     * Get the next timeout.
+     * Get the next timeout as a Carbon instance.
      */
     protected function getNextTimeout(): Carbon
     {

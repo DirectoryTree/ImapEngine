@@ -16,6 +16,7 @@ use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Support\Str;
+use Generator;
 
 class ImapConnection implements ConnectionInterface
 {
@@ -489,7 +490,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(int $timeout): void
+    public function idle(int $timeout): Generator
     {
         $this->stream->setTimeout($timeout);
 
@@ -499,6 +500,10 @@ class ImapConnection implements ConnectionInterface
             fn (ContinuationResponse $response) => true,
             fn (ContinuationResponse $response) => CommandFailedException::make(new ImapCommand('', 'IDLE'), $response),
         );
+
+        while ($response = $this->nextReply()) {
+            yield $response;
+        }
     }
 
     /**
