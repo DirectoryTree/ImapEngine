@@ -131,7 +131,7 @@ $messages = $inbox->messages()
 
 ####  Filtering By Criteria
 
-The MessageQuery supports many common IMAP search criteria. You can chain methods such as:
+The query builder supports many common IMAP search criteria. You can chain methods such as:
 
 - `all()`
 - `new()`
