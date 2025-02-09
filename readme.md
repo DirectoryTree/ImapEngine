@@ -269,16 +269,16 @@ This class offers a rich set of helper methods for interacting with individual e
 
 The `Message` class provides several methods to access basic properties:
 
-- **UID and Flags**
+**UID and Flags**
 - `uid()`: Returns the unique identifier (UID) of the message.
 - `flags()`: Returns an array of flags currently set on the message.
 
-- **Headers and Contents**
+**Headers and Contents**
 - `headers()`: Returns the raw headers as a string.
 - `contents()`: Returns the raw message content.
 - `hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
 
-- **Metadata**
+**Metadata**
 - `subject()`: Returns the subject of the message.
 - `date()`: Returns the message’s date as a Carbon instance (if available).
 - `messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
@@ -314,12 +314,12 @@ Messages that include attachments can be inspected with:
 
 The class also provides methods to modify message flags, which help you manage the state of a message:
 
-- **Marking as Seen/Unseen**
+**Marking as Seen/Unseen**
 - `markSeen($expunge = true)`: Marks the message as read.
 - `unmarkSeen($expunge = true)`: Marks the message as unread.
 - *Aliases:* `markRead()` and `markUnread()`.
 
-- **Other Flags**
+**Other Flags**
 - `markAnswered()` / `unmarkAnswered()`
 - `markFlagged()` / `unmarkFlagged()`
 - `markDeleted()` / `unmarkDeleted()`
