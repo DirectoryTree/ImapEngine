@@ -89,6 +89,74 @@ $mailbox = new Mailbox([
 ]);
 ```
 
+#### Debugging
+
+The `debug` configuration option controls the logging behavior during the IMAP connection process. It accepts the following values:
+
+**Boolean:**
+- `false` (default) – Disables debugging output.
+- `true` – Enables debugging using an `EchoLogger`, which outputs debug messages to the console.
+
+**String:**
+When set to a file path (e.g., `'/path/to/log/file.log'`), a `FileLogger` is instantiated to write debug messages to the specified file.
+
+**Class Name:**
+If provided with a fully-qualified logger class name (and the class exists), an instance of that logger will be created and used.
+
+For example:
+
+```php
+// No debug output.
+$mailbox = new Mailbox([
+    // ...
+    'debug' => false,
+]);
+
+// Output debug messages to the console.
+$mailbox = new Mailbox([
+    // ...
+    'debug' => true,
+]);
+
+// Output debug messages to a file.
+$mailbox = new Mailbox([
+    // ...
+    'debug' => '/path/to/log/file.log',
+]);
+```
+
+Or, you may also use a custom logger by passing in a class name:
+
+```php
+use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
+
+class CustomLogger implements LoggerInterface
+{
+    /**
+     * Log when a message is sent.
+     */
+    public function sent(string $message): void
+    {
+        // Log the sent message...
+    }
+
+    /**
+     * Log when a message is received.
+     */
+    public function received(string $message): void
+    {
+        // Log the received message...
+    }
+}
+```
+
+```php
+$mailbox = new Mailbox([
+    // ...
+    'debug' => CustomLogger::class,
+]);
+```
+
 ### Retrieving Folders
 
 ```php
@@ -417,12 +485,11 @@ use DirectoryTree\ImapEngine\Message;
 // Get the inbox folder.
 $inbox = $mailbox->inbox();
 
-// Start idling on the inbox folder. The callback will be
-// triggered whenever a new message is detected.
-// The second parameter is an optional timeout in seconds (default is 300).
+// Begin idling on the inbox folder. The callback will
+// be executed whenever a new message is received. 
 $inbox->idle(function (Message $message) {
     // Do something with the newly received message.
-}, timeout: 300);
+}, timeout: 300); // Optional timeout in seconds.
 ```
 
 > [!important]
