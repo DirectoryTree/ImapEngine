@@ -1,8 +1,6 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\FakeStream;
-use DirectoryTree\ImapEngine\Connection\ImapParseException;
-use DirectoryTree\ImapEngine\Connection\ImapStreamException;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
@@ -14,6 +12,8 @@ use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 
 test('tokenizer returns an atom token', function () {
     $stream = new FakeStream;
