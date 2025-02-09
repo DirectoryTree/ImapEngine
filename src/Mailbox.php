@@ -53,7 +53,7 @@ class Mailbox
     /**
      * Prepare the cloned instance.
      */
-    public function __clone()
+    public function __clone(): void
     {
         $this->connection = null;
     }
