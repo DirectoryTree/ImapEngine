@@ -28,6 +28,22 @@ abstract class Data implements Stringable
     }
 
     /**
+     * Determine if the data contains a specific value.
+     */
+    public function contains(array|string $needles): bool
+    {
+        $haystack = $this->values();
+
+        foreach ((array) $needles as $needle) {
+            if (! in_array($needle, $haystack)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Get all the token's values.
      */
     public function values(): array
