@@ -441,7 +441,7 @@ $message->from(); // Address
 // Get the message date.
 $message->date(); // Carbon\Carbon
 
-// Check if the message has attachments and list them.
+// Get the message's attachments.
 foreach ($message->attachments() as $attachment) {
     // Get the attachment's filename.
     $attachment->filename();
