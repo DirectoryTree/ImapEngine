@@ -94,16 +94,8 @@ $mailbox = new Mailbox([
 The `debug` configuration option controls the logging behavior during the IMAP connection process. It accepts the following values:
 
 **Boolean:**
-- `false` (default) – Disables debugging output.
-- `true` – Enables debugging using an `EchoLogger`, which outputs debug messages to the console.
-
-**String:**
-When set to a file path (e.g., `'/path/to/log/file.log'`), a `FileLogger` is instantiated to write debug messages to the specified file.
-
-**Class Name:**
-If provided with a fully-qualified logger class name (and the class exists), an instance of that logger will be created and used.
-
-For example:
+- `false` – (Default) Disables debugging output
+- `true` – Enables debugging using an `EchoLogger`, which outputs debug messages to the console
 
 ```php
 // No debug output.
@@ -117,7 +109,12 @@ $mailbox = new Mailbox([
     // ...
     'debug' => true,
 ]);
+```
 
+**String:**
+When set to a file path (e.g., `'/path/to/log/file.log'`), a `FileLogger` is instantiated to write debug messages to the specified file.
+
+```php
 // Output debug messages to a file.
 $mailbox = new Mailbox([
     // ...
@@ -125,7 +122,10 @@ $mailbox = new Mailbox([
 ]);
 ```
 
-Or, you may also use a custom logger by passing in a class name:
+**Class Name:**
+If provided with a fully-qualified class name (and the class exists), an instance of that logger will be created and used.
+
+The class must implement `DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface`. 
 
 ```php
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
