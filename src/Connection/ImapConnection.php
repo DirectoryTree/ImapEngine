@@ -58,7 +58,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function connect(string $host, ?int $port = null, array $options = []): void
     {
-        $transport = strtolower($options['encryption'] ?? 'tcp');
+        $transport = strtolower($options['encryption'] ?? '') ?: 'tcp';
 
         if (in_array($transport, ['ssl', 'tls'])) {
             $port ??= 993;
@@ -310,7 +310,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection
+    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): TaggedResponse
     {
         $tokens = [];
 
@@ -328,11 +328,7 @@ class ImapConnection implements ConnectionInterface
 
         $this->send('APPEND', $tokens, tag: $tag);
 
-        $this->assertTaggedResponse($tag);
-
-        return $this->result->responses()->untagged()->filter(
-            fn (UntaggedResponse $response) => $response->type()->is('LIST')
-        );
+        return $this->assertTaggedResponse($tag);
     }
 
     /**

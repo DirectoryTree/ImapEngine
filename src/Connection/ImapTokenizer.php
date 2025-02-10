@@ -408,7 +408,7 @@ class ImapTokenizer
     }
 
     /**
-     * Flushes the buffer and resets the position.
+     * Flush the buffer and reset the position.
      */
     protected function flushBuffer(): void
     {
