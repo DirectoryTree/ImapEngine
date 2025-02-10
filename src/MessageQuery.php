@@ -798,6 +798,25 @@ class MessageQuery
     }
 
     /**
+     * Append a new message to the folder.
+     */
+    public function append(string $message, ?array $flags = null, Carbon|string|null $date = null): int
+    {
+        if ($date instanceof Carbon) {
+            $date = $date->format('d-M-Y H:i:s O');
+        }
+
+        $result = $this->connection()->append(
+            $this->folder->path(), $message, $flags = ['\\Draft'], $date
+        );
+
+        return $result // TAG4 OK [APPENDUID 123 1] APPEND completed.
+            ->tokenAt(2) // [APPENDUID 123 1]
+            ->tokenAt(1) // 123
+            ->value;
+    }
+
+    /**
      * Execute a callback over each message via a chunked query.
      */
     public function each(callable $callback, int $chunkSize = 10, int $startChunk = 1): void

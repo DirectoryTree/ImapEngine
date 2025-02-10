@@ -216,7 +216,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-append-command
      */
-    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): ResponseCollection;
+    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): TaggedResponse;
 
     /**
      * Send a "UID COPY" command.
