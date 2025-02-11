@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use Stringable;
 use Symfony\Component\Mime\Email;
 
-class Draft implements Stringable
+class DraftMessage implements Stringable
 {
     /**
      * The underlying Symfony Email instance.
@@ -17,12 +17,13 @@ class Draft implements Stringable
      */
     public function __construct(
         protected ?string $from = null,
-        protected array $to = [],
+        protected array|string $to = [],
+        protected array|string $cc = [],
+        protected array|string $bcc = [],
         protected ?string $subject = null,
         protected ?string $text = null,
         protected ?string $html = null,
-        protected array $cc = [],
-        protected array $bcc = [],
+        protected array $headers = [],
         protected array $attachments = [],
     ) {
         $this->message = new Email;
@@ -31,20 +32,8 @@ class Draft implements Stringable
             $this->message->from($this->from);
         }
 
-        if (! empty($this->to)) {
-            $this->message->to(...$this->to);
-        }
-
         if ($this->subject) {
             $this->message->subject($this->subject);
-        }
-
-        if (! empty($this->cc)) {
-            $this->message->cc(...$this->cc);
-        }
-
-        if (! empty($this->bcc)) {
-            $this->message->bcc(...$this->bcc);
         }
 
         if ($this->text) {
@@ -55,8 +44,24 @@ class Draft implements Stringable
             $this->message->html($this->html);
         }
 
+        if (! empty($this->to)) {
+            $this->message->to(...(array) $this->to);
+        }
+
+        if (! empty($this->cc)) {
+            $this->message->cc(...(array) $this->cc);
+        }
+
+        if (! empty($this->bcc)) {
+            $this->message->bcc(...(array) $this->bcc);
+        }
+
         foreach ($this->attachments as $path) {
             $this->message->attachFromPath($path);
+        }
+
+        foreach ($this->headers as $name => $value) {
+            $this->message->getHeaders()->addTextHeader($name, $value);
         }
     }
 
