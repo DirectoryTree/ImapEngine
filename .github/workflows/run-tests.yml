@@ -9,6 +9,15 @@ on:
 jobs:
   run-tests:
     runs-on: ${{ matrix.os }}
+
+    services:
+      imap:
+        image: greenmail/standalone:latest
+        environment:
+          - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
+        ports:
+          - "3143:3143"
+
     strategy:
       fail-fast: false
       matrix:
@@ -21,9 +30,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Start services with Docker Compose
-        run: docker-compose -f docker-compose.yml up -d
 
       - name: Cache dependencies
         uses: actions/cache@v4
