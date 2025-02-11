@@ -14,4 +14,11 @@
             <directory suffix=".php">./src</directory>
         </include>
     </source>
+    <php>
+        <env name="MAILBOX_PORT" value="3143"/>
+        <env name="MAILBOX_HOST" value="localhost"/>
+        <env name="MAILBOX_ENCRYPTION" value=""/>
+        <env name="MAILBOX_USERNAME" value="user@localhost.com"/>
+        <env name="MAILBOX_PASSWORD" value="password"/>
+    </php>
 </phpunit>
