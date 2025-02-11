@@ -3,7 +3,6 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
 use Closure;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
@@ -243,9 +242,9 @@ class MessageQuery
     /**
      * Set whether to fetch the headers.
      */
-    protected function setFetchHeaders(bool $fetchFlags): static
+    protected function setFetchHeaders(bool $fetchHeaders): static
     {
-        $this->fetchFlags = $fetchFlags;
+        $this->fetchHeaders = $fetchHeaders;
 
         return $this;
     }
@@ -696,10 +695,10 @@ class MessageQuery
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
-                $uid = $data->tokenAt(1)->value; // UID
-                $flags = $data->tokenAt(3); // ListData (Flags)
+                $uid = $data->lookup('UID')->value; // UID
+                $flags = $data->lookup('FLAGS')->values(); // ListData (Flags)
 
-                return [$uid => $flags->values()];
+                return [$uid => $flags];
             }) : new Collection;
 
         $headers = $this->fetchHeaders ? $this->connection()
@@ -707,8 +706,8 @@ class MessageQuery
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
-                $uid = $data->tokenAt(1)->value; // UID
-                $headers = $data->tokenAt(4)->value; // Headers
+                $uid = $data->lookup('UID')->value; // UID
+                $headers = $data->last()->value; // Headers
 
                 return [$uid => $headers];
             }) : new Collection;
@@ -718,8 +717,8 @@ class MessageQuery
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3); // ListData
 
-                $uid = $data->tokenAt(1)->value; // UID
-                $contents = $data->tokenAt(4)->value; // Contents
+                $uid = $data->lookup('UID')->value; // UID
+                $contents = $data->last()->value; // Contents
 
                 return [$uid => $contents];
             }) : new Collection;
@@ -801,19 +800,15 @@ class MessageQuery
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, ?array $flags = null, CarbonInterface|string|null $date = null): int
+    public function append(string $message, ?array $flags = null): int
     {
-        if ($date instanceof CarbonInterface) {
-            $date = $date->format('d-M-Y H:i:s O');
-        }
-
         $result = $this->connection()->append(
-            $this->folder->path(), $message, $flags, $date
+            $this->folder->path(), $message, $flags
         );
 
-        return $result // TAG4 OK [APPENDUID 123 1] APPEND completed.
-            ->tokenAt(2) // [APPENDUID 123 1]
-            ->tokenAt(1) // 123
+        return $result // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
+            ->tokenAt(2) // [APPENDUID <uidvalidity> <uid>]
+            ->tokenAt(2) // <uid>
             ->value;
     }
 
