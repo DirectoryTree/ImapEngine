@@ -127,13 +127,9 @@ class Folder
     /**
      * Move or rename the current folder.
      */
-    public function move(string $newPath, bool $expunge = true): void
+    public function move(string $newPath): void
     {
         $this->mailbox->connection()->rename($this->path, $newPath);
-
-        if ($expunge) {
-            $this->expunge();
-        }
 
         $this->path = $newPath;
     }
