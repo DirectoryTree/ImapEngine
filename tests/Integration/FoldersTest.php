@@ -46,6 +46,17 @@ test('first or create', function () {
     expect($folders->get())->toHaveCount(2);
 });
 
+test('move', function () {
+    $folders = mailbox()->folders();
+
+    $folder = $folders->create('foo');
+
+    $folder->move('bar');
+
+    expect($folder->path())->toBe('bar');
+    expect($folders->find('bar')->is($folder))->toBeTrue();
+});
+
 test('status', function () {
     $folder = mailbox()->inbox();
 
