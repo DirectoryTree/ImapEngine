@@ -25,13 +25,9 @@ class FolderRepository
     /**
      * Create a new folder.
      */
-    public function create(string $folder, bool $expunge = true): Folder
+    public function create(string $folder): Folder
     {
         $this->mailbox->connection()->create($folder);
-
-        if ($expunge) {
-            $this->mailbox->connection()->expunge();
-        }
 
         return $this->find($folder);
     }

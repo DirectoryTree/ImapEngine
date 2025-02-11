@@ -188,19 +188,15 @@ class Folder
     /**
      * Delete the current folder.
      */
-    public function delete(bool $expunge = true): void
+    public function delete(): void
     {
         $this->mailbox->connection()->delete($this->path);
-
-        if ($expunge) {
-            $this->expunge();
-        }
     }
 
     /**
      * Determine if the mailbox has the given capability.
      */
-    public function hasCapability(string $capability): bool
+    protected function hasCapability(string $capability): bool
     {
         return in_array($capability, $this->capabilities());
     }
