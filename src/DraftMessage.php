@@ -26,7 +26,7 @@ class DraftMessage implements Stringable
         protected ?string $html = null,
         protected array $headers = [],
         protected array $attachments = [],
-        protected ?DateTimeInterface $datetime = null,
+        protected ?DateTimeInterface $date = null,
     ) {
         $this->message = new Email;
 
@@ -46,8 +46,8 @@ class DraftMessage implements Stringable
             $this->message->html($this->html);
         }
 
-        if ($this->datetime) {
-            $this->message->date($this->datetime);
+        if ($this->date) {
+            $this->message->date($this->date);
         }
 
         if (! empty($this->to)) {
