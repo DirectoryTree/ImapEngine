@@ -36,6 +36,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function __sleep(): array
     {
+        // We don't want to serialize the parsed message.
         return ['folder', 'uid', 'flags', 'headers', 'contents'];
     }
 
@@ -90,7 +91,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
     /**
      * Get the message date and time.
      */
-    public function dateTime(): ?Carbon
+    public function date(): ?Carbon
     {
         if ($date = $this->header(HeaderConsts::DATE)?->getDateTime()) {
             return Carbon::instance($date);
