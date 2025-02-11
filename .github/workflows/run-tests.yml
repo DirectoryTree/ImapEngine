@@ -22,6 +22,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Start services with Docker Compose
+        run: docker-compose -f docker-compose.yml up -d
+
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
