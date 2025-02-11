@@ -384,9 +384,9 @@ test('append message', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->append('INBOX', 'Test message', ['\\Seen'], '01-Jan-2020');
+    $connection->append('INBOX', 'Test message', ['\\Seen']);
 
-    $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "01-Jan-2020" "Test message"');
+    $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "Test message"');
 });
 
 test('copy messages', function () {
