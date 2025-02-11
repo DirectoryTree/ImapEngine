@@ -33,6 +33,14 @@ class FolderRepository
     }
 
     /**
+     * Find or create a folder.
+     */
+    public function firstOrCreate(string $folder): Folder
+    {
+        return $this->find($folder) ?? $this->create($folder);
+    }
+
+    /**
      * Get the mailboxes folders.
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
