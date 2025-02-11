@@ -4,6 +4,8 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
 use Stringable;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
@@ -11,7 +13,7 @@ use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
 use ZBateson\MailMimeParser\Message\MimePart;
 
-class Message implements Stringable
+class Message implements Arrayable, JsonSerializable, Stringable
 {
     /**
      * The parsed message.
@@ -86,9 +88,9 @@ class Message implements Stringable
     }
 
     /**
-     * Get the message date.
+     * Get the message date and time.
      */
-    public function date(): ?Carbon
+    public function dateTime(): ?Carbon
     {
         if ($date = $this->header(HeaderConsts::DATE)?->getDateTime()) {
             return Carbon::instance($date);
@@ -472,6 +474,19 @@ class Message implements Stringable
     }
 
     /**
+     * Get the array representation of the message.
+     */
+    public function toArray(): array
+    {
+        return [
+            'uid' => $this->uid,
+            'flags' => $this->flags,
+            'headers' => $this->headers,
+            'contents' => $this->contents,
+        ];
+    }
+
+    /**
      * Get the string representation of the message.
      */
     public function __toString(): string
@@ -480,5 +495,13 @@ class Message implements Stringable
             rtrim($this->headers),
             ltrim($this->contents),
         ]));
+    }
+
+    /**
+     * Get the JSON representation of the message.
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }
