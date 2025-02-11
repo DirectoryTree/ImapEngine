@@ -157,6 +157,17 @@ $mailbox = new Mailbox([
 ]);
 ```
 
+Or, if you use [Spatie Ray](https://spatie.be/products/ray), you may use the built in `RayLogger`:
+
+```php
+use DirectoryTree\ImapEngine\Connection\Loggers\RayLogger;
+
+$mailbox = new Mailbox([
+    // ...
+    'debug' => RayLogger::class,
+]);
+```
+
 ### Retrieving Folders
 
 ```php
