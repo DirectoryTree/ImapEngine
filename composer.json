@@ -22,7 +22,8 @@
         "nesbot/carbon": ">=2.0",
         "illuminate/support": ">=9.0",
         "illuminate/pagination": ">=9.0",
-        "zbateson/mail-mime-parser": "^3.0"
+        "zbateson/mail-mime-parser": "^3.0",
+        "egulias/email-validator": "^4.0"
     },
     "require-dev": {
         "pestphp/pest": "^2.0|^3.0",
