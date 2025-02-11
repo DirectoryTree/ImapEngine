@@ -12,6 +12,6 @@ class CommandFailedException extends Exception
      */
     public static function make(ImapCommand $command, Response $response): static
     {
-        return new static(sprintf('IMAP command "%s" failed: %s', $command, $response));
+        return new static(sprintf('IMAP command "%s" failed. Response: "%s"', $command, $response));
     }
 }

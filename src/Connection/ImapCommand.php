@@ -23,41 +23,52 @@ class ImapCommand implements Stringable
     ) {}
 
     /**
-     * Build the command lines for transmission.
-     *
-     * This method returns an array of strings. Literal tokens (arrays)
-     * are split into a separate line so that the client can wait for
-     * the server's continuation response.
+     * Compile the command into lines for transmission.
      *
      * @return string[]
      */
     public function compile(): array
     {
-        if ($this->compiled) {
+        if (is_array($this->compiled)) {
             return $this->compiled;
         }
 
         $lines = [];
 
-        $base = trim(($this->tag ?? '').' '.$this->command);
+        $line = trim("{$this->tag} {$this->command}");
 
         foreach ($this->tokens as $token) {
             if (is_array($token)) {
-                // When a token is an array, the first element is a
-                // placeholder that triggers a literal (e.g. "{20}").
-                // The literal data is in the second element.
-                $lines[] = $base.' '.$token[0];
+                // For tokens provided as arrays, the first element is a placeholder
+                // (for example, "{20}") that signals a literal value will follow.
+                // The second element holds the actual literal content.
+                [$placeholder, $literal] = $token;
 
-                // Replace base with the literal data to be sent as the next line.
-                $base = $token[1];
+                $lines[] = "{$line} {$placeholder}";
+
+                $line = $literal;
             } else {
-                $base .= ' '.$token;
+                $line .= " {$token}";
             }
         }
 
-        $lines[] = $base;
+        $lines[] = $line;
 
-        return $lines;
+        return $this->compiled = $lines;
+    }
+
+    /**
+     * Get a redacted version of the command for safe exposure.
+     */
+    public function redacted(): ImapCommand
+    {
+        return new ImapCommand($this->tag, $this->command, array_map(
+            function (mixed $token) {
+                return is_array($token)
+                    ? array_map(fn () => '[redacted]', $token)
+                    : '[redacted]';
+            }, $this->tokens)
+        );
     }
 
     /**

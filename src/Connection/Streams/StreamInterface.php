@@ -37,7 +37,7 @@ interface StreamInterface
     /**
      * Determine if the stream is open.
      */
-    public function isOpen(): bool;
+    public function opened(): bool;
 
     /**
      * Set the timeout on the stream.

@@ -120,7 +120,7 @@ class FakeStream implements StreamInterface
      */
     public function read(int $length): string|false
     {
-        if (! $this->isOpen()) {
+        if (! $this->opened()) {
             return false;
         }
 
@@ -154,7 +154,7 @@ class FakeStream implements StreamInterface
      */
     public function fgets(): string|false
     {
-        if (! $this->isOpen()) {
+        if (! $this->opened()) {
             return false;
         }
 
@@ -171,7 +171,7 @@ class FakeStream implements StreamInterface
      */
     public function fwrite(string $data): int|false
     {
-        if (! $this->isOpen()) {
+        if (! $this->opened()) {
             return false;
         }
 
@@ -191,7 +191,7 @@ class FakeStream implements StreamInterface
     /**
      * {@inheritDoc}
      */
-    public function isOpen(): bool
+    public function opened(): bool
     {
         return (bool) $this->connection;
     }

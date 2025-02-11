@@ -14,6 +14,12 @@ test('compile returns correct command lines for string tokens', function () {
     expect($cmd->compile())->toEqual(['A002 LOGIN user pass']);
 });
 
+test('redacted returns command lines with tokens redacted for safety', function () {
+    $cmd = new ImapCommand('A002', 'LOGIN', ['user', 'pass']);
+
+    expect($cmd->redacted()->compile())->toEqual(['A002 LOGIN [redacted] [redacted]']);
+});
+
 test('compile returns correct command lines with a literal token', function () {
     $cmd = new ImapCommand('A003', 'APPEND "INBOX"', [
         ['{20}', 'literal-data'],

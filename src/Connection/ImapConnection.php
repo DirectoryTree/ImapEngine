@@ -50,7 +50,9 @@ class ImapConnection implements ConnectionInterface
      */
     public function __destruct()
     {
-        $this->logout();
+        if ($this->connected()) {
+            $this->logout();
+        }
     }
 
     /**
@@ -132,11 +134,11 @@ class ImapConnection implements ConnectionInterface
     }
 
     /**
-     * Check if the current stream is open.
+     * {@inheritDoc}
      */
     public function connected(): bool
     {
-        return $this->stream->isOpen();
+        return $this->stream->opened();
     }
 
     /**
@@ -146,7 +148,9 @@ class ImapConnection implements ConnectionInterface
     {
         $this->send('LOGIN', Str::literal([$user, $password]), $tag);
 
-        return $this->assertTaggedResponse($tag);
+        return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
+            CommandFailedException::make($this->result->command()->redacted(), $response)
+        ));
     }
 
     /**
@@ -169,11 +173,11 @@ class ImapConnection implements ConnectionInterface
      */
     public function authenticate(string $user, string $token): TaggedResponse
     {
-        $credentials = base64_encode("user=$user\1auth=Bearer $token\1\1");
+        $this->send('AUTHENTICATE', ['XOAUTH2', Str::credentials($user, $token)], $tag);
 
-        $this->send('AUTHENTICATE', ['XOAUTH2', $credentials], $tag);
-
-        return $this->assertTaggedResponse($tag);
+        return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
+            CommandFailedException::make($this->result->command()->redacted(), $response)
+        ));
     }
 
     /**
@@ -183,9 +187,7 @@ class ImapConnection implements ConnectionInterface
     {
         $this->send('STARTTLS', tag: $tag);
 
-        $this->assertTaggedResponse($tag, fn () => (
-            new ConnectionFailedException('Failed to enable STARTTLS')
-        ));
+        $this->assertTaggedResponse($tag);
 
         $this->stream->setSocketSetCrypto(true, match (true) {
             defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT') => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
@@ -467,7 +469,7 @@ class ImapConnection implements ConnectionInterface
         $this->assertTaggedResponse($tag);
 
         return $this->result->responses()->untagged()->firstOrFail(
-            fn (UntaggedResponse $response) => $response->type()->is('CAPABILITY')
+            fn (UntaggedResponse $response) => $response->type()->is('ID')
         );
     }
 

@@ -93,17 +93,9 @@ class Mailbox
     /**
      * Determine if connection was established.
      */
-    public function isConnected(): bool
+    public function connected(): bool
     {
         return (bool) $this->connection?->connected();
-    }
-
-    /**
-     * Determine if the connection is closed.
-     */
-    public function isClosed(): bool
-    {
-        return ! $this->isConnected();
     }
 
     /**
@@ -121,7 +113,7 @@ class Mailbox
      */
     public function connect(?ConnectionInterface $connection = null): void
     {
-        if ($this->isConnected()) {
+        if ($this->connected()) {
             return;
         }
 
@@ -168,7 +160,7 @@ class Mailbox
      */
     public function disconnect(): void
     {
-        if ($this->isConnected()) {
+        if ($this->connected()) {
             $this->connection->logout();
             $this->connection->disconnect();
         }

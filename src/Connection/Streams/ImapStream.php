@@ -39,7 +39,7 @@ class ImapStream implements StreamInterface
      */
     public function close(): void
     {
-        if ($this->isOpen()) {
+        if ($this->opened()) {
             fclose($this->stream);
         }
 
@@ -51,7 +51,7 @@ class ImapStream implements StreamInterface
      */
     public function read(int $length): string|false
     {
-        if (! $this->isOpen()) {
+        if (! $this->opened()) {
             return false;
         }
 
@@ -75,7 +75,7 @@ class ImapStream implements StreamInterface
      */
     public function fgets(): string|false
     {
-        return $this->isOpen() ? fgets($this->stream) : false;
+        return $this->opened() ? fgets($this->stream) : false;
     }
 
     /**
@@ -83,7 +83,7 @@ class ImapStream implements StreamInterface
      */
     public function fwrite(string $data): int|false
     {
-        return $this->isOpen() ? fwrite($this->stream, $data) : false;
+        return $this->opened() ? fwrite($this->stream, $data) : false;
     }
 
     /**
@@ -91,13 +91,13 @@ class ImapStream implements StreamInterface
      */
     public function meta(): array
     {
-        return $this->isOpen() ? stream_get_meta_data($this->stream) : [];
+        return $this->opened() ? stream_get_meta_data($this->stream) : [];
     }
 
     /**
      * {@inheritDoc}
      */
-    public function isOpen(): bool
+    public function opened(): bool
     {
         return is_resource($this->stream);
     }

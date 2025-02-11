@@ -74,6 +74,14 @@ class Str
     }
 
     /**
+     * Make a credentials string for use in the AUTHENTICATE command.
+     */
+    public static function credentials(string $user, string $token): string
+    {
+        return base64_encode("user=$user\1auth=Bearer $token\1\1");
+    }
+
+    /**
      * Escape a string for use in a list.
      */
     public static function escape(string $string): string

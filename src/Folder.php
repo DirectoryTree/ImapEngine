@@ -105,8 +105,7 @@ class Folder
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
             function (int $msgn) use ($callback, $fetch) {
-                // Connect the client if the connection is closed.
-                if ($this->mailbox->isClosed()) {
+                if (! $this->mailbox->connected()) {
                     $this->mailbox->connect();
                 }
 
