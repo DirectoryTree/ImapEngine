@@ -17,7 +17,16 @@ test('inbox', function () {
 test('capabilities', function () {
     $mailbox = mailbox();
 
-    expect($mailbox->capabilities())->toBe(['CAPABILITY', 'IMAP4rev1', 'LITERAL+', 'UIDPLUS', 'SORT', 'IDLE', 'MOVE', 'QUOTA']);
+    expect($mailbox->capabilities())->toBe([
+        'CAPABILITY',
+        'IMAP4rev1',
+        'LITERAL+',
+        'UIDPLUS',
+        'SORT',
+        'IDLE',
+        'MOVE',
+        'QUOTA',
+    ]);
 });
 
 test('select', function () {

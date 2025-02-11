@@ -579,9 +579,9 @@ class ImapConnection implements ConnectionInterface
         // Some IMAP servers can send unsolicited untagged responses along with fetch
         // requests. We'll need to filter these out so that we can return only the
         // responses that are relevant to the fetch command. For example:
-        // TAG123 FETCH (UID 456 BODY[TEXT])
-        // * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
-        // * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
+        // >> TAG123 FETCH (UID 456 BODY[TEXT])
+        // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
+        // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
         return $this->result->responses()->untagged()->filter(function (UntaggedResponse $response) use ($items, $identifier) {
             // The third token will always be a list of data items.
             return match ($identifier) {
