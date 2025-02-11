@@ -19,3 +19,9 @@ test('capabilities', function () {
 
     expect($mailbox->capabilities())->toBe(['CAPABILITY', 'IMAP4rev1', 'LITERAL+', 'UIDPLUS', 'SORT', 'IDLE', 'MOVE', 'QUOTA']);
 });
+
+test('select', function () {
+    $mailbox = mailbox();
+
+    $mailbox->select($mailbox->inbox());
+})->throwsNoExceptions();
