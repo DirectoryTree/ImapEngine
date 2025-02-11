@@ -2,7 +2,12 @@
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Folder;
-use Illuminate\Support\Str;
+
+beforeEach(function () {
+    mailbox()->folders()->get()->reject(
+        fn (Folder $folder) => $folder->name() === 'INBOX'
+    )->each->delete();
+});
 
 test('get', function () {
     $folders = mailbox()->folders()->get();
@@ -19,21 +24,26 @@ test('find', function () {
 });
 
 test('create', function () {
-    $folder = mailbox()->folders()->create(
-        $id = (string) Str::uuid()
-    );
+    $folder = mailbox()->folders()->create('foo');
 
     expect($folder)->toBeInstanceOf(Folder::class);
-    expect($folder->path())->toBe($id);
-    expect($folder->name())->toBe($id);
+    expect($folder->path())->toBe('foo');
+    expect($folder->name())->toBe('foo');
     expect($folder->delimiter())->toBe('.');
-    expect($folder->status())->toHaveKeys([
-        'MESSAGES',
-        'RECENT',
-        'UIDNEXT',
-        'UIDVALIDITY',
-        'UNSEEN',
-    ]);
+});
+
+test('first or create', function () {
+    $folders = mailbox()->folders();
+
+    $first = $folders->firstOrCreate('foo');
+
+    expect($first)->toBeInstanceOf(Folder::class);
+
+    $second = $folders->firstOrCreate('foo');
+
+    expect($second->is($first))->toBeTrue();
+
+    expect($folders->get())->toHaveCount(2);
 });
 
 test('status', function () {
@@ -63,11 +73,9 @@ test('examine', function () {
 test('delete', function () {
     $mailbox = mailbox();
 
-    $folder = $mailbox->folders()->create(
-        $id = (string) Str::uuid()
-    );
+    $folder = $mailbox->folders()->create('foo');
 
     $folder->delete();
 
-    expect($mailbox->folders()->find($id))->toBeNull();
+    expect($mailbox->folders()->find('foo'))->toBeNull();
 });

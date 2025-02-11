@@ -2,23 +2,60 @@
 
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\DraftMessage;
+use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
 use Illuminate\Support\Str;
 
+function folder(): Folder
+{
+    return mailbox()->folders()->firstOrCreate('test-folder');
+}
+
+beforeEach(function () {
+    folder()->delete();
+});
+
+afterEach(function () {
+    folder()->delete();
+});
+
 test('messages selects folder', function () {
-    $mailbox = mailbox();
+    $folder = folder();
 
-    $inbox = $mailbox->inbox();
+    $folder->messages();
 
-    $inbox->messages();
+    expect($folder->mailbox()->selected($folder))->toBeTrue();
+});
 
-    expect($mailbox->selected($inbox))->toBeTrue();
+test('count', function () {
+    $folder = folder();
+
+    $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    expect($folder->messages()->count())->toBe(1);
+});
+
+test('first', function () {
+    $folder = folder();
+
+    expect($folder->messages()->first())->toBeNull();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(from: 'foo@example.com', text: 'hello world'),
+    );
+
+    expect($folder->messages()->first()->uid())->toBe($uid);
 });
 
 test('append', function () {
-    $inbox = mailbox()->inbox();
+    $folder = folder();
 
-    $messages = $inbox->messages();
+    $messages = $folder->messages();
 
     $uid = $messages->append(
         new DraftMessage(
@@ -48,23 +85,23 @@ test('append', function () {
 });
 
 test('retrieves messages using or statement', function () {
-    $inbox = mailbox()->inbox();
+    $folder = folder();
 
-    $firstUid = $inbox->messages()->append(
+    $firstUid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
             text: $firstUuid = (string) Str::uuid(),
         ),
     );
 
-    $secondUid = $inbox->messages()->append(
+    $secondUid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
             text: $secondUuid = (string) Str::uuid(),
         ),
     );
 
-    $results = $inbox->messages()
+    $results = $folder->messages()
         ->orWhere()
         ->body($firstUuid)
         ->body($secondUuid)
@@ -76,9 +113,9 @@ test('retrieves messages using or statement', function () {
 });
 
 test('retrieves messages by flag', function (string $flag, string $criteria) {
-    $inbox = mailbox()->inbox();
+    $folder = folder();
 
-    $uid = $inbox->messages()->append(
+    $uid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
             text: 'hello world',
@@ -87,7 +124,7 @@ test('retrieves messages by flag', function (string $flag, string $criteria) {
     );
 
     expect(
-        $inbox->messages()
+        $folder->messages()
             ->where($criteria)
             ->body('hello world')
             ->first()
@@ -95,7 +132,7 @@ test('retrieves messages by flag', function (string $flag, string $criteria) {
     )->toBe($uid);
 
     expect(
-        $inbox->messages()
+        $folder->messages()
             ->where($criteria)
             ->body('invalid')
             ->first()
