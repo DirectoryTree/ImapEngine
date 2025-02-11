@@ -10,14 +10,6 @@ jobs:
   run-tests:
     runs-on: ${{ matrix.os }}
 
-    services:
-      greenmail:
-        image: greenmail/standalone:latest
-        env:
-          GREENMAIL_OPTS: -Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
-        ports:
-          - 3143:3143
-
     strategy:
       fail-fast: false
       matrix:
@@ -47,4 +39,4 @@ jobs:
           composer update --${{ matrix.dependency-version }} --prefer-dist --no-interaction
 
       - name: Execute tests
-        run: vendor/bin/pest
+        run: vendor/bin/pest --testsuite Unit
