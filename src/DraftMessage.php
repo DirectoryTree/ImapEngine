@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DateTimeInterface;
 use Stringable;
 use Symfony\Component\Mime\Email;
 
@@ -25,6 +26,7 @@ class DraftMessage implements Stringable
         protected ?string $html = null,
         protected array $headers = [],
         protected array $attachments = [],
+        protected ?DateTimeInterface $datetime = null,
     ) {
         $this->message = new Email;
 
@@ -42,6 +44,10 @@ class DraftMessage implements Stringable
 
         if ($this->html) {
             $this->message->html($this->html);
+        }
+
+        if ($this->datetime) {
+            $this->message->date($this->datetime);
         }
 
         if (! empty($this->to)) {
