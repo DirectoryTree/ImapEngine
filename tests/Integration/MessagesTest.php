@@ -64,7 +64,7 @@ test('append', function () {
             cc: 'baz@email.com',
             text: 'hello world',
             html: '<p>hello world</p>',
-            datetime: $datetime = Carbon::now()->subYear(),
+            date: $datetime = Carbon::now()->subYear(),
         ),
         ['\\Seen'],
     );
