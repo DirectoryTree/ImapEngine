@@ -23,5 +23,7 @@ test('capabilities', function () {
 test('select', function () {
     $mailbox = mailbox();
 
-    $mailbox->select($mailbox->inbox());
-})->throwsNoExceptions();
+    $mailbox->select($inbox = $mailbox->inbox());
+
+    expect($mailbox->selected($inbox))->toBeTrue();
+});
