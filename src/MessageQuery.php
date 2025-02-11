@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Closure;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
@@ -800,14 +801,14 @@ class MessageQuery
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, ?array $flags = null, Carbon|string|null $date = null): int
+    public function append(string $message, ?array $flags = null, CarbonInterface|string|null $date = null): int
     {
-        if ($date instanceof Carbon) {
+        if ($date instanceof CarbonInterface) {
             $date = $date->format('d-M-Y H:i:s O');
         }
 
         $result = $this->connection()->append(
-            $this->folder->path(), $message, $flags = ['\\Draft'], $date
+            $this->folder->path(), $message, $flags, $date
         );
 
         return $result // TAG4 OK [APPENDUID 123 1] APPEND completed.
