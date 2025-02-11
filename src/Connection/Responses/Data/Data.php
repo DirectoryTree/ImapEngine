@@ -28,6 +28,22 @@ abstract class Data implements Stringable
     }
 
     /**
+     * Get the first token.
+     */
+    public function first(): Token|Data|null
+    {
+        return $this->tokens[0];
+    }
+
+    /**
+     * Get the last token.
+     */
+    public function last(): Token|Data|null
+    {
+        return $this->tokens[count($this->tokens) - 1];
+    }
+
+    /**
      * Determine if the data contains a specific value.
      */
     public function contains(array|string $needles): bool
