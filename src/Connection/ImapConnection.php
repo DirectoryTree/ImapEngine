@@ -312,7 +312,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function append(string $folder, string $message, ?array $flags = null, ?string $date = null): TaggedResponse
+    public function append(string $folder, string $message, ?array $flags = null): TaggedResponse
     {
         $tokens = [];
 
@@ -320,10 +320,6 @@ class ImapConnection implements ConnectionInterface
 
         if ($flags) {
             $tokens[] = Str::list($flags);
-        }
-
-        if ($date) {
-            $tokens[] = Str::literal($date);
         }
 
         $tokens[] = Str::literal($message);
