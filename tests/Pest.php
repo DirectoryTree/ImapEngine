@@ -24,6 +24,8 @@
 |
 */
 
+use DirectoryTree\ImapEngine\Mailbox;
+
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });
@@ -39,7 +41,19 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function stub(string $filename): string
 {
-    // ..
+    return file_get_contents(__DIR__."/stubs/$filename");
+}
+
+function mailbox(array $config = []): Mailbox
+{
+    return new Mailbox([
+        ...$config,
+        'host' => getenv('MAILBOX_HOST'),
+        'port' => getenv('MAILBOX_PORT'),
+        'username' => getenv('MAILBOX_USERNAME'),
+        'password' => getenv('MAILBOX_PASSWORD'),
+        'encryption' => getenv('MAILBOX_ENCRYPTION'),
+    ]);
 }

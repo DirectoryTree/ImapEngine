@@ -10,6 +10,10 @@ test('set', function () {
     expect(Str::set(5))->toBe('5');
 });
 
+test('credentials', function () {
+    expect(Str::credentials('foo', 'bar'))->toBe('dXNlcj1mb28BYXV0aD1CZWFyZXIgYmFyAQE=');
+});
+
 test('set ignores $to when $from is a single-element array', function () {
     expect(Str::set([5], 10))->toBe('5');
 });
