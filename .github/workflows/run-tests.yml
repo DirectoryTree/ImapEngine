@@ -11,12 +11,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     services:
-      imap:
+      greenmail:
         image: greenmail/standalone:latest
-        environment:
-          - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
+        env:
+          GREENMAIL_OPTS: -Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
         ports:
-          - "3143:3143"
+          - 3143:3143
 
     strategy:
       fail-fast: false
