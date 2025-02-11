@@ -1,0 +1,179 @@
+<?php
+
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+
+test('returns an empty string if no conditions are provided', function () {
+    $builder = new ImapQueryBuilder;
+
+    expect($builder->toImap())->toBe('');
+});
+
+test('compiles a single basic where condition', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'hello');
+
+    expect($builder->toImap())->toBe('SUBJECT "hello"');
+});
+
+test('compiles multiple AND conditions', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder
+        ->where('subject', 'hello')
+        ->where('from', 'me');
+
+    expect($builder->toImap())->toBe('SUBJECT "hello" FROM "me"');
+});
+
+test('compiles an OR condition', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder
+        ->where('subject', 'hello')
+        ->orWhere('subject', 'world');
+
+    expect($builder->toImap())->toBe('OR (SUBJECT "hello") (SUBJECT "world")');
+});
+
+test('compiles a NOT condition', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->whereNot('subject', 'junk');
+
+    expect($builder->toImap())->toBe('NOT SUBJECT "junk"');
+});
+
+test('compiles nested conditions with AND by default', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'test')->where(
+        function (ImapQueryBuilder $q) {
+            $q
+                ->where('from', 'someone')
+                ->orWhere('from', 'somebody');
+        }
+    );
+
+    expect($builder->toImap())->toBe('SUBJECT "test" OR (FROM "someone") (FROM "somebody")');
+});
+
+test('compiles complex nested conditions', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where(function (ImapQueryBuilder $q) {
+        $q
+            ->where('subject', 'foo')
+            ->orWhere('subject', 'bar');
+    })->orWhere(function (ImapQueryBuilder $q) {
+        $q
+            ->where('from', 'someone')
+            ->whereNot('subject', 'junk');
+    });
+
+    expect($builder->toImap())->toBe(
+        'OR (OR (SUBJECT "foo") (SUBJECT "bar")) (FROM "someone" NOT SUBJECT "junk")'
+    );
+});
+
+test('compiles an empty string value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', ''); // empty string
+
+    expect($builder->toImap())->toBe('SUBJECT ""');
+});
+
+test('compiles a null value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', null); // null value
+
+    expect($builder->toImap())->toBe('SUBJECT ""');
+});
+
+test('compiles a NOT condition with null value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->whereNot('subject', null); // null value
+
+    expect($builder->toImap())->toBe('NOT SUBJECT ""');
+});
+
+test('compiles nested closure that has no conditions', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'test')
+        ->where(function (ImapQueryBuilder $q) {
+            // no conditions
+        });
+
+    expect($builder->toImap())->toBe('SUBJECT "test"');
+});
+
+test('compiles deeply nested closures', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'level1')
+        ->orWhere(function (ImapQueryBuilder $q) {
+            $q->where('subject', 'level2')
+                ->orWhere(function (ImapQueryBuilder $q2) {
+                    $q2->where('subject', 'level3');
+                });
+        });
+
+    expect($builder->toImap())->toBe(
+        'OR (SUBJECT "level1") (OR (SUBJECT "level2") (SUBJECT "level3"))'
+    );
+});
+
+test('compiles multiple orWhere calls', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'first')
+        ->orWhere('subject', 'second')
+        ->orWhere('subject', 'third');
+
+    expect($builder->toImap())->toBe(
+        'OR (OR (SUBJECT "first") (SUBJECT "second")) (SUBJECT "third")'
+    );
+});
+
+test('compiles multiple conditions on the same column', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'foo')
+        ->where('subject', 'bar')
+        ->orWhere('subject', 'baz');
+
+    expect($builder->toImap())->toBe(
+        'OR (SUBJECT "foo" SUBJECT "bar") (SUBJECT "baz")'
+    );
+});
+
+test('escapes double quotes in search value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('subject', 'He said "Hello"');
+
+    expect($builder->toImap())->toBe('SUBJECT "He said \\"Hello\\""');
+});
+
+test('removes newlines and carriage returns in search value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('body', "Line one\nLine two\rLine three");
+
+    expect($builder->toImap())->toBe('BODY "Line oneLine twoLine three"');
+});
+
+test('escapes multiple special characters', function () {
+    $builder = new ImapQueryBuilder;
+
+    // Special characters: double quotes, newlines, backslash
+    $value = "Foo \"Bar\"\nBaz\\Zot";
+
+    $builder->where('subject', $value);
+
+    expect($builder->toImap())->toBe('SUBJECT "Foo \\"Bar\\"Baz\\\\Zot"');
+});
