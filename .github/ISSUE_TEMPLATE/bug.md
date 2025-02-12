@@ -10,8 +10,6 @@ Issues filed without the below information will be closed.
 
 **Environment**
 - **PHP version:**
-- **Operating System:**
-- **ImapEngine version:**
 - **IMAP server:** (e.g., Gmail, Yahoo, etc.)
 
 **IMAP logs**
