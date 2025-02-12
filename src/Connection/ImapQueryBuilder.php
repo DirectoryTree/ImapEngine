@@ -12,8 +12,6 @@ class ImapQueryBuilder
 {
     /**
      * The where conditions for the query.
-     *
-     * @var array<int, array<string, mixed>>
      */
     protected array $wheres = [];
 
@@ -328,8 +326,6 @@ class ImapQueryBuilder
 
     /**
      * Recursively compile the wheres array into an IMAP-compatible string.
-     *
-     * @param  array<int, array<string, mixed>>  $wheres
      */
     protected function compileWheres(array $wheres): string
     {
@@ -357,9 +353,6 @@ class ImapQueryBuilder
 
     /**
      * Build a single expression node from a basic or nested where.
-     *
-     * @param  array<string, mixed>  $where
-     * @return array<string, string>
      */
     protected function makeExpressionNode(array $where): array
     {
@@ -428,8 +421,6 @@ class ImapQueryBuilder
 
     /**
      * Compile a basic where condition into an IMAP-compatible string.
-     *
-     * @param  array<string, mixed>  $where
      */
     protected function compileBasic(array $where): string
     {
