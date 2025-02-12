@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 
 test('returns an empty string if no conditions are provided', function () {
     $builder = new ImapQueryBuilder;
@@ -14,6 +15,22 @@ test('compiles a single basic where condition', function () {
     $builder->where('subject', 'hello');
 
     expect($builder->toImap())->toBe('SUBJECT "hello"');
+});
+
+test('compiles a single criteria', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where(ImapSearchKey::All);
+
+    expect($builder->toImap())->toBe('ALL');
+});
+
+test('compiles a single not criteria', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->whereNot(ImapSearchKey::All);
+
+    expect($builder->toImap())->toBe('NOT ALL');
 });
 
 test('compiles multiple AND conditions', function () {
@@ -81,7 +98,7 @@ test('compiles an empty string value', function () {
 
     $builder->where('subject', ''); // empty string
 
-    expect($builder->toImap())->toBe('SUBJECT ""');
+    expect($builder->toImap())->toBe('SUBJECT');
 });
 
 test('compiles a null value', function () {
@@ -89,7 +106,7 @@ test('compiles a null value', function () {
 
     $builder->where('subject', null); // null value
 
-    expect($builder->toImap())->toBe('SUBJECT ""');
+    expect($builder->toImap())->toBe('SUBJECT');
 });
 
 test('compiles a NOT condition with null value', function () {
@@ -97,7 +114,7 @@ test('compiles a NOT condition with null value', function () {
 
     $builder->whereNot('subject', null); // null value
 
-    expect($builder->toImap())->toBe('NOT SUBJECT ""');
+    expect($builder->toImap())->toBe('NOT SUBJECT');
 });
 
 test('compiles nested closure that has no conditions', function () {
