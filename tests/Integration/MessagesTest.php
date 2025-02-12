@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
@@ -8,14 +9,16 @@ use Illuminate\Support\Str;
 
 function folder(): Folder
 {
-    return mailbox()->folders()->firstOrCreate('test-folder');
+    static $folder;
+
+    $folder ??= Str::uuid();
+
+    return mailbox()
+        ->folders()
+        ->firstOrCreate($folder);
 }
 
 beforeEach(function () {
-    folder()->delete();
-});
-
-afterEach(function () {
     folder()->delete();
 });
 
@@ -102,9 +105,8 @@ test('retrieves messages using or statement', function () {
     );
 
     $results = $folder->messages()
-        ->orWhere()
-        ->body($firstUuid)
-        ->body($secondUuid)
+        ->where(fn (ImapQueryBuilder $q) => $q->body($firstUuid))
+        ->orWhere(fn (ImapQueryBuilder $q) => $q->body($secondUuid))
         ->get();
 
     expect($results->count())->toBe(2);

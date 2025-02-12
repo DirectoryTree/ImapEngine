@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 use BackedEnum;
 use Carbon\Carbon;
 use DateTimeInterface;
+use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class ImapQueryBuilder
@@ -22,151 +23,215 @@ class ImapQueryBuilder
     protected string $dateFormat = 'd-M-Y';
 
     /**
-     * Add a where bcc clause to the query.
+     * Add a where "ALL" clause to the query.
      */
-    public function bcc(string $value): static
+    public function all(): static
     {
-        return $this->where('BCC', $value);
+        return $this->where(ImapSearchKey::All);
     }
 
     /**
-     * Add a where body clause to the query.
+     * Add a where "NEW" clause to the query.
      */
-    public function body(string $value): static
+    public function newMessages(): static
     {
-        return $this->where('BODY', $value);
+        return $this->where(ImapSearchKey::New);
     }
 
     /**
-     * Add a where cc clause to the query.
+     * Add a where "OLD" clause to the query.
      */
-    public function cc(string $value): static
+    public function old(): static
     {
-        return $this->where('CC', $value);
+        return $this->where(ImapSearchKey::Old);
     }
 
     /**
-     * Add a where flagged clause to the query.
+     * Add a where "SEEN" clause to the query.
      */
-    public function flagged(string $value): static
+    public function seen(): static
     {
-        return $this->where('FLAGGED', $value);
+        return $this->where(ImapSearchKey::Seen);
     }
 
     /**
-     * Add a where from clause to the query.
+     * Add a where "DRAFT" clause to the query.
+     */
+    public function draft(): static
+    {
+        return $this->where(ImapSearchKey::Draft);
+    }
+
+    /**
+     * Add a where "RECENT" clause to the query.
+     */
+    public function recent(): static
+    {
+        return $this->where(ImapSearchKey::Recent);
+    }
+
+    /**
+     * Add a where "UNSEEN" clause to the query.
+     */
+    public function unseen(): static
+    {
+        return $this->where(ImapSearchKey::Unseen);
+    }
+
+    /**
+     * Add a where "DELETED" clause to the query.
+     */
+    public function deleted(): static
+    {
+        return $this->where(ImapSearchKey::Deleted);
+    }
+
+    /**
+     * Add a where "ANSWERED" clause to the query.
+     */
+    public function answered(): static
+    {
+        return $this->where(ImapSearchKey::Answered);
+    }
+
+    /**
+     * Add a where "UNDELETED" clause to the query.
+     */
+    public function undeleted(): static
+    {
+        return $this->where(ImapSearchKey::Undeleted);
+    }
+
+    /**
+     * Add a where "UNFLAGGED" clause to the query.
+     */
+    public function unflagged(): static
+    {
+        return $this->where(ImapSearchKey::Unflagged);
+    }
+
+    /**
+     * Add a where "UNANSWERED" clause to the query.
+     */
+    public function unanswered(): static
+    {
+        return $this->where(ImapSearchKey::Unanswered);
+    }
+
+    /**
+     * Add a where "FROM" clause to the query.
      */
     public function from(string $email): static
     {
-        return $this->where('FROM', $email);
+        return $this->where(ImapSearchKey::From, $email);
     }
 
     /**
-     * Add a where keyword clause to the query.
-     */
-    public function keyword(string $value): static
-    {
-        return $this->where('KEYWORD', $value);
-    }
-
-    /**
-     * Add a where on clause to the query.
-     */
-    public function on(mixed $date): static
-    {
-        return $this->where('ON', $this->parseDate($date));
-    }
-
-    /**
-     * Add a where since clause to the query.
-     */
-    public function since(mixed $date): static
-    {
-        return $this->where('SINCE', $this->parseDate($date));
-    }
-
-    /**
-     * Add a where before clause to the query.
-     */
-    public function before(mixed $value): static
-    {
-        return $this->where('BEFORE', $this->parseDate($value));
-    }
-
-    /**
-     * Add a where subject clause to the query.
-     */
-    public function subject(string $value): static
-    {
-        return $this->where('SUBJECT', $value);
-    }
-
-    /**
-     * Add a where text clause to the query.
-     */
-    public function text(string $value): static
-    {
-        return $this->where('TEXT', $value);
-    }
-
-    /**
-     * Add a where to clause to the query.
+     * Add a where "TO" clause to the query.
      */
     public function to(string $value): static
     {
-        return $this->where('TO', $value);
+        return $this->where(ImapSearchKey::To, $value);
     }
 
     /**
-     * Add a where unkeyword clause to the query.
+     * Add a where "CC" clause to the query.
      */
-    public function unkeyword(string $value): static
+    public function cc(string $value): static
     {
-        return $this->where('UNKEYWORD', $value);
+        return $this->where(ImapSearchKey::Bcc, $value);
     }
 
     /**
-     * Add a where header clause to the query.
+     * Add a where "BCC" clause to the query.
+     */
+    public function bcc(string $value): static
+    {
+        return $this->where(ImapSearchKey::Bcc, $value);
+    }
+
+    /**
+     * Add a where "BODY" clause to the query.
+     */
+    public function body(string $value): static
+    {
+        return $this->where(ImapSearchKey::Body, $value);
+    }
+
+    /**
+     * Add a where "FLAGGED" clause to the query.
+     */
+    public function flagged(string $value): static
+    {
+        return $this->where(ImapSearchKey::Flagged, $value);
+    }
+
+    /**
+     * Add a where "KEYWORD" clause to the query.
+     */
+    public function keyword(string $value): static
+    {
+        return $this->where(ImapSearchKey::Keyword, $value);
+    }
+
+    /**
+     * Add a where "ON" clause to the query.
+     */
+    public function on(mixed $date): static
+    {
+        return $this->where(ImapSearchKey::On, $this->parseDate($date));
+    }
+
+    /**
+     * Add a where "SINCE" clause to the query.
+     */
+    public function since(mixed $date): static
+    {
+        return $this->where(ImapSearchKey::Since, $this->parseDate($date));
+    }
+
+    /**
+     * Add a where "BEFORE" clause to the query.
+     */
+    public function before(mixed $value): static
+    {
+        return $this->where(ImapSearchKey::Before, $this->parseDate($value));
+    }
+
+    /**
+     * Add a where "SUBJECT" clause to the query.
+     */
+    public function subject(string $value): static
+    {
+        return $this->where(ImapSearchKey::Subject, $value);
+    }
+
+    /**
+     * Add a where "TEXT" clause to the query.
+     */
+    public function text(string $value): static
+    {
+        return $this->where(ImapSearchKey::Text, $value);
+    }
+
+    /**
+     * Add a where "HEADER" clause to the query.
      */
     public function header(string $header, string $value): static
     {
-        return $this->where("HEADER $header", $value);
+        return $this->where(ImapSearchKey::Header->value." $header", $value);
     }
 
     /**
-     * Add a where message id clause to the query.
-     */
-    public function messageId(string $messageId): static
-    {
-        return $this->header('Message-ID', $messageId);
-    }
-
-    /**
-     * Add a where in reply to clause to the query.
-     */
-    public function inReplyTo(string $messageId): static
-    {
-        return $this->header('In-Reply-To', $messageId);
-    }
-
-    /**
-     * Add a where language clause to the query.
-     */
-    public function language(string $countryCode): static
-    {
-        return $this->where("Content-Language $countryCode");
-    }
-
-    /**
-     * Add a where UID clause to the query.
+     * Add a where "UID" clause to the query.
      */
     public function uid(int|string|array $uid): static
     {
-        return $this->where('UID', implode(',', (array) $uid));
+        return $this->where(ImapSearchKey::Uid, implode(',', (array) $uid));
     }
 
     /**
-     * Add a where condition.
+     * Add a "where" condition.
      */
     public function where(mixed $column, mixed $value = null): static
     {
