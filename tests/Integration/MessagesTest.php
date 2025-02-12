@@ -129,17 +129,22 @@ test('copy', function () {
     $message = $messages->withHeaders()->withBody()->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
-        $targetFolderName = 'CopiedFolder'
+        $targetFolderName = Str::uuid()
     );
 
     $message->copy($targetFolderName);
 
-    $targetMessages = $targetFolder->messages()->get();
+    $targetMessages = $targetFolder->messages()
+        ->withHeaders()
+        ->withBody()
+        ->get();
 
     expect($targetMessages->count())->toBe(1);
 
+    /** @var Message $movedMessage */
     $movedMessage = $targetMessages->first();
 
+    expect($movedMessage->from()->email())->toBe('foo@email.com');
     expect($movedMessage->text())->toBe('copy test');
 });
 
@@ -158,17 +163,22 @@ test('move', function () {
     $message = $messages->withHeaders()->withBody()->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
-        $targetFolderName = 'MovedFolder'
+        $targetFolderName = Str::uuid()
     );
 
     $message->move($targetFolderName);
 
-    $targetMessages = $targetFolder->messages()->get();
+    $targetMessages = $targetFolder->messages()
+        ->withHeaders()
+        ->withBody()
+        ->get();
 
     expect($targetMessages->count())->toBe(1);
 
+    /** @var Message $movedMessage */
     $movedMessage = $targetMessages->first();
 
+    expect($movedMessage->from()->email())->toBe('foo@email.com');
     expect($movedMessage->text())->toBe('move test');
 });
 
