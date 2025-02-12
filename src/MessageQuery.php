@@ -299,7 +299,7 @@ class MessageQuery
     protected function search(): Collection
     {
         // If the query is empty, default to fetching all.
-        if (empty($this->query->isEmpty())) {
+        if ($this->query->isEmpty()) {
             $this->query->all();
         }
 
