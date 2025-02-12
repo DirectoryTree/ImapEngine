@@ -66,14 +66,14 @@ test('list returns empty parentheses for an empty array', function () {
 test('enums returns value for a single backed enum', function () {
     $result = Str::enums(ImapFlag::Seen);
 
-    expect($result)->toBe('\Seen');
+    expect($result)->toBe('Seen');
 });
 
 test('enums returns an array of enum values for an array of backed enums', function () {
     $result = Str::enums([ImapFlag::Seen, ImapFlag::Draft]);
 
     expect($result)->toBeArray();
-    expect($result)->toEqual(['\Seen', '\Draft']);
+    expect($result)->toEqual(['Seen', 'Draft']);
 });
 
 test('enums returns the string when a string is provided', function () {
@@ -92,8 +92,8 @@ test('enums handles nested arrays containing backed enums and strings', function
     ];
 
     $expected = [
-        ['\Seen', 'nested string'],
-        '\Draft',
+        ['Seen', 'nested string'],
+        'Draft',
         'another string',
     ];
 
