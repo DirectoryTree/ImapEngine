@@ -112,6 +112,14 @@ class Str
     }
 
     /**
+     * Prefix a string with the given prefix if it does not already start with it.
+     */
+    public static function prefix(string $value, string $prefix): string
+    {
+        return str_starts_with($value, $prefix) ? $value : $prefix.$value;
+    }
+
+    /**
      * Escape a string for use in a list.
      */
     public static function escape(string $string): string

@@ -2,9 +2,11 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use BackedEnum;
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Stringable;
@@ -240,51 +242,59 @@ class Message implements Arrayable, JsonSerializable, Stringable
     }
 
     /**
-     * Check if the message is marked as seen.
+     * Determine if the message is marked as seen.
      */
     public function isSeen(): bool
     {
-        return in_array(ImapFlag::Seen->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Seen);
     }
 
     /**
-     * Check if the message is marked as answered.
+     * Determine if the message is marked as answered.
      */
     public function isAnswered(): bool
     {
-        return in_array(ImapFlag::Answered->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Answered);
     }
 
     /**
-     * Check if the message is flagged.
+     * Determine if the message is flagged.
      */
     public function isFlagged(): bool
     {
-        return in_array(ImapFlag::Flagged->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Flagged);
     }
 
     /**
-     * Check if the message is marked as deleted.
+     * Determine if the message is marked as deleted.
      */
     public function isDeleted(): bool
     {
-        return in_array(ImapFlag::Deleted->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Deleted);
     }
 
     /**
-     * Check if the message is marked as a draft.
+     * Determine if the message is marked as a draft.
      */
     public function isDraft(): bool
     {
-        return in_array(ImapFlag::Draft->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Draft);
     }
 
     /**
-     * Check if the message is marked as recent.
+     * Determine if the message is marked as recent.
      */
     public function isRecent(): bool
     {
-        return in_array(ImapFlag::Recent->value, $this->flags);
+        return $this->hasFlag(ImapFlag::Recent);
+    }
+
+    /**
+     * Determine if the message has the given flag.
+     */
+    public function hasFlag(BackedEnum|string $flag): bool
+    {
+        return in_array(Str::prefix(Str::enum($flag), '\\\\'), $this->flags);
     }
 
     /**
@@ -316,7 +326,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markSeen(bool $expunge = true): void
     {
-        $this->flag('Seen', '+', $expunge);
+        $this->flag(ImapFlag::Seen, '+', $expunge);
     }
 
     /**
@@ -324,7 +334,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkSeen(bool $expunge = true): void
     {
-        $this->flag('Seen', '-', $expunge);
+        $this->flag(ImapFlag::Seen, '-', $expunge);
     }
 
     /**
@@ -332,7 +342,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markAnswered(bool $expunge = true): void
     {
-        $this->flag('Answered', '+', $expunge);
+        $this->flag(ImapFlag::Answered, '+', $expunge);
     }
 
     /**
@@ -340,7 +350,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkAnswered(bool $expunge = true): void
     {
-        $this->flag('Answered', '-', $expunge);
+        $this->flag(ImapFlag::Answered, '-', $expunge);
     }
 
     /**
@@ -348,7 +358,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markFlagged(bool $expunge = true): void
     {
-        $this->flag('Flagged', '+', $expunge);
+        $this->flag(ImapFlag::Flagged, '+', $expunge);
     }
 
     /**
@@ -356,7 +366,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkFlagged(bool $expunge = true): void
     {
-        $this->flag('Flagged', '-', $expunge);
+        $this->flag(ImapFlag::Flagged, '-', $expunge);
     }
 
     /**
@@ -364,7 +374,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markDeleted(bool $expunge = true): void
     {
-        $this->flag('Deleted', '+', $expunge);
+        $this->flag(ImapFlag::Deleted, '+', $expunge);
     }
 
     /**
@@ -372,7 +382,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkDeleted(bool $expunge = true): void
     {
-        $this->flag('Deleted', '-', $expunge);
+        $this->flag(ImapFlag::Deleted, '-', $expunge);
     }
 
     /**
@@ -380,7 +390,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markDraft(bool $expunge = true): void
     {
-        $this->flag('Draft', '+', $expunge);
+        $this->flag(ImapFlag::Draft, '+', $expunge);
     }
 
     /**
@@ -388,7 +398,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkDraft(bool $expunge = true): void
     {
-        $this->flag('Draft', '-', $expunge);
+        $this->flag(ImapFlag::Draft, '-', $expunge);
     }
 
     /**
@@ -396,7 +406,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function markRecent(bool $expunge = true): void
     {
-        $this->flag('Recent', '+', $expunge);
+        $this->flag(ImapFlag::Recent, '+', $expunge);
     }
 
     /**
@@ -404,19 +414,19 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function unmarkRecent(bool $expunge = true): void
     {
-        $this->flag('Recent', '-', $expunge);
+        $this->flag(ImapFlag::Recent, '-', $expunge);
     }
 
     /**
      * Add or remove a flag from the message.
      */
-    public function flag(array|string $flag, string $operation = '+', bool $expunge = true): void
+    public function flag(mixed $flag, string $operation = '+', bool $expunge = true): void
     {
-        $flag = '\\'.trim(is_array($flag) ? implode(' \\', $flag) : $flag);
+        $flag = Str::prefix(Str::enum($flag), '\\\\');
 
         $this->folder->mailbox()
             ->connection()
-            ->store([$flag], $this->uid, null, $operation, true);
+            ->store($flag, $this->uid, mode: $operation);
 
         if ($expunge) {
             $this->folder->expunge();
@@ -426,15 +436,11 @@ class Message implements Arrayable, JsonSerializable, Stringable
     /**
      * Copy the message to the given folder.
      */
-    public function copy(string $folder, bool $expunge = true): void
+    public function copy(string $folder): void
     {
         $this->folder->mailbox()
             ->connection()
-            ->copy($folder, $this->folder->path(), $this->uid);
-
-        if ($expunge) {
-            $this->folder->expunge();
-        }
+            ->copy($folder, $this->uid);
     }
 
     /**
@@ -444,7 +450,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
     {
         $this->folder->mailbox()
             ->connection()
-            ->move($folder, $this->folder->path(), $this->uid);
+            ->move($folder, $this->uid);
 
         if ($expunge) {
             $this->folder->expunge();
