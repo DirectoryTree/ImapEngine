@@ -5,13 +5,12 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
-use Illuminate\Support\Str;
 
 function folder(): Folder
 {
     static $folder;
 
-    $folder ??= Str::uuid();
+    $folder ??= uniqid('Folder');
 
     return mailbox()
         ->folders()
@@ -129,7 +128,7 @@ test('copy', function () {
     $message = $messages->withHeaders()->withBody()->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
-        $targetFolderName = Str::uuid()
+        $targetFolderName = uniqid()
     );
 
     $message->copy($targetFolderName);
@@ -163,7 +162,7 @@ test('move', function () {
     $message = $messages->withHeaders()->withBody()->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
-        $targetFolderName = Str::uuid()
+        $targetFolderName = uniqid()
     );
 
     $message->move($targetFolderName);
@@ -205,14 +204,14 @@ test('retrieves messages using or statement', function () {
     $firstUid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
-            text: $firstUuid = (string) Str::uuid(),
+            text: $firstUuid = uniqid(),
         ),
     );
 
     $secondUid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
-            text: $secondUuid = (string) Str::uuid(),
+            text: $secondUuid = uniqid(),
         ),
     );
 
