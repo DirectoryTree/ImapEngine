@@ -67,6 +67,18 @@ $mailbox = new Mailbox([
 ]);
 ```
 
+To connect using plain (without encryption) or starttls, set the `encryption` option to `null`:
+
+```php
+$mailbox = new Mailbox([
+    'port' => 143,
+    'encryption' => null,
+    'username' => '...',
+    'password' => '...',
+    'host' => 'imap.example.com',
+]);
+```
+
 There are also many other configuration options available:
 
 ```php
@@ -346,7 +358,7 @@ The method accepts an ID and an ImapFetchIdentifier (an enum) that specifies whe
 For example, to find a message by UID:
 
 ```php
-use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 
 $message = $inbox->messages()->find(12345, ImapFetchIdentifier::Uid);
 ```
