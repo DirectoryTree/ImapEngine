@@ -26,9 +26,7 @@
         "egulias/email-validator": "^4.0"
     },
     "require-dev": {
-        "pestphp/pest": "^2.0|^3.0",
-        "laravel/pint": "^1.18",
-        "spatie/ray": "^1.41"
+        "pestphp/pest": "^2.0|^3.0"
     },
     "autoload": {
         "psr-4": {
