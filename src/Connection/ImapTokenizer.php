@@ -58,8 +58,9 @@ class ImapTokenizer
 
         // Check for line feed.
         if ($char === "\n") {
-            // We've reached the end of the response.
-            // We'll flush the buffer and return null.
+            // With a valid IMAP response, we should never reach this point,
+            // but in case we receive a malformed response, we will flush
+            // the buffer and return null to prevent an infinite loop.
             $this->flushBuffer();
 
             return null;
