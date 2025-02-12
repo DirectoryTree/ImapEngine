@@ -124,7 +124,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function from(): ?Address
     {
-        return head($this->addresses(HeaderConsts::FROM));
+        return head($this->addresses(HeaderConsts::FROM)) ?: null;
     }
 
     /**
@@ -132,7 +132,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function sender(): ?Address
     {
-        return head($this->addresses(HeaderConsts::SENDER));
+        return head($this->addresses(HeaderConsts::SENDER)) ?: null;
     }
 
     /**
@@ -140,7 +140,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function replyTo(): ?Address
     {
-        return head($this->addresses(HeaderConsts::REPLY_TO));
+        return head($this->addresses(HeaderConsts::REPLY_TO)) ?: null;
     }
 
     /**
@@ -148,7 +148,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function inReplyTo(): ?Address
     {
-        return head($this->addresses(HeaderConsts::IN_REPLY_TO));
+        return head($this->addresses(HeaderConsts::IN_REPLY_TO)) ?: null;
     }
 
     /**
