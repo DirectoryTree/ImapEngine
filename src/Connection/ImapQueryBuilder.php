@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use BackedEnum;
 use Carbon\Carbon;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -19,22 +20,6 @@ class ImapQueryBuilder
      * The date format to use for date based queries.
      */
     protected string $dateFormat = 'd-M-Y';
-
-    /**
-     * Add a where all clause to the query.
-     */
-    public function all(): static
-    {
-        return $this->where('ALL');
-    }
-
-    /**
-     * Add a where answered clause to the query.
-     */
-    public function answered(): static
-    {
-        return $this->where('ANSWERED');
-    }
 
     /**
      * Add a where bcc clause to the query.
@@ -58,14 +43,6 @@ class ImapQueryBuilder
     public function cc(string $value): static
     {
         return $this->where('CC', $value);
-    }
-
-    /**
-     * Add a where deleted clause to the query.
-     */
-    public function deleted(): static
-    {
-        return $this->where('DELETED');
     }
 
     /**
@@ -93,30 +70,6 @@ class ImapQueryBuilder
     }
 
     /**
-     * Add a where new clause to the query.
-     */
-    public function new(): static
-    {
-        return $this->where('NEW');
-    }
-
-    /**
-     * Add a where not clause to the query.
-     */
-    public function not(): static
-    {
-        return $this->where('NOT');
-    }
-
-    /**
-     * Add a where old clause to the query.
-     */
-    public function old(): static
-    {
-        return $this->where('OLD');
-    }
-
-    /**
      * Add a where on clause to the query.
      */
     public function on(mixed $date): static
@@ -138,22 +91,6 @@ class ImapQueryBuilder
     public function before(mixed $value): static
     {
         return $this->where('BEFORE', $this->parseDate($value));
-    }
-
-    /**
-     * Add a where recent clause to the query.
-     */
-    public function recent(): static
-    {
-        return $this->where('RECENT');
-    }
-
-    /**
-     * Add a where seen clause to the query.
-     */
-    public function seen(): static
-    {
-        return $this->where('SEEN');
     }
 
     /**
@@ -186,38 +123,6 @@ class ImapQueryBuilder
     public function unkeyword(string $value): static
     {
         return $this->where('UNKEYWORD', $value);
-    }
-
-    /**
-     * Add a where undeleted clause to the query.
-     */
-    public function unanswered(): static
-    {
-        return $this->where('UNANSWERED');
-    }
-
-    /**
-     * Add a where undeleted clause to the query.
-     */
-    public function undeleted(): static
-    {
-        return $this->where('UNDELETED');
-    }
-
-    /**
-     * Add a where unflagged clause to the query.
-     */
-    public function unflagged(): static
-    {
-        return $this->where('UNFLAGGED');
-    }
-
-    /**
-     * Add a where unseen clause to the query.
-     */
-    public function unseen(): static
-    {
-        return $this->where('UNSEEN');
     }
 
     /**
@@ -263,7 +168,7 @@ class ImapQueryBuilder
     /**
      * Add a where condition.
      */
-    public function where(callable|string $column, mixed $value = null): static
+    public function where(mixed $column, mixed $value = null): static
     {
         if (is_callable($column)) {
             $this->addNestedCondition('AND', $column);
@@ -277,7 +182,7 @@ class ImapQueryBuilder
     /**
      * Add an "or where" condition.
      */
-    public function orWhere(callable|string $column, mixed $value = null): static
+    public function orWhere(mixed $column, mixed $value = null): static
     {
         if (is_callable($column)) {
             $this->addNestedCondition('OR', $column);
@@ -291,7 +196,7 @@ class ImapQueryBuilder
     /**
      * Add a "where not" condition.
      */
-    public function whereNot(string $column, mixed $value): static
+    public function whereNot(mixed $column, mixed $value = null): static
     {
         $this->addBasicCondition('AND', $column, $value, true);
 
@@ -325,9 +230,11 @@ class ImapQueryBuilder
     /**
      * Add a basic condition to the query.
      */
-    protected function addBasicCondition(string $boolean, string $column, mixed $value, bool $not = false): void
+    protected function addBasicCondition(string $boolean, mixed $column, mixed $value, bool $not = false): void
     {
         $value = $this->prepareWhereValue($value);
+
+        $column = Str::enum($column);
 
         $this->wheres[] = [
             'type' => 'basic',
@@ -429,6 +336,10 @@ class ImapQueryBuilder
 
         if ($value instanceof DateTimeInterface) {
             $value = Carbon::instance($value);
+        }
+
+        if ($value instanceof BackedEnum) {
+            $value = $value->value;
         }
 
         if ($value instanceof Carbon) {

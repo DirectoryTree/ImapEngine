@@ -59,11 +59,19 @@ class Str
             return array_map([static::class, 'enums'], $enums);
         }
 
-        if ($enums instanceof BackedEnum) {
-            return $enums->value;
+        return Str::enum($enums);
+    }
+
+    /**
+     * Resolve the value of the given enum.
+     */
+    public static function enum(BackedEnum|string $enum): string
+    {
+        if ($enum instanceof BackedEnum) {
+            return $enum->value;
         }
 
-        return (string) $enums;
+        return (string) $enum;
     }
 
     /**

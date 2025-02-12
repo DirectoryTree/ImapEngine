@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSearchCriteria;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -300,7 +301,7 @@ class MessageQuery
     {
         // If the query is empty, default to fetching all.
         if ($this->query->isEmpty()) {
-            $this->query->all();
+            $this->query->where(ImapSearchCriteria::All);
         }
 
         $response = $this->connection()->search([
