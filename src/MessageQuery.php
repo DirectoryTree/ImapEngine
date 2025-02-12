@@ -335,10 +335,10 @@ class MessageQuery
         $flags = $this->fetchFlags ? $this->connection()
             ->flags($uids)
             ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3); // ListData
+                $data = $response->tokenAt(3);
 
-                $uid = $data->lookup('UID')->value; // UID
-                $flags = $data->lookup('FLAGS')->values(); // ListData (Flags)
+                $uid = $data->lookup('UID')->value;
+                $flags = $data->lookup('FLAGS')->values();
 
                 return [$uid => $flags];
             }) : new Collection;
@@ -346,10 +346,10 @@ class MessageQuery
         $headers = $this->fetchHeaders ? $this->connection()
             ->header($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3); // ListData
+                $data = $response->tokenAt(3);
 
-                $uid = $data->lookup('UID')->value; // UID
-                $headers = $data->last()->value; // Headers
+                $uid = $data->lookup('UID')->value;
+                $headers = $data->lookup('[HEADER]')->value;
 
                 return [$uid => $headers];
             }) : new Collection;
@@ -357,10 +357,10 @@ class MessageQuery
         $contents = $this->fetchBody ? $this->connection()
             ->text($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3); // ListData
+                $data = $response->tokenAt(3);
 
-                $uid = $data->lookup('UID')->value; // UID
-                $contents = $data->last()->value; // Contents
+                $uid = $data->lookup('UID')->value;
+                $contents = $data->lookup('[TEXT]')->value;
 
                 return [$uid => $contents];
             }) : new Collection;
