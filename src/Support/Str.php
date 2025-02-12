@@ -49,8 +49,12 @@ class Str
     /**
      * Resolve the value of the given enums.
      */
-    public static function enums(BackedEnum|array|string $enums): array|string
+    public static function enums(BackedEnum|array|string|null $enums = null): array|string|null
     {
+        if (is_null($enums)) {
+            return null;
+        }
+
         if (is_array($enums)) {
             return array_map([static::class, 'enums'], $enums);
         }
