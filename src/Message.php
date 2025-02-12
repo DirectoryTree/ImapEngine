@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
@@ -243,7 +244,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isSeen(): bool
     {
-        return in_array('\Seen', $this->flags);
+        return in_array(ImapFlag::Seen->value, $this->flags);
     }
 
     /**
@@ -251,7 +252,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isAnswered(): bool
     {
-        return in_array('\Answered', $this->flags);
+        return in_array(ImapFlag::Answered->value, $this->flags);
     }
 
     /**
@@ -259,7 +260,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isFlagged(): bool
     {
-        return in_array('\Flagged', $this->flags);
+        return in_array(ImapFlag::Flagged->value, $this->flags);
     }
 
     /**
@@ -267,7 +268,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isDeleted(): bool
     {
-        return in_array('\Deleted', $this->flags);
+        return in_array(ImapFlag::Deleted->value, $this->flags);
     }
 
     /**
@@ -275,7 +276,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isDraft(): bool
     {
-        return in_array('\Draft', $this->flags);
+        return in_array(ImapFlag::Draft->value, $this->flags);
     }
 
     /**
@@ -283,7 +284,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function isRecent(): bool
     {
-        return in_array('\Recent', $this->flags);
+        return in_array(ImapFlag::Recent->value, $this->flags);
     }
 
     /**

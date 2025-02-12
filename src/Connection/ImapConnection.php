@@ -11,6 +11,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
