@@ -12,7 +12,7 @@ class ListData extends Data
     public function lookup(string $field): Data|Token|null
     {
         foreach ($this->tokens as $index => $token) {
-            if ($token->value === $field) {
+            if ((string) $token === $field) {
                 return $this->tokenAt(++$index);
             }
         }
