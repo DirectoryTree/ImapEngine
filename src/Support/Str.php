@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Support;
 
+use BackedEnum;
+
 class Str
 {
     /**
@@ -42,6 +44,22 @@ class Str
         }
 
         return '"'.static::escape($string).'"';
+    }
+
+    /**
+     * Resolve the value of the given enums.
+     */
+    public static function enums(BackedEnum|array|string $enums): array|string
+    {
+        if (is_array($enums)) {
+            return array_map([static::class, 'enums'], $enums);
+        }
+
+        if ($enums instanceof BackedEnum) {
+            return $enums->value;
+        }
+
+        return (string) $enums;
     }
 
     /**

@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
@@ -441,10 +442,10 @@ class MessageQuery
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, ?array $flags = null): int
+    public function append(string $message, mixed $flags = null): int
     {
         $result = $this->connection()->append(
-            $this->folder->path(), $message, $flags
+            $this->folder->path(), $message, Str::enums($flags),
         );
 
         return $result // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.

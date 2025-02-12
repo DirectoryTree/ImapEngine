@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Support\Str;
 
 test('set', function () {
@@ -60,4 +61,43 @@ test('list handles nested arrays recursively', function () {
 
 test('list returns empty parentheses for an empty array', function () {
     expect(Str::list([]))->toBe('()');
+});
+
+test('enums returns value for a single backed enum', function () {
+    $result = Str::enums(ImapFlag::Seen);
+
+    expect($result)->toBe('\Seen');
+});
+
+test('enums returns an array of enum values for an array of backed enums', function () {
+    $result = Str::enums([ImapFlag::Seen, ImapFlag::Draft]);
+
+    expect($result)->toBeArray();
+    expect($result)->toEqual(['\Seen', '\Draft']);
+});
+
+test('enums returns the string when a string is provided', function () {
+    $input = 'example string';
+
+    $result = Str::enums($input);
+
+    expect($result)->toBe($input);
+});
+
+test('enums handles nested arrays containing backed enums and strings', function () {
+    $input = [
+        [ImapFlag::Seen, 'nested string'],
+        ImapFlag::Draft,
+        'another string',
+    ];
+
+    $expected = [
+        ['\Seen', 'nested string'],
+        '\Draft',
+        'another string',
+    ];
+
+    $result = Str::enums($input);
+
+    expect($result)->toEqual($expected);
 });
