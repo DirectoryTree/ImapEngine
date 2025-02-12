@@ -2,8 +2,9 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use DirectoryTree\ImapEngine\Connection\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
@@ -81,9 +82,7 @@ class Folder
      */
     public function messages(): MessageQuery
     {
-        return new MessageQuery(
-            tap($this)->select(true)
-        );
+        return new MessageQuery(tap($this)->select(true), new ImapQueryBuilder);
     }
 
     /**
