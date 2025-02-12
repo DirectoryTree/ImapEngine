@@ -457,7 +457,11 @@ class ImapQueryBuilder
      */
     protected function compileBasic(array $where): string
     {
-        $part = strtoupper($where['key']).' "'.$where['value'].'"';
+        $part = strtoupper($where['key']);
+
+        if ($where['value']) {
+            $part .= ' "'.$where['value'].'"';
+        }
 
         if ($where['not']) {
             $part = 'NOT '.$part;
