@@ -87,6 +87,108 @@ test('append', function () {
     expect($message->flags())->toBe(['\\Seen']);
 });
 
+test('flag', function () {
+    $folder = folder();
+
+    $messages = $folder->messages();
+
+    $uid = $messages->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'flag test'
+        )
+    );
+
+    // Initially, message should not be marked as seen.
+    $message = $messages->withFlags()->find($uid);
+    expect($message->isSeen())->toBeFalse();
+
+    // Mark message as seen.
+    $message->markSeen();
+    $message = $messages->withFlags()->find($uid);
+    expect($message->isSeen())->toBeTrue();
+
+    // Unmark message as seen.
+    $message->unmarkSeen();
+    $message = $messages->withFlags()->find($uid);
+    expect($message->isSeen())->toBeFalse();
+});
+
+test('copy', function () {
+    $folder = folder();
+
+    $messages = $folder->messages();
+
+    $uid = $messages->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'copy test'
+        )
+    );
+
+    $message = $messages->withHeaders()->withBody()->find($uid);
+
+    $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
+        $targetFolderName = 'CopiedFolder'
+    );
+
+    $message->copy($targetFolderName);
+
+    $targetMessages = $targetFolder->messages()->get();
+
+    expect($targetMessages->count())->toBe(1);
+
+    $movedMessage = $targetMessages->first();
+
+    expect($movedMessage->text())->toBe('copy test');
+});
+
+test('move', function () {
+    $folder = folder();
+
+    $messages = $folder->messages();
+
+    $uid = $messages->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'move test'
+        )
+    );
+
+    $message = $messages->withHeaders()->withBody()->find($uid);
+
+    $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
+        $targetFolderName = 'MovedFolder'
+    );
+
+    $message->move($targetFolderName);
+
+    $targetMessages = $targetFolder->messages()->get();
+
+    expect($targetMessages->count())->toBe(1);
+
+    $movedMessage = $targetMessages->first();
+
+    expect($movedMessage->text())->toBe('move test');
+});
+
+test('delete', function () {
+    $messages = folder()->messages();
+
+    $uid = $messages->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'delete test'
+        )
+    );
+
+    $message = $messages->find($uid);
+
+    $message->delete();
+
+    expect($messages->withFlags()->find($uid)->isDeleted())->toBeTrue();
+});
+
 test('retrieves messages using or statement', function () {
     $folder = folder();
 

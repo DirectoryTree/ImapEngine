@@ -434,7 +434,7 @@ test('store flags', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $response = $connection->store(['\\Seen'], 1, 3, '+FLAGS', true, null);
+    $response = $connection->store(['\\Seen'], 1, 3, '+FLAGS');
 
     $stream->assertWritten('TAG1 UID STORE 1:3 +FLAGS.SILENT (\\Seen)');
 
