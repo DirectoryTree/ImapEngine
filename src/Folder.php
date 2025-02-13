@@ -88,7 +88,7 @@ class Folder
     /**
      * Begin idling on the current folder.
      */
-    public function idle(callable $callback, callable $query, int $timeout = 300): void
+    public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
         if (! $this->hasCapability('IDLE')) {
             throw new ImapCapabilityException('IMAP server does not support IDLE');
