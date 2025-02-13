@@ -4,9 +4,9 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
-use DirectoryTree\ImapEngine\Exceptions\Exception;
 use Generator;
 
 class Idle
