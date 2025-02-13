@@ -70,12 +70,12 @@ $mailbox = new Mailbox([
 ]);
 ```
 
-To connect using plain (without encryption) or starttls, set the `encryption` option to `null`:
+To connect using plain (without encryption) or starttls, set the `encryption` option to `starttls`:
 
 ```php
 $mailbox = new Mailbox([
     'port' => 143,
-    'encryption' => null,
+    'encryption' => 'starttls',
     'username' => '...',
     'password' => '...',
     'host' => 'imap.example.com',
