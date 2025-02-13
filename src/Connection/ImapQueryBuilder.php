@@ -31,7 +31,7 @@ class ImapQueryBuilder
     /**
      * Add a where "NEW" clause to the query.
      */
-    public function newMessages(): static
+    public function new(): static
     {
         return $this->where(ImapSearchKey::New);
     }
@@ -74,6 +74,14 @@ class ImapQueryBuilder
     public function unseen(): static
     {
         return $this->where(ImapSearchKey::Unseen);
+    }
+
+    /**
+     * Add a where "FLAGGED" clause to the query.
+     */
+    public function flagged(): static
+    {
+        return $this->where(ImapSearchKey::Flagged);
     }
 
     /**
@@ -137,7 +145,7 @@ class ImapQueryBuilder
      */
     public function cc(string $value): static
     {
-        return $this->where(ImapSearchKey::Bcc, $value);
+        return $this->where(ImapSearchKey::Cc, $value);
     }
 
     /**
@@ -154,14 +162,6 @@ class ImapQueryBuilder
     public function body(string $value): static
     {
         return $this->where(ImapSearchKey::Body, $value);
-    }
-
-    /**
-     * Add a where "FLAGGED" clause to the query.
-     */
-    public function flagged(string $value): static
-    {
-        return $this->where(ImapSearchKey::Flagged, $value);
     }
 
     /**
