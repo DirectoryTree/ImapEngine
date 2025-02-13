@@ -210,7 +210,7 @@ test('parses quota response', function () {
 });
 
 test('parses bodystructure', function () {
-   $stream = new FakeStream;
+    $stream = new FakeStream;
     $stream->open();
 
     $stream->feed([
