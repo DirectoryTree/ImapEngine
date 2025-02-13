@@ -66,6 +66,9 @@ test('append', function () {
             cc: 'baz@email.com',
             text: 'hello world',
             html: '<p>hello world</p>',
+            attachments: [
+                stub('attachment.txt'),
+            ],
             date: $datetime = Carbon::now()->subYear(),
         ),
         ['\\Seen'],
@@ -83,6 +86,9 @@ test('append', function () {
     expect($message->date()->is($datetime))->toBeTrue();
     expect($message->text())->toBe('hello world');
     expect($message->html())->toBe('<p>hello world</p>');
+    expect($message->hasAttachments())->toBeTrue();
+    expect($message->attachmentCount())->toBe(1);
+    expect($message->attachments()[0]->filename())->toBe('attachment.txt');
     expect($message->flags())->toBe(['\\Seen']);
 });
 

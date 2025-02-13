@@ -43,7 +43,7 @@ expect()->extend('toBeOne', function () {
 
 function stub(string $filename): string
 {
-    return file_get_contents(__DIR__."/stubs/$filename");
+    return __DIR__."/stubs/$filename";
 }
 
 function mailbox(array $config = []): Mailbox
