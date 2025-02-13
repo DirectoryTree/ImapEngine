@@ -289,9 +289,11 @@ By default, ImapEngine search queries only fetches UIDs.
 To fetch additional message data, you have to enable it explicitly.
 
 **Message Flags:**
+
 Use `withFlags()` to retrieve flags, or `withoutFlags()` to omit them.
 
 **Message Body:**
+
 Use `withBody()` to fetch the full body content, or `withoutBody()` to skip it.
 
 > [!important]
@@ -309,6 +311,7 @@ $messages = $inbox->messages()
 ```
 
 **Message Headers:**
+
 Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to exclude them.
 
 #### Message Pagination
@@ -379,15 +382,18 @@ This class offers a rich set of helper methods for interacting with individual e
 The `Message` class provides several methods to access basic properties:
 
 **UID and Flags**
+ 
 - `$message->uid()`: Returns the unique identifier (UID) of the message.
 - `$message->flags()`: Returns an array of flags currently set on the message.
 
 **Headers and Contents**
+
 - `$message->headers()`: Returns the raw headers as a string.
 - `$message->contents()`: Returns the raw message content.
 - `$message->hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
 
 **Metadata**
+
 - `$message->subject()`: Returns the subject of the message.
 - `$message->date()`: Returns the message’s date as a Carbon instance (if available).
 - `$message->messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
@@ -397,6 +403,7 @@ The `Message` class provides several methods to access basic properties:
 In addition to the methods shown above, the `Message` class provides several additional helpers:
 
 **Flag Checking**  
+
 Quickly check whether a message has a specific flag:
 
 - `$message->isSeen()`: Determine if the message marked as `\Seen`
@@ -438,11 +445,13 @@ Messages that include attachments can be inspected with:
 The class also provides methods to modify message flags, which help you manage the state of a message:
 
 **Marking as Seen/Unseen**
+
 - `markSeen()`: Marks the message as read.
 - `unmarkSeen()`: Marks the message as unread.
 - *Aliases:* `markRead()` and `markUnread()`.
 
 **Other Flags**
+
 - `markDraft()` / `unmarkDraft()`
 - `markRecent()` / `unmarkRecent()`
 - `markFlagged()` / `unmarkFlagged()`
