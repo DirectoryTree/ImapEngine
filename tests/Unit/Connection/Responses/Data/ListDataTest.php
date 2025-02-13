@@ -3,7 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
-test('toString', function () {
+test('to string', function () {
     $response = new ListData([
         new Atom('a'),
         new Atom('b'),

@@ -41,7 +41,7 @@ test('compile returns correct command lines with multiple tokens including a lit
     ]);
 });
 
-test('__toString returns the command lines joined by CRLF', function () {
+test('to string returns the command lines joined by CRLF', function () {
     $cmd = new ImapCommand('A003', 'APPEND "INBOX"', [
         ['{20}', 'literal-data'],
     ]);

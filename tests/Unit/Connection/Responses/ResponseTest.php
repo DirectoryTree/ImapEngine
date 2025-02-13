@@ -17,7 +17,7 @@ test('tokens', function () {
     ]);
 });
 
-test('toArray', function () {
+test('to array', function () {
     $response = new Response([
         new Atom('a'),
         new Atom('b'),
@@ -31,7 +31,7 @@ test('toArray', function () {
     ]);
 });
 
-test('toString', function () {
+test('to string', function () {
     $response = new Response([
         new Atom('a'),
         new Atom('b'),

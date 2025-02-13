@@ -5,7 +5,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
 test('data', function () {
     $response = new ContinuationResponse([
-        new Atom('a'),
+        new Atom('+'),
         new Atom('b'),
         new Atom('c'),
     ]);
@@ -15,3 +15,4 @@ test('data', function () {
         new Atom('c'),
     ]);
 });
+

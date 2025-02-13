@@ -5,7 +5,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
 test('type', function () {
     $response = new UntaggedResponse([
-        new Atom('a'),
+        new Atom('*'),
         new Atom('b'),
         new Atom('c'),
     ]);
@@ -17,7 +17,7 @@ test('type', function () {
 
 test('data', function () {
     $response = new UntaggedResponse([
-        new Atom('a'),
+        new Atom('*'),
         new Atom('b'),
         new Atom('c'),
     ]);
