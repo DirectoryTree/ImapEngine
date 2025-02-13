@@ -66,7 +66,7 @@ class ImapConnection implements ConnectionInterface
     {
         $transport = strtolower($options['encryption'] ?? '') ?: 'tcp';
 
-         if (in_array($transport, ['ssl', 'tls'])) {
+        if (in_array($transport, ['ssl', 'tls'])) {
             $port ??= 993;
         } else {
             $port ??= 143;
