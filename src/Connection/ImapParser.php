@@ -45,13 +45,14 @@ class ImapParser
      */
     public function next(): Data|Token|Response|null
     {
-        // Load the first token.
+        // Attempt to load the first token.
         if (! $this->currentToken) {
             $this->advance();
         }
 
+        // No token was found, return null.
         if (! $this->currentToken) {
-            throw new ImapParserException('Empty response');
+            return null;
         }
 
         // If the token indicates the beginning of a list, parse it.
