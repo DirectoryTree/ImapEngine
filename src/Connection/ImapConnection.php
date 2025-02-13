@@ -66,7 +66,7 @@ class ImapConnection implements ConnectionInterface
     {
         $transport = strtolower($options['encryption'] ?? '') ?: 'tcp';
 
-        if (in_array($transport, ['ssl', 'tls'])) {
+         if (in_array($transport, ['ssl', 'tls'])) {
             $port ??= 993;
         } else {
             $port ??= 143;
@@ -76,8 +76,9 @@ class ImapConnection implements ConnectionInterface
             $this->newParser($this->stream)
         );
 
+        // If we're using STARTTLS, we first connect plain and then upgrade the connection.
         $this->stream->open(
-            $transport,
+            $transport === 'starttls' ? 'tcp' : $transport,
             $host,
             $port,
             $options['timeout'] ?? 30,
