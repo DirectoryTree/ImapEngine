@@ -32,7 +32,7 @@ abstract class Data implements Stringable
      */
     public function first(): Token|Data|null
     {
-        return $this->tokens[0];
+        return $this->tokens[0] ?? null;
     }
 
     /**
@@ -40,7 +40,7 @@ abstract class Data implements Stringable
      */
     public function last(): Token|Data|null
     {
-        return $this->tokens[count($this->tokens) - 1];
+        return $this->tokens[count($this->tokens) - 1] ?? null;
     }
 
     /**
