@@ -8,9 +8,9 @@
 
 <p align="center">
 <a href="https://github.com/directorytree/imapengine/actions"><img src="https://img.shields.io/github/actions/workflow/status/directorytree/imapengine/run-tests.yml?branch=master&style=flat-square"></a>
-<a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/dt/directorytree/imapengine.svg?style=flat-square"></a>
-<a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/v/directorytree/imapengine.svg?style=flat-square"></a>
-<a href="https://packagist.org/packages/directorytree/imapengine"><img src="https://img.shields.io/packagist/l/directorytree/imapengine.svg?style=flat-square"></a>
+<a href="https://packagist.org/packages/DirectoryTree/ImapEngine"><img src="https://img.shields.io/packagist/dt/DirectoryTree/ImapEngine.svg?style=flat-square"></a>
+<a href="https://packagist.org/packages/DirectoryTree/ImapEngine"><img src="https://img.shields.io/packagist/v/DirectoryTree/ImapEngine.svg?style=flat-square"></a>
+<a href="https://packagist.org/packages/DirectoryTree/ImapEngine"><img src="https://img.shields.io/github/license/DirectoryTree/ImapEngine?style=flat-square"/></a>
 </p>
 
 ## Index
