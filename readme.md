@@ -22,7 +22,7 @@
   - [Retrieving Folders](#retrieving-folders)
   - [Retrieving Messages](#retrieving-messages)
   - [Interacting With Messages](#interacting-with-messages)
-  - [Idling on Folders](#idling-on-folders)
+  - [Real Time Monitoring](#idling-on-folders)
 
 ## Requirements
 
@@ -237,7 +237,6 @@ The query builder supports many common IMAP search criteria. You can chain metho
 
 - `all()`
 - `new()`
-- `not()`
 - `old()`
 - `seen()`
 - `recent()`
@@ -260,10 +259,6 @@ The query builder supports many common IMAP search criteria. You can chain metho
 - `flagged($value)`
 - `keyword($value)`
 - `subject($value)`
-- `unkeyword($value)`
-- `messageId($messageId)`
-- `inReplyTo($messageId)`
-- `language($countryCode)`
 - `header($header, $value)`
 
 For example, to retrieve messages from the last 7 days with a specific subject:
@@ -492,7 +487,7 @@ $message->move('Archive');
 $message->delete();
 ```
 
-### Idling on Folders
+### Idling on Folders (Real Time Monitoring)
 
 ImapEngine supports real-time monitoring of folders via the IMAP IDLE command. 
 
@@ -515,5 +510,19 @@ $inbox->idle(function (Message $message) {
 }, timeout: 300); // Optional timeout in seconds.
 ```
 
-> [!important]
-> Messages received in idle will always be fetched with all their content (flags, headers, and body with attachments).
+By default, messages received in idle will not be fetched with all of their content (flags, headers, and body with attachments). 
+
+If you need to fetch the message content, you can set the query to fetch the desired content using the second argument of the `idle()` method:
+
+```php
+use DirectoryTree\ImapEngine\MessageQuery;
+
+$inbox->idle(function (Message $message) {
+    // Fetched message with all of its content.
+}), function (MessageQuery $query) {
+    // Set the query to fetch message content.
+    return $query->withBody()
+        ->withHeaders()
+        ->withFlags();
+});
+```
