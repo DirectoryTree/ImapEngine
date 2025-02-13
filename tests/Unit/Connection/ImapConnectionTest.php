@@ -3,6 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -681,7 +682,7 @@ test('idle', function () {
 
     expect(function () use ($connection) {
         iterator_to_array($connection->idle(30));
-    })->toThrow(ImapParserException::class);
+    })->toThrow(ImapConnectionException::class);
 
     $stream->assertWritten('TAG1 IDLE');
 });
