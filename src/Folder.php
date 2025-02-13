@@ -7,7 +7,6 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
 class Folder
 {
