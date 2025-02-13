@@ -5,7 +5,6 @@ use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 use DirectoryTree\ImapEngine\Support\Str;
 
 test('connect success', function () {
