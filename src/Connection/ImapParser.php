@@ -143,6 +143,7 @@ class ImapParser
      */
     protected function parseTaggedResponse(): TaggedResponse
     {
+        // Capture the initial TAG token.
         $tokens[] = clone $this->currentToken;
 
         $this->advance();
