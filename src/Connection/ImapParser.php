@@ -41,11 +41,7 @@ class ImapParser
     }
 
     /**
-     * Parse an IMAP response.
-     *
-     * This method dispatches to specialized methods based on the type
-     * and value of the current token. It expects that the tokenizer
-     * will eventually return an end-of-response marker (CRLF).
+     * Get the next response from the tokenizer.
      */
     public function next(): Data|Token|Response|null
     {
@@ -85,9 +81,8 @@ class ImapParser
     /**
      * Parse an untagged response.
      *
-     * An untagged response begins with the '*' token. This
-     * method collects tokens until the end-of-response
-     * marker (CRLF) is encountered.
+     * An untagged response begins with the '*' token. It may contain
+     * multiple elements, including lists and response codes.
      */
     protected function parseUntaggedResponse(): UntaggedResponse
     {
@@ -114,9 +109,8 @@ class ImapParser
     /**
      * Parse a continuation response.
      *
-     * A continuation response starts with a '+' token, indicating that the
-     * server expects additional data from the client. This method collects
-     * tokens until the CRLF end-of-response marker is reached.
+     * A continuation response starts with a '+' token, indicating
+     * that the server expects additional data from the client.
      */
     protected function parseContinuationResponse(): ContinuationResponse
     {
@@ -143,8 +137,8 @@ class ImapParser
     /**
      * Parse a tagged response.
      *
-     * A tagged response begins with a tag (which is not '*' or '+') and is followed
-     * by a status and optional data. This method collects all tokens until CRLF.
+     * A tagged response begins with a tag (which is not '*' or '+')
+     * and is followed by a status and optional data.
      */
     protected function parseTaggedResponse(): TaggedResponse
     {
@@ -169,6 +163,8 @@ class ImapParser
 
     /**
      * Parses a bracket group of elements delimited by '[' and ']'.
+     *
+     * Bracket groups are used to represent response codes.
      */
     protected function parseBracketGroup(): ResponseCodeData
     {
@@ -198,9 +194,7 @@ class ImapParser
     /**
      * Parses a list of elements delimited by '(' and ')'.
      *
-     * Lists are handled recursively: a list may contain nested lists.
-     *
-     * @throws ImapParserException if the list is unterminated.
+     * Lists are handled recursively, as a list may contain nested lists.
      */
     protected function parseList(): ListData
     {
