@@ -432,9 +432,10 @@ class Message implements Arrayable, JsonSerializable, Stringable
             $this->folder->expunge();
         }
 
-        $this->flags = $operation === '+'
-            ? array_unique(array_merge($this->flags, [$flag]))
-            : array_diff($this->flags, [$flag]);
+        $this->flags = match($operation) {
+            '+' => array_unique(array_merge($this->flags, [$flag])),
+            '-' => array_diff($this->flags, [$flag]),
+        };
     }
 
     /**
