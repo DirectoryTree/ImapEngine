@@ -440,11 +440,11 @@ The class also provides methods to modify message flags, which help you manage t
 - *Aliases:* `markRead()` and `markUnread()`.
 
 **Other Flags**
-- `markAnswered()` / `unmarkAnswered()`
-- `markFlagged()` / `unmarkFlagged()`
-- `markDeleted()` / `unmarkDeleted()`
 - `markDraft()` / `unmarkDraft()`
 - `markRecent()` / `unmarkRecent()`
+- `markFlagged()` / `unmarkFlagged()`
+- `markDeleted()` / `unmarkDeleted()`
+- `markAnswered()` / `unmarkAnswered()`
 
 All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation).
 
@@ -452,9 +452,9 @@ All these methods work by invoking the underlying IMAP `STORE` command (with the
 
 Beyond just flagging, you can move or copy messages between folders, as well as delete them:
 
+- `restore()`: Restores the message from the trash.
 - `copy(string $folder)`: Copies the message to the specified folder.
 - `move(string $folder, bool $expunge = false)`: Moves the message to the specified folder.
-- `restore()`: Restores the message from the trash.
 - `delete(bool $expunge = false)`: Marks the message as deleted and, if desired, expunges it from the folder.
 
 #### Example: Interacting with a Retrieved Message
