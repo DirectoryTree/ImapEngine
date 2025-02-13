@@ -209,6 +209,24 @@ test('parses quota response', function () {
     expect((string) $response2)->toBe('TAG1 OK GETQUOTA completed');
 });
 
+test('parses bodystructure', function () {
+   $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "quoted-printable" 11 1 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "quoted-printable" 18 1 NIL NIL NIL) "alternative" ("boundary" "Aq14h3UL") NIL NIL) UID 1)',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf(UntaggedResponse::class);
+    expect($response->tokens())->toHaveCount(4);
+    expect((string) $response)->toBe('* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "quoted-printable" 11 1 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "quoted-printable" 18 1 NIL NIL NIL) "alternative" ("boundary" "Aq14h3UL") NIL NIL) UID 1)');
+});
+
 test('parses response tokens', function (array|string $feed, string $type, string $value) {
     $stream = new FakeStream;
     $stream->open();

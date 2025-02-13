@@ -476,7 +476,7 @@ test('text fetch with peek', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->text(1);
+    $responses = $connection->bodyText(1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[TEXT])');
 
@@ -497,7 +497,7 @@ test('header fetch with peek', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->header(1);
+    $responses = $connection->bodyHeader(1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[HEADER])');
 
