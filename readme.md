@@ -31,13 +31,15 @@ PHP >= 8.1
 
 ## Installation
 
-You can install the package via composer:
+Installation is done through composer:
 
 ```bash
 composer require directorytree/imapengine
 ```
 
 ## Usage
+
+ImapEngine provides a simple, fluent API for working with IMAP mailboxes, messages, and attachments.
 
 ### Connecting
 
@@ -80,7 +82,7 @@ $mailbox = new Mailbox([
 ]);
 ```
 
-There are also many other configuration options available:
+There are also many other configuration options available you may find useful:
 
 ```php
 $mailbox = new Mailbox([
@@ -104,7 +106,9 @@ $mailbox = new Mailbox([
 
 #### Debugging
 
-The `debug` configuration option controls logging behavior for the mailbox. It accepts the following values:
+The `debug` configuration option controls logging behavior for the mailbox.
+
+It accepts the following values:
 
 **Boolean:**
 - `false` – (Default) Disables debugging output
@@ -201,11 +205,10 @@ $folder = $mailbox->folders()->find('Folder Name');
 
 ImapEngine provides a fluent, chainable API for building advanced message search queries.
 
-This allows you to combine various search criteria and options to retrieve exactly the messages you need.
-
-For example, you can easily fetch all messages in a folder:
+This allows you to combine various search criteria and options to retrieve exactly the messages you need:
 
 ```php
+// Get the inbox folder.
 $inbox = $mailbox->folders()->inbox();
 
 // Get all message UIDs in the inbox.
@@ -234,7 +237,7 @@ $messages = $inbox->messages()
 
 ####  Filtering By Criteria
 
-The query builder supports many common IMAP search criteria. You can chain methods such as:
+The query builder supports many common IMAP search criteria. You may chain methods such as:
 
 - `all()`
 - `new()`
@@ -271,7 +274,7 @@ $messages = $inbox->messages()
     ->get();
 ```
 
-If a method doesn't exist for a specific search criteria, you can use the `where()` method to add custom criteria:
+If a method doesn't exist for a specific search criteria, you may use the `where()` method to add custom criteria:
 
 ```php
 $messages = $inbox->messages()
@@ -281,10 +284,12 @@ $messages = $inbox->messages()
 
 #### Fetching Additional Message Data
 
-By default, ImapEngine only fetches UIDs. To fetch additional message data, you have to enable it explicitly.
+By default, ImapEngine search queries only fetches UIDs. 
 
-**Message Headers:**
-Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to exclude them.
+To fetch additional message data, you have to enable it explicitly.
+
+**Message Flags:**
+Use `withFlags()` to retrieve flags, or `withoutFlags()` to omit them.
 
 **Message Body:**
 Use `withBody()` to fetch the full body content, or `withoutBody()` to skip it.
@@ -292,9 +297,6 @@ Use `withBody()` to fetch the full body content, or `withoutBody()` to skip it.
 > [!important]
 > The `withBody()` method fetches the full body content of the message, including attachments.
 > Keep this in mind when fetching messages, as it can be slow for large messages.
-
-**Message Flags:**
-Use `withFlags()` to retrieve flags, or `withoutFlags()` to omit them.
 
 For example, to fetch messages with both their bodies, headers, and flags:
 
@@ -306,16 +308,17 @@ $messages = $inbox->messages()
     ->get();
 ```
 
-The less data you fetch, the faster your query will be. Only fetch the data you need.
+**Message Headers:**
+Use `withHeaders()` to include headers in the result, or `withoutHeaders()` to exclude them.
 
 #### Message Pagination
 
-You can paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
+You may paginate messages using the `paginate()` method. This method accepts the number of messages to display per page:
 
 > [!important] 
 > IMAP does not support native pagination, as you would typically expect, like a SQL database. Instead,
-> ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's 
-> that corresponds to the current page, and fetches the requested email message parts specifically for those UID's.
+> ImapEngine retrieves all UID's from the selected folder, takes the slice of the UID's  that 
+> corresponds to the current page, and fetches the requested email message parts specifically for those UID's.
 
 ```php
 // Paginate messages with 10 messages per page.
@@ -324,7 +327,7 @@ $paginatedMessages = $inbox->messages()->paginate(10);
 
 #### Message Chunking
 
-If you need to process a large number of messages without loading them all at once, you can use the chunk() method:
+If you need to process a large number of messages without loading them all at once, you may use the `chunk()` method:
 
 ```php
 $inbox->messages()->chunk(function ($chunk, $page) {
@@ -347,7 +350,7 @@ $inbox->messages()->each(function (Message $message) {
 
 #### Finding a Specific Message
 
-You can retrieve a single message by its unique identifier using the `find()` method.
+You may retrieve a single message by its unique identifier using the `find()` method.
 
 The method accepts an ID and an ImapFetchIdentifier (an enum) that specifies whether the ID is a UID or a message sequence number.
 
@@ -450,7 +453,7 @@ All these methods work by invoking the underlying IMAP `STORE` command (with the
 
 #### Message Manipulation
 
-Beyond just flagging, you can move or copy messages between folders, as well as delete them:
+Beyond just flagging, you may move or copy messages between folders, as well as delete them:
 
 - `restore()`: Restores the message from the trash.
 - `copy(string $folder)`: Copies the message to the specified folder.
@@ -562,7 +565,7 @@ $inbox->idle(function (Message $message) {
 
 By default, messages received in idle will not be fetched with all of their content (flags, headers, and body with attachments). 
 
-If you need to fetch the message content, you can set the query to fetch the desired content using the second argument of the `idle()` method:
+If you need to fetch the message content, you may set the query to fetch the desired content using the second argument of the `idle()` method:
 
 ```php
 use DirectoryTree\ImapEngine\MessageQuery;
