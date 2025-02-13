@@ -62,8 +62,18 @@ class DraftMessage implements Stringable
             $this->message->bcc(...(array) $this->bcc);
         }
 
-        foreach ($this->attachments as $path) {
-            $this->message->attachFromPath($path);
+        foreach ($this->attachments as $attachment) {
+            match (true) {
+                $attachment instanceof Attachment => $this->message->attach(
+                    $attachment->contents(),
+                    $attachment->filename(),
+                    $attachment->contentType()
+                ),
+
+                is_resource($attachment) => $this->message->attach($attachment),
+
+                default => $this->message->attachFromPath($attachment),
+            };
         }
 
         foreach ($this->headers as $name => $value) {
