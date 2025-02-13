@@ -294,7 +294,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function hasFlag(BackedEnum|string $flag): bool
     {
-        return in_array(Str::prefix(Str::enum($flag), '\\\\'), $this->flags);
+        return in_array(Str::prefix(Str::enum($flag), '\\'), $this->flags);
     }
 
     /**
@@ -422,7 +422,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function flag(mixed $flag, string $operation, bool $expunge = false): void
     {
-        $flag = Str::prefix(Str::enum($flag), '\\\\');
+        $flag = Str::prefix(Str::enum($flag), '\\');
 
         $this->folder->mailbox()
             ->connection()
@@ -431,6 +431,10 @@ class Message implements Arrayable, JsonSerializable, Stringable
         if ($expunge) {
             $this->folder->expunge();
         }
+
+        $this->flags = $operation === '+'
+            ? array_unique(array_merge($this->flags, [$flag]))
+            : array_diff($this->flags, [$flag]);
     }
 
     /**
