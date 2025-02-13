@@ -114,10 +114,10 @@ class ImapParser
      */
     protected function parseContinuationResponse(): ContinuationResponse
     {
-        // Consume the '+' token.
-        $this->advance();
+        // Capture the initial '+' token.
+        $elements[] = clone $this->currentToken;
 
-        $elements = [];
+        $this->advance();
 
         // Collect all tokens until the CRLF marker.
         while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
