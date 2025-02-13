@@ -88,19 +88,19 @@ class Folder
     /**
      * Begin idling on the current folder.
      */
-    public function idle(callable $callback, int $timeout = 300): void
+    public function idle(callable $callback, callable $query, int $timeout = 300): void
     {
         if (! $this->hasCapability('IDLE')) {
             throw new RuntimeException('IMAP server does not support IDLE');
         }
 
-        $fetch = function (int $msgn) {
-            return $this->messages()
-                ->withHeaders()
-                ->withFlags()
-                ->withBody()
-                ->find($msgn, ImapFetchIdentifier::MessageNumber);
-        };
+        // The message query to use when fetching messages.
+        $query ??= fn (MessageQuery $query) => $query;
+
+        // Fetch the message by message number.
+        $fetch = fn (int $msgn) => (
+            $query($this->messages())->find($msgn, ImapFetchIdentifier::MessageNumber)
+        );
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
             function (int $msgn) use ($callback, $fetch) {
