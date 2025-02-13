@@ -2,7 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Mailbox;
 
 test('config defaults', function () {
@@ -93,4 +93,4 @@ test('connect throws exception with bad response', function () {
     ]);
 
     $mailbox->connect(new ImapConnection($stream));
-})->throws(CommandFailedException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+})->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');

@@ -6,6 +6,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 
 class Folder
@@ -91,7 +92,7 @@ class Folder
     public function idle(callable $callback, callable $query, int $timeout = 300): void
     {
         if (! $this->hasCapability('IDLE')) {
-            throw new RuntimeException('IMAP server does not support IDLE');
+            throw new ImapCapabilityException('IMAP server does not support IDLE');
         }
 
         // The message query to use when fetching messages.

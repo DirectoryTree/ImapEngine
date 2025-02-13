@@ -12,14 +12,18 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Generator;
+use LogicException;
 
 class ImapConnection implements ConnectionInterface
 {
@@ -88,7 +92,7 @@ class ImapConnection implements ConnectionInterface
         $this->assertNextResponse(
             fn (Response $response) => $response instanceof UntaggedResponse,
             fn (UntaggedResponse $response) => $response->type()->is('OK'),
-            fn () => new ConnectionFailedException("Connection to $host:$port failed")
+            fn () => new ImapConnectionFailedException("Connection to $host:$port failed")
         );
 
         if ($transport === 'starttls') {
@@ -150,7 +154,7 @@ class ImapConnection implements ConnectionInterface
         $this->send('LOGIN', Str::literal([$user, $password]), $tag);
 
         return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
-            CommandFailedException::make($this->result->command()->redacted(), $response)
+            ImapCommandException::make($this->result->command()->redacted(), $response)
         ));
     }
 
@@ -177,7 +181,7 @@ class ImapConnection implements ConnectionInterface
         $this->send('AUTHENTICATE', ['XOAUTH2', Str::credentials($user, $token)], $tag);
 
         return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
-            CommandFailedException::make($this->result->command()->redacted(), $response)
+            ImapCommandException::make($this->result->command()->redacted(), $response)
         ));
     }
 
@@ -190,11 +194,7 @@ class ImapConnection implements ConnectionInterface
 
         $this->assertTaggedResponse($tag);
 
-        $this->stream->setSocketSetCrypto(true, match (true) {
-            defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT') => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
-            defined('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT') => STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT,
-            default => STREAM_CRYPTO_METHOD_TLS_CLIENT,
-        });
+        $this->stream->setSocketSetCrypto(true, STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT);
     }
 
     /**
@@ -522,7 +522,7 @@ class ImapConnection implements ConnectionInterface
         $this->assertNextResponse(
             fn (Response $response) => $response instanceof ContinuationResponse,
             fn (ContinuationResponse $response) => true,
-            fn (ContinuationResponse $response) => CommandFailedException::make(new ImapCommand('', 'IDLE'), $response),
+            fn (ContinuationResponse $response) => ImapCommandException::make(new ImapCommand('', 'IDLE'), $response),
         );
 
         while ($response = $this->nextReply()) {
@@ -543,7 +543,7 @@ class ImapConnection implements ConnectionInterface
         $this->assertNextResponse(
             fn (Response $response) => $response instanceof TaggedResponse,
             fn (TaggedResponse $response) => $response->successful(),
-            fn (TaggedResponse $response) => CommandFailedException::make(new ImapCommand('', 'DONE'), $response),
+            fn (TaggedResponse $response) => ImapCommandException::make(new ImapCommand('', 'DONE'), $response),
         );
     }
 
@@ -575,7 +575,7 @@ class ImapConnection implements ConnectionInterface
     protected function write(string $data): void
     {
         if ($this->stream->fwrite($data."\r\n") === false) {
-            throw new RuntimeException('Failed to write data to stream');
+            throw new ImapStreamException('Failed to write data to stream');
         }
 
         $this->logger?->sent($data);
@@ -658,7 +658,7 @@ class ImapConnection implements ConnectionInterface
                 $response->successful()
             ),
             $exception ?? fn (TaggedResponse $response) => (
-                CommandFailedException::make($this->result->command(), $response)
+                ImapCommandException::make($this->result->command(), $response)
             ),
         );
     }
@@ -681,7 +681,7 @@ class ImapConnection implements ConnectionInterface
             throw $exception($response);
         }
 
-        throw new RuntimeException('No matching response found');
+        throw new ImapResponseException('No matching response found');
     }
 
     /**
@@ -695,7 +695,7 @@ class ImapConnection implements ConnectionInterface
     protected function nextResponse(callable $filter): Response
     {
         if (! $this->parser) {
-            throw new RuntimeException('No parser instance set');
+            throw new LogicException('No parser instance set');
         }
 
         while ($response = $this->nextReply()) {
@@ -710,7 +710,7 @@ class ImapConnection implements ConnectionInterface
             }
         }
 
-        throw new RuntimeException('No matching response found');
+        throw new ImapResponseException('No matching response found');
     }
 
     /**
@@ -722,9 +722,9 @@ class ImapConnection implements ConnectionInterface
             $meta = $this->stream->meta();
 
             throw match (true) {
-                $meta['timed_out'] ?? false => new ConnectionTimedOutException('Stream timed out, no response'),
-                $meta['eof'] ?? false => new ConnectionClosedException('Server closed the connection (EOF)'),
-                default => new RuntimeException('Unknown read error, no response: '.json_encode($meta)),
+                $meta['timed_out'] ?? false => new ImapConnectionTimedOutException('Stream timed out, no response'),
+                $meta['eof'] ?? false => new ImapConnectionClosedException('Server closed the connection (EOF)'),
+                default => new ImapConnectionException('Unknown stream error. Metadata: '.json_encode($meta)),
             };
         }
 

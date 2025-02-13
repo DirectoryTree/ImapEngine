@@ -13,7 +13,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 
 class ImapTokenizer
@@ -73,7 +73,7 @@ class ImapTokenizer
             $this->ensureBuffer(1);
 
             if ($this->currentChar() !== "\n") {
-                throw new ImapParseException('Expected LF after CR');
+                throw new ImapParserException('Expected LF after CR');
             }
 
             $this->advance(); // Consume LF (\n)
@@ -177,7 +177,7 @@ class ImapTokenizer
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new ImapParseException(sprintf(
+                throw new ImapParserException(sprintf(
                     'Unterminated quoted string at buffer offset %d. Buffer: "%s"',
                     $this->position,
                     substr($this->buffer, max(0, $this->position - 10), 20)
@@ -192,7 +192,7 @@ class ImapTokenizer
                 $escapedChar = $this->currentChar();
 
                 if ($escapedChar === null) {
-                    throw new ImapParseException('Unterminated escape sequence in quoted string');
+                    throw new ImapParserException('Unterminated escape sequence in quoted string');
                 }
 
                 $value .= $escapedChar;
@@ -236,7 +236,7 @@ class ImapTokenizer
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new ImapParseException('Unterminated literal specifier');
+                throw new ImapParserException('Unterminated literal specifier');
             }
 
             if ($char === '}') {
@@ -257,7 +257,7 @@ class ImapTokenizer
         $crlf = substr($this->buffer, $this->position, 2);
 
         if ($crlf !== "\r\n") {
-            throw new ImapParseException('Expected CRLF after literal specifier');
+            throw new ImapParserException('Expected CRLF after literal specifier');
         }
 
         // Skip the CRLF.
@@ -296,7 +296,7 @@ class ImapTokenizer
 
         // Verify that the literal length matches the expected length.
         if (strlen($literal) !== $length) {
-            throw new ImapParseException(sprintf(
+            throw new ImapParserException(sprintf(
                 'Literal length mismatch: expected %d, got %d',
                 $length,
                 strlen($literal)
@@ -353,7 +353,7 @@ class ImapTokenizer
             $char = $this->currentChar();
 
             if ($char === null) {
-                throw new ImapParseException('Unterminated email address, expected ">"');
+                throw new ImapParserException('Unterminated email address, expected ">"');
             }
 
             if ($char === '>') {

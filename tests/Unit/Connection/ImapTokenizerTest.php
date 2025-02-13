@@ -12,7 +12,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 
 test('tokenizer returns an atom token', function () {
@@ -174,7 +174,7 @@ test('tokenizer throws exception for CR not followed by LF', function () {
     expect($tokenizer->nextToken()->value)->toBe('ATOM');
 
     $tokenizer->nextToken();
-})->throws(ImapParseException::class);
+})->throws(ImapParserException::class);
 
 test('tokenizer throws exception for unterminated quoted string', function () {
     $stream = new FakeStream;
@@ -185,7 +185,7 @@ test('tokenizer throws exception for unterminated quoted string', function () {
     $tokenizer = new ImapTokenizer($stream);
 
     $tokenizer->nextToken();
-})->throws(ImapParseException::class, 'Unterminated quoted string at buffer offset 0. Buffer: ');
+})->throws(ImapParserException::class, 'Unterminated quoted string at buffer offset 0. Buffer: ');
 
 test('tokenizer throws exception for literal with incorrect size', function () {
     $stream = new FakeStream;

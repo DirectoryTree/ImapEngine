@@ -2,9 +2,9 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Exceptions\CommandFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
-use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 use DirectoryTree\ImapEngine\Support\Str;
 
 test('connect success', function () {
@@ -30,7 +30,7 @@ test('connect failure', function () {
     $connection = new ImapConnection($stream);
 
     $connection->connect('imap.example.com', 143);
-})->throws(ConnectionFailedException::class);
+})->throws(ImapConnectionFailedException::class);
 
 test('login success', function () {
     $stream = new FakeStream;
@@ -62,7 +62,7 @@ test('login failure', function () {
     $connection->connect('imap.example.com');
 
     $connection->login('foo', 'bar');
-})->throws(CommandFailedException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+})->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
 test('logout success', function () {
     $stream = new FakeStream;
@@ -130,7 +130,7 @@ test('authenticate failure', function () {
     $connection->connect('imap.example.com');
 
     $connection->authenticate('foo', 'bar');
-})->throws(CommandFailedException::class, 'IMAP command "TAG1 AUTHENTICATE [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+})->throws(ImapCommandException::class, 'IMAP command "TAG1 AUTHENTICATE [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
 test('start tls success', function () {
     $stream = new FakeStream;
@@ -162,7 +162,7 @@ test('start tls failure', function () {
     $connection->connect('imap.example.com');
 
     $connection->startTls();
-})->throws(CommandFailedException::class, 'IMAP command "TAG1 STARTTLS" failed. Response: "TAG1 BAD TLS negotiation failed"');
+})->throws(ImapCommandException::class, 'IMAP command "TAG1 STARTTLS" failed. Response: "TAG1 BAD TLS negotiation failed"');
 
 test('done', function () {
     $stream = new FakeStream;
@@ -681,7 +681,7 @@ test('idle', function () {
 
     expect(function () use ($connection) {
         iterator_to_array($connection->idle(30));
-    })->toThrow(ImapParseException::class);
+    })->toThrow(ImapParserException::class);
 
     $stream->assertWritten('TAG1 IDLE');
 });

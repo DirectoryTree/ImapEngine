@@ -2,4 +2,4 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-class ImapStreamException extends Exception {}
+class ImapCapabilityException extends Exception {}

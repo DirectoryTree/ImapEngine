@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine\Exceptions;
 use DirectoryTree\ImapEngine\Connection\ImapCommand;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 
-class CommandFailedException extends Exception
+class ImapCommandException extends Exception
 {
     /**
      * Make a new instance from a failed command and response.

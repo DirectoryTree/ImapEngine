@@ -16,7 +16,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Exceptions\ImapParseException;
+use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 
 class ImapParser
 {
@@ -55,7 +55,7 @@ class ImapParser
         }
 
         if (! $this->currentToken) {
-            throw new ImapParseException('Empty response');
+            throw new ImapParserException('Empty response');
         }
 
         // If the token indicates the beginning of a list, parse it.
@@ -105,7 +105,7 @@ class ImapParser
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->currentToken = null;
         } else {
-            throw new ImapParseException('Unterminated untagged response');
+            throw new ImapParserException('Unterminated untagged response');
         }
 
         return new UntaggedResponse($elements);
@@ -134,7 +134,7 @@ class ImapParser
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->currentToken = null;
         } else {
-            throw new ImapParseException('Unterminated continuation response');
+            throw new ImapParserException('Unterminated continuation response');
         }
 
         return new ContinuationResponse($elements);
@@ -161,7 +161,7 @@ class ImapParser
         if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
             $this->currentToken = null;
         } else {
-            throw new ImapParseException('Unterminated tagged response');
+            throw new ImapParserException('Unterminated tagged response');
         }
 
         return new TaggedResponse($tokens);
@@ -186,7 +186,7 @@ class ImapParser
         }
 
         if ($this->currentToken === null) {
-            throw new ImapParseException('Unterminated bracket group in response');
+            throw new ImapParserException('Unterminated bracket group in response');
         }
 
         // Consume the closing ']' token.
@@ -200,7 +200,7 @@ class ImapParser
      *
      * Lists are handled recursively: a list may contain nested lists.
      *
-     * @throws ImapParseException if the list is unterminated.
+     * @throws ImapParserException if the list is unterminated.
      */
     protected function parseList(): ListData
     {
@@ -220,7 +220,7 @@ class ImapParser
 
         // If we reached the end without finding a closing ')', throw an exception.
         if ($this->currentToken === null) {
-            throw new ImapParseException('Unterminated list in response');
+            throw new ImapParserException('Unterminated list in response');
         }
 
         // Consume the closing ')' token.

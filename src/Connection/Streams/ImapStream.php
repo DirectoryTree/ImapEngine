@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Streams;
 
-use DirectoryTree\ImapEngine\Exceptions\ConnectionFailedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 
 class ImapStream implements StreamInterface
 {
@@ -28,7 +28,7 @@ class ImapStream implements StreamInterface
         );
 
         if (! $this->stream) {
-            throw new ConnectionFailedException('Stream failed to open: '.$errstr, $errno);
+            throw new ImapConnectionFailedException('Stream failed to open: '.$errstr, $errno);
         }
 
         return true;

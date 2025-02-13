@@ -4,8 +4,8 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ConnectionTimedOutException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use Generator;
 
@@ -41,9 +41,9 @@ class Idle
 
             try {
                 $this->listen($callback, $ttl);
-            } catch (ConnectionTimedOutException) {
+            } catch (ImapConnectionTimedOutException) {
                 $this->restart();
-            } catch (ConnectionClosedException) {
+            } catch (ImapConnectionClosedException) {
                 $this->reconnect();
             }
         }
