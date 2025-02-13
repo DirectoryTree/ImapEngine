@@ -344,7 +344,7 @@ class MessageQuery
             }) : new Collection;
 
         $headers = $this->fetchHeaders ? $this->connection()
-            ->header($uids, $this->fetchAsUnread)
+            ->bodyHeader($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3);
 
@@ -355,7 +355,7 @@ class MessageQuery
             }) : new Collection;
 
         $contents = $this->fetchBody ? $this->connection()
-            ->text($uids, $this->fetchAsUnread)
+            ->bodyText($uids, $this->fetchAsUnread)
             ->mapWithKeys(function (UntaggedResponse $response) {
                 $data = $response->tokenAt(3);
 

@@ -135,7 +135,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function text(int|array $ids, bool $peek = true): ResponseCollection;
+    public function bodyText(int|array $ids, bool $peek = true): ResponseCollection;
 
     /**
      * Send a "FETCH BODY[HEADER]" command.
@@ -144,7 +144,25 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function header(int|array $ids, bool $peek = true): ResponseCollection;
+    public function bodyHeader(int|array $ids, bool $peek = true): ResponseCollection;
+
+    /**
+     * Send a "FETCH BODYSTRUCTURE" command.
+     *
+     * Fetch message body structure.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
+     */
+    public function bodyStructure(int|array $msgns): ResponseCollection;
+
+    /**
+     * Send a "FETCH BODY[i]" command.
+     *
+     * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
+     */
+    public function bodyPart(string $partIndex, int|array $msgns, bool $peek = false): ResponseCollection;
 
     /**
      * Send a "FETCH FLAGS" command.
