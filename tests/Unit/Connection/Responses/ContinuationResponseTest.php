@@ -15,4 +15,3 @@ test('data', function () {
         new Atom('c'),
     ]);
 });
-
