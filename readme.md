@@ -581,7 +581,7 @@ use DirectoryTree\ImapEngine\MessageQuery;
 
 $inbox->idle(function (Message $message) {
     // Fetched message with all of its content.
-}), function (MessageQuery $query) {
+}, function (MessageQuery $query) {
     // Set the query to fetch message content.
     return $query->withBody()
         ->withHeaders()
