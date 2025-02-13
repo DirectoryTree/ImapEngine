@@ -569,7 +569,7 @@ $inbox = $mailbox->inbox();
 // be executed whenever a new message is received. 
 $inbox->idle(function (Message $message) {
     // Do something with the newly received message.
-}, timeout: 300); // Optional timeout in seconds.
+});
 ```
 
 By default, messages received in idle will not be fetched with all of their content (flags, headers, and body with attachments). 
@@ -587,4 +587,14 @@ $inbox->idle(function (Message $message) {
         ->withHeaders()
         ->withFlags();
 });
+```
+
+If your IMAP server requires a specific timeout, you may specify one in the third parameter (or using the parameter name):
+
+```php
+use DirectoryTree\ImapEngine\MessageQuery;
+
+$inbox->idle(function (Message $message) {
+    // ...
+}, timeout: 1200); // 20 minutes
 ```
