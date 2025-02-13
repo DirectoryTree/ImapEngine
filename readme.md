@@ -22,7 +22,8 @@
   - [Retrieving Folders](#retrieving-folders)
   - [Retrieving Messages](#retrieving-messages)
   - [Interacting With Messages](#interacting-with-messages)
-  - [Real Time Monitoring](#idling-on-folders)
+  - [Creating Draft Messages](#creating-draft-messages)
+  - [Real Time Monitoring](#idling-on-folders-real-time-monitoring)
 
 ## Requirements
 
@@ -103,7 +104,7 @@ $mailbox = new Mailbox([
 
 #### Debugging
 
-The `debug` configuration option controls the logging behavior during the IMAP connection process. It accepts the following values:
+The `debug` configuration option controls logging behavior for the mailbox. It accepts the following values:
 
 **Boolean:**
 - `false` – (Default) Disables debugging output
@@ -375,18 +376,32 @@ This class offers a rich set of helper methods for interacting with individual e
 The `Message` class provides several methods to access basic properties:
 
 **UID and Flags**
-- `uid()`: Returns the unique identifier (UID) of the message.
-- `flags()`: Returns an array of flags currently set on the message.
+- `$message->uid()`: Returns the unique identifier (UID) of the message.
+- `$message->flags()`: Returns an array of flags currently set on the message.
 
 **Headers and Contents**
-- `headers()`: Returns the raw headers as a string.
-- `contents()`: Returns the raw message content.
-- `hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
+- `$message->headers()`: Returns the raw headers as a string.
+- `$message->contents()`: Returns the raw message content.
+- `$message->hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
 
 **Metadata**
-- `subject()`: Returns the subject of the message.
-- `date()`: Returns the message’s date as a Carbon instance (if available).
-- `messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
+- `$message->subject()`: Returns the subject of the message.
+- `$message->date()`: Returns the message’s date as a Carbon instance (if available).
+- `$message->messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
+
+#### Additional Message Details
+
+In addition to the methods shown above, the `Message` class provides several additional helpers:
+
+**Flag Checking**  
+Quickly check whether a message has a specific flag:
+
+- `$message->isSeen()`: Determine if the message marked as `\Seen`
+- `$message->isDraft()`: Determine if the message marked as `\Draft`
+- `$message->isRecent()`: Determine if the message marked as `\Recent`
+- `$message->isFlagged()`: Determine if the message marked as `\Flagged`
+- `$message->isDeleted()`: Determine if the message marked as `\Deleted`
+- `$message->isAnswered()`: Determine if the message marked as `\Answered`
 
 #### Address Handling
 
@@ -420,8 +435,8 @@ Messages that include attachments can be inspected with:
 The class also provides methods to modify message flags, which help you manage the state of a message:
 
 **Marking as Seen/Unseen**
-- `markSeen($expunge = true)`: Marks the message as read.
-- `unmarkSeen($expunge = true)`: Marks the message as unread.
+- `markSeen()`: Marks the message as read.
+- `unmarkSeen()`: Marks the message as unread.
 - *Aliases:* `markRead()` and `markUnread()`.
 
 **Other Flags**
@@ -431,15 +446,16 @@ The class also provides methods to modify message flags, which help you manage t
 - `markDraft()` / `unmarkDraft()`
 - `markRecent()` / `unmarkRecent()`
 
-All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation), and optionally expunging the folder afterward.
+All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation).
 
 #### Message Manipulation
 
-Beyond just flagging, you can move or copy messages between folders, or even delete them:
+Beyond just flagging, you can move or copy messages between folders, as well as delete them:
 
-- `copy(string $folder, bool $expunge = true)`: Copies the message to the specified folder.
-- `move(string $folder, bool $expunge = true)`: Moves the message to the specified folder.
-- `delete(bool $expunge = true)`: Marks the message as deleted and, if desired, expunges it from the folder.
+- `copy(string $folder)`: Copies the message to the specified folder.
+- `move(string $folder, bool $expunge = false)`: Moves the message to the specified folder.
+- `restore()`: Restores the message from the trash.
+- `delete(bool $expunge = false)`: Marks the message as deleted and, if desired, expunges it from the folder.
 
 #### Example: Interacting with a Retrieved Message
 
@@ -486,6 +502,40 @@ $message->move('Archive');
 // Delete the message.
 $message->delete();
 ```
+
+### Creating Draft Messages
+
+ImapEngine allows you to create draft messages and save them to the server for later editing or sending.
+
+To create a new draft message, you may use the `append()` method on a folder instance:
+
+```php
+use DirectoryTree\ImapEngine\DraftMessage;
+
+$uid = $inbox->messages()->append(
+    new DraftMessage(
+        from: = 'foo@email.com',
+        to: = 'bar@email.com',
+        subject: = 'Hello World'
+        text: = 'This is the message body.',
+        html: = '<p>This is the message body.</p>',
+    )
+);
+```
+
+Draft messages also accept attachments:
+
+```php
+$inbox->messages()->append(
+    new DraftMessage(
+        // ...
+        attachments: [
+            '/path/to/attachment.pdf',
+            '/path/to/another-attachment.jpg',
+        ]
+    )
+);
+````
 
 ### Idling on Folders (Real Time Monitoring)
 
