@@ -2,7 +2,10 @@
 
 namespace DirectoryTree\ImapEngine;
 
-class Address
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
+
+class Address implements Arrayable, JsonSerializable
 {
     /**
      * Constructor.
@@ -26,5 +29,24 @@ class Address
     public function name(): string
     {
         return $this->name;
+    }
+
+    /**
+     * Get the array representation of the address.
+     */
+    public function toArray(): array
+    {
+        return [
+            'email' => $this->email,
+            'name' => $this->name,
+        ];
+    }
+
+    /**
+     * Get the JSON representation of the address.
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

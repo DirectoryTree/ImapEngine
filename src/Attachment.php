@@ -2,10 +2,12 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\Mime\MimeTypes;
 
-class Attachment
+class Attachment implements Arrayable, JsonSerializable
 {
     /**
      * Constructor.
@@ -70,5 +72,25 @@ class Attachment
         }
 
         return null;
+    }
+
+    /**
+     * Get the array representation of the attachment.
+     */
+    public function toArray(): array
+    {
+        return [
+            'filename' => $this->filename,
+            'contentType' => $this->contentType,
+            'contents' => $this->contents(),
+        ];
+    }
+
+    /**
+     * Get the JSON representation of the attachment.
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

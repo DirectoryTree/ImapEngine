@@ -7,8 +7,10 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
 
-class Folder
+class Folder implements Arrayable, JsonSerializable
 {
     /**
      * The folder's cached capabilities.
@@ -205,5 +207,25 @@ class Folder
     protected function capabilities(): array
     {
         return $this->capabilities ??= $this->mailbox->capabilities();
+    }
+
+    /**
+     * Get the array representation of the folder.
+     */
+    public function toArray(): array
+    {
+        return [
+            'path' => $this->path,
+            'flags' => $this->flags,
+            'delimiter' => $this->delimiter,
+        ];
+    }
+
+    /**
+     * Get the JSON representation of the folder.
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }
