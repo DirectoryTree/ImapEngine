@@ -129,7 +129,7 @@ class LengthAwarePaginator implements Arrayable, JsonSerializable
     }
 
     /**
-     * Convert the pagination data to an array.
+     * Get the array representation of the paginator.
      */
     public function toArray(): array
     {
@@ -164,7 +164,7 @@ class LengthAwarePaginator implements Arrayable, JsonSerializable
     }
 
     /**
-     * Convert the instance to JSON.
+     * Get the JSON representation of the paginator.
      */
     public function jsonSerialize(): array
     {
