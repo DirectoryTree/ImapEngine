@@ -2,9 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Pagination;
 
+use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Traits\ForwardsCalls;
 use JsonSerializable;
 
 class LengthAwarePaginator implements Arrayable, JsonSerializable

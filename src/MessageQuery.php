@@ -9,10 +9,10 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Traits\Conditionable;
-use Illuminate\Support\Traits\ForwardsCalls;
 
 /**
  * @mixin \DirectoryTree\ImapEngine\Connection\ImapQueryBuilder
