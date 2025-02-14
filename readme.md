@@ -388,9 +388,11 @@ The `Message` class provides several methods to access basic properties:
 
 **Headers and Contents**
 
-- `$message->headers()`: Returns the raw headers as a string.
-- `$message->contents()`: Returns the raw message content.
-- `$message->hasHeaders()` / `hasContents()`: Determine whether the message has headers or contents.
+- `$message->head()`: Returns the raw message header.
+- `$message->body()`: Returns the raw message body.
+- `$message->header($name)`: Returns a specific header.
+- `$message->headers()`: Returns an array of all headers.
+- `$message->hasHead()` / `hasBody()`: Determine whether the message has headers or body.
 
 **Metadata**
 

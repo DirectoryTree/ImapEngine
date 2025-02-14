@@ -30,8 +30,8 @@ class Message implements Arrayable, JsonSerializable, Stringable
         protected Folder $folder,
         protected int $uid,
         protected array $flags,
-        protected string $headers,
-        protected string $contents,
+        protected string $head,
+        protected string $body,
     ) {}
 
     /**
@@ -62,33 +62,33 @@ class Message implements Arrayable, JsonSerializable, Stringable
     /**
      * Get the message's raw headers.
      */
-    public function headers(): string
+    public function head(): string
     {
-        return $this->headers;
+        return $this->head;
     }
 
     /**
      * Determine if the message has headers.
      */
-    public function hasHeaders(): bool
+    public function hasHead(): bool
     {
-        return ! empty($this->headers);
+        return ! empty($this->head);
     }
 
     /**
-     * Get the message's raw contents.
+     * Get the message's raw body.
      */
-    public function contents(): string
+    public function body(): string
     {
-        return $this->contents;
+        return $this->body;
     }
 
     /**
      * Determine if the message has contents.
      */
-    public function hasContents(): bool
+    public function hasBody(): bool
     {
-        return ! empty($this->contents);
+        return ! empty($this->body);
     }
 
     /**
@@ -298,6 +298,14 @@ class Message implements Arrayable, JsonSerializable, Stringable
     }
 
     /**
+     * Get all headers from the message.
+     */
+    public function headers(): array
+    {
+        return $this->parse()->getAllHeaders();
+    }
+
+    /**
      * Get a header from the message.
      */
     public function header(string $name, int $offset = 0): ?IHeader
@@ -483,7 +491,7 @@ class Message implements Arrayable, JsonSerializable, Stringable
      */
     public function parse(): MailMimeMessage
     {
-        if (! $this->hasHeaders() && ! $this->hasContents()) {
+        if (! $this->hasHead() && ! $this->hasBody()) {
             throw new RuntimeException('Cannot parse an empty message');
         }
 
@@ -498,8 +506,8 @@ class Message implements Arrayable, JsonSerializable, Stringable
         return [
             'uid' => $this->uid,
             'flags' => $this->flags,
-            'headers' => $this->headers,
-            'contents' => $this->contents,
+            'head' => $this->head,
+            'body' => $this->body,
         ];
     }
 
@@ -509,8 +517,8 @@ class Message implements Arrayable, JsonSerializable, Stringable
     public function __toString(): string
     {
         return implode("\r\n\r\n", array_filter([
-            rtrim($this->headers),
-            ltrim($this->contents),
+            rtrim($this->head),
+            ltrim($this->body),
         ]));
     }
 
