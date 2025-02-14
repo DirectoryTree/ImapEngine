@@ -2,8 +2,6 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Streams;
 
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 use PHPUnit\Framework\Assert;
 use RuntimeException;
 
@@ -91,7 +89,7 @@ class FakeStream implements StreamInterface
             );
         }
 
-        Arr::set($this->meta, $attribute, $value);
+        $this->meta[$attribute] = $value;
 
         return $this;
     }
@@ -220,7 +218,7 @@ class FakeStream implements StreamInterface
         $found = false;
 
         foreach ($this->written as $index => $written) {
-            if (Str::contains($written, $string)) {
+            if (str_contains($written, $string)) {
                 unset($this->written[$index]);
 
                 $found = true;
