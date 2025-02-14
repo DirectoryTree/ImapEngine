@@ -81,7 +81,7 @@ class Attachment implements Arrayable, JsonSerializable
     {
         return [
             'filename' => $this->filename,
-            'contentType' => $this->contentType,
+            'content_type' => $this->contentType,
             'contents' => $this->contents(),
         ];
     }
