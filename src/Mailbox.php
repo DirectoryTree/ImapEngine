@@ -185,9 +185,10 @@ class Mailbox
      */
     public function folders(): FolderRepository
     {
-        return new FolderRepository(
-            tap($this)->connection()
-        );
+        // Ensure the connection is established.
+        $this->connection();
+
+        return new FolderRepository($this);
     }
 
     /**

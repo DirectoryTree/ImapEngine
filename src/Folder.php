@@ -82,7 +82,10 @@ class Folder
      */
     public function messages(): MessageQuery
     {
-        return new MessageQuery(tap($this)->select(true), new ImapQueryBuilder);
+        // Ensure the folder is selected.
+        $this->select(true);
+
+        return new MessageQuery($this, new ImapQueryBuilder);
     }
 
     /**
