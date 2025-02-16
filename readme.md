@@ -199,6 +199,9 @@ $folders = $mailbox->folders()->get('*/Subfolder');
 
 // Find a specific folder.
 $folder = $mailbox->folders()->find('Folder Name');
+
+// Find a specific folder (or fail).
+$folder = $mailbox->folders()->findOrFail('Missing Folder');
 ```
 
 ### Retrieving Messages
@@ -369,6 +372,12 @@ Or by message sequence number:
 
 ```php
 $message = $inbox->messages()->find(1, ImapFetchIdentifier::MessageNumber);
+```
+
+You may also use the `findOrFail()` method to throw an exception if the message is not found:
+
+```php
+$message = $inbox->messages()->findOrFail(12345, ImapFetchIdentifier::Uid);
 ```
 
 ### Interacting With Messages
