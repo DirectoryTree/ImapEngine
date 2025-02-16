@@ -82,7 +82,7 @@ class Idle
      */
     protected function folder(): Folder
     {
-        return $this->mailbox->folders()->find($this->folder);
+        return $this->mailbox->folders()->findOrFail($this->folder);
     }
 
     /**
