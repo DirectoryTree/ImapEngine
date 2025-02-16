@@ -2,6 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
@@ -441,7 +442,7 @@ test('store flags', function () {
     expect($response)->toBeInstanceOf(\DirectoryTree\ImapEngine\Collections\ResponseCollection::class);
 });
 
-test('uid fetch', function () {
+test('uid fetch with uid', function () {
     $stream = new FakeStream;
     $stream->open();
 
@@ -454,7 +455,27 @@ test('uid fetch', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->uid(1);
+    $responses = $connection->uid(1, ImapFetchIdentifier::Uid);
+
+    $stream->assertWritten('TAG1 UID FETCH 1 (UID)');
+
+    expect((string) $responses->first())->toBe('* 1 FETCH (UID 123)');
+});
+
+test('uid fetch with message number', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* 1 FETCH (UID 123)',
+        'TAG1 OK UID FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $responses = $connection->uid(1, ImapFetchIdentifier::MessageNumber);
 
     $stream->assertWritten('TAG1 FETCH 1 (UID)');
 
