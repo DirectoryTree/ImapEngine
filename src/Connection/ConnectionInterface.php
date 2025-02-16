@@ -153,7 +153,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyStructure(int|array $msgns): ResponseCollection;
+    public function bodyStructure(int|array $ids): ResponseCollection;
 
     /**
      * Send a "FETCH BODY[i]" command.
@@ -162,7 +162,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyPart(string $partIndex, int|array $msgns, bool $peek = false): ResponseCollection;
+    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): ResponseCollection;
 
     /**
      * Send a "FETCH FLAGS" command.

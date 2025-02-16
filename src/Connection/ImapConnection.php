@@ -403,19 +403,19 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch the BODYSTRUCTURE for the given message(s).
      */
-    public function bodyStructure(int|array $msgns): ResponseCollection
+    public function bodyStructure(int|array $ids): ResponseCollection
     {
-        return $this->fetch(['BODYSTRUCTURE'], (array) $msgns);
+        return $this->fetch(['BODYSTRUCTURE'], (array) $ids);
     }
 
     /**
      * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
      */
-    public function bodyPart(string $partIndex, int|array $msgns, bool $peek = false): ResponseCollection
+    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): ResponseCollection
     {
         $part = $peek ? "BODY.PEEK[$partIndex]" : "BODY[$partIndex]";
 
-        return $this->fetch([$part], (array) $msgns);
+        return $this->fetch([$part], (array) $ids);
     }
 
     /**
