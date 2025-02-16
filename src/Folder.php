@@ -104,7 +104,7 @@ class Folder implements Arrayable, JsonSerializable
 
         // Fetch the message by message number.
         $fetch = fn (int $msgn) => (
-            $query($this->messages())->find($msgn, ImapFetchIdentifier::MessageNumber)
+            $query($this->messages())->findOrFail($msgn, ImapFetchIdentifier::MessageNumber)
         );
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
