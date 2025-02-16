@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
@@ -526,21 +527,41 @@ class MessageQuery
     }
 
     /**
+     * Find a message by the given identifier type or throw an exception.
+     */
+    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid)
+    {
+        $uid = $this->uid($id, $identifier)
+            ->firstOrFail() // Untagged response
+            ->tokenAt(3) // ListData
+            ->tokenAt(1) // Atom
+            ->value; // UID
+
+        return $this->process(new MessageCollection([$uid]))->firstOrFail();
+    }
+
+    /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): Message
+    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?Message
     {
-        // If the sequence is not UID, we'll need to fetch the UID first.
-        $uid = match ($identifier) {
-            ImapFetchIdentifier::Uid => $id,
-            ImapFetchIdentifier::MessageNumber => $this->connection()->uid([$id]) // ResponseCollection
-                ->firstOrFail() // Untagged response
-                ->tokenAt(3) // ListData
-                ->tokenAt(1) // Atom
-                ->value // UID
-        };
+        if (! $response = $this->uid($id, $identifier)->first()) {
+            return null;
+        }
+
+        $uid = $response->tokenAt(3) // ListData
+            ->tokenAt(1) // Atom
+            ->value; // UID
 
         return $this->process(new MessageCollection([$uid]))->first();
+    }
+
+    /**
+     * Get the UID for theb given identifier.
+     */
+    protected function uid(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    {
+        return $this->connection()->uid([$id], $identifier);
     }
 
     /**

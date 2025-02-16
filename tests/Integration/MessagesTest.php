@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
+use Illuminate\Support\ItemNotFoundException;
 
 function folder(): Folder
 {
@@ -52,6 +53,38 @@ test('first', function () {
     );
 
     expect($folder->messages()->first()->uid())->toBe($uid);
+});
+
+test('find', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    $message = $folder->messages()->find($uid);
+
+    expect($message)->toBeInstanceOf(Message::class);
+});
+
+test('find or fail', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    expect($folder->messages()->findOrFail($uid))->toBeInstanceOf(Message::class);
+
+    expect(function () use ($folder) {
+        $folder->messages()->findOrFail(999);
+    })->toThrow(ItemNotFoundException::class);
 });
 
 test('append', function () {
