@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use Generator;
 
 interface ConnectionInterface
@@ -126,7 +127,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-uid-command
      */
-    public function uid(int|array $msgns): ResponseCollection;
+    public function uid(int|array $ids, ImapFetchIdentifier $identifier): ResponseCollection;
 
     /**
      * Send a "FETCH BODY[TEXT]" command.

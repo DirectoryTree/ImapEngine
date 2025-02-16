@@ -379,9 +379,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function uid(int|array $msgns): ResponseCollection
+    public function uid(int|array $ids, ImapFetchIdentifier $identifier): ResponseCollection
     {
-        return $this->fetch(['UID'], (array) $msgns, null, ImapFetchIdentifier::MessageNumber);
+        return $this->fetch(['UID'], (array) $ids, null, $identifier);
     }
 
     /**
