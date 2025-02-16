@@ -23,6 +23,14 @@ class FolderRepository
     }
 
     /**
+     * Find a folder or throw an exception.
+     */
+    public function findOrFail(string $folder): Folder
+    {
+        return $this->get($folder)->firstOrFail();
+    }
+
+    /**
      * Create a new folder.
      */
     public function create(string $folder): Folder

@@ -2,6 +2,7 @@
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Folder;
+use Illuminate\Support\ItemNotFoundException;
 
 beforeEach(function () {
     mailbox()->folders()->get()->reject(
@@ -21,6 +22,17 @@ test('find', function () {
 
     expect($folder)->toBeInstanceOf(Folder::class);
     expect($folder)->name()->toBe('INBOX');
+});
+
+test('find or fail', function () {
+    $folder = mailbox()->folders()->findOrFail('INBOX');
+
+    expect($folder)->toBeInstanceOf(Folder::class);
+    expect($folder)->name()->toBe('INBOX');
+
+    expect(function () {
+        mailbox()->folders()->findOrFail('invalid');
+    })->toThrow(ItemNotFoundException::class);
 });
 
 test('create', function () {
