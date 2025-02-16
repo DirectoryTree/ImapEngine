@@ -537,7 +537,7 @@ test('sizes fetch', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->sizes(1);
+    $responses = $connection->size(1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (RFC822.SIZE)');
 

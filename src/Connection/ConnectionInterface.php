@@ -180,7 +180,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
      */
-    public function sizes(int|array $ids): ResponseCollection;
+    public function size(int|array $ids): ResponseCollection;
 
     /**
      * Send a "SELECT" command.

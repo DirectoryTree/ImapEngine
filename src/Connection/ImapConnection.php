@@ -429,7 +429,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function sizes(int|array $ids): ResponseCollection
+    public function size(int|array $ids): ResponseCollection
     {
         return $this->fetch(['RFC822.SIZE'], (array) $ids);
     }
