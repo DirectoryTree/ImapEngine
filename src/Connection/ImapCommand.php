@@ -23,6 +23,30 @@ class ImapCommand implements Stringable
     ) {}
 
     /**
+     * Get the IMAP tag.
+     */
+    public function tag(): string
+    {
+        return $this->tag;
+    }
+
+    /**
+     * Get the IMAP command.
+     */
+    public function command(): string
+    {
+        return $this->command;
+    }
+
+    /**
+     * Get the IMAP tokens.
+     */
+    public function tokens(): array
+    {
+        return $this->tokens;
+    }
+
+    /**
      * Compile the command into lines for transmission.
      *
      * @return string[]
@@ -62,7 +86,7 @@ class ImapCommand implements Stringable
      */
     public function redacted(): ImapCommand
     {
-        return new ImapCommand($this->tag, $this->command, array_map(
+        return new static($this->tag, $this->command, array_map(
             function (mixed $token) {
                 return is_array($token)
                     ? array_map(fn () => '[redacted]', $token)
