@@ -3,6 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
 test('config defaults', function () {
@@ -94,3 +95,54 @@ test('connect throws exception with bad response', function () {
 
     $mailbox->connect(new ImapConnection($stream));
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+
+test('folders', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    $folders = $mailbox->folders()->get();
+
+    $stream->assertWritten('TAG1 LOGIN "" ""');
+    $stream->assertWritten('TAG2 LIST "" "*"');
+
+    expect($folders)->toHaveCount(1);
+    expect($folders[0]->path())->toBe('INBOX');
+    expect($folders[0]->flags())->toBe(['\\HasNoChildren']);
+});
+
+test('inbox', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    $folder = $mailbox->inbox();
+
+    $stream->assertWritten('TAG1 LOGIN "" ""');
+    $stream->assertWritten('TAG2 LIST "" "INBOX"');
+
+    expect($folder)->toBeInstanceOf(Folder::class);
+
+    expect($folder->path())->toBe('INBOX');
+    expect($folder->flags())->toBe(['\\HasNoChildren']);
+});
