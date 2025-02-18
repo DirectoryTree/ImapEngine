@@ -500,6 +500,10 @@ $message->subject();
 // Get the message sender.
 $message->from(); // Address
 
+// Get the message from name and email.
+$message->from()->name();
+$message->from()->email();
+
 // Get the message date.
 $message->date(); // Carbon\Carbon
 
