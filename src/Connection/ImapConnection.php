@@ -6,9 +6,11 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\Data;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -48,6 +50,20 @@ class ImapConnection implements ConnectionInterface
         protected StreamInterface $stream,
         protected ?LoggerInterface $logger = null,
     ) {}
+
+    /**
+     * Create a new connection with a fake stream.
+     */
+    public static function fake(array $responses = []): static
+    {
+        $stream = new FakeStream;
+
+        $stream->open();
+
+        $stream->feed($responses);
+
+        return new static($stream);
+    }
 
     /**
      * Tear down the connection.
@@ -602,13 +618,18 @@ class ImapConnection implements ConnectionInterface
         // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
         return $this->result->responses()->untagged()->filter(function (UntaggedResponse $response) use ($items, $identifier) {
-            // The third token will always be a list of data items.
+            // Skip over any untagged responses that are not FETCH responses.
+            // The third token should always be the list of data items.
+            if (! ($data = $response->tokenAt(3)) instanceof ListData) {
+                return false;
+            }
+
             return match ($identifier) {
                 // If we're fetching UIDs, we can check if a UID token is contained in the list.
-                ImapFetchIdentifier::Uid => $response->tokenAt(3)->contains('UID'),
+                ImapFetchIdentifier::Uid => $data->contains('UID'),
 
                 // If we're fetching message numbers, we can check if the requested items are all contained in the list.
-                ImapFetchIdentifier::MessageNumber => $response->tokenAt(3)->contains($items),
+                ImapFetchIdentifier::MessageNumber => $data->contains($items),
             };
         });
     }
