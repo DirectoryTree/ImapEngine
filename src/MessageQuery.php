@@ -9,6 +9,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -531,9 +532,10 @@ class MessageQuery
      */
     public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid)
     {
-        $uid = $this->uid($id, $identifier)
-            ->firstOrFail() // Untagged response
-            ->tokenAt(3) // ListData
+        /** @var UntaggedResponse $response */
+        $response = $this->uid($id, $identifier)->firstOrFail();
+
+        $uid = $response->tokenAt(3) // ListData
             ->tokenAt(1) // Atom
             ->value; // UID
 
@@ -545,6 +547,7 @@ class MessageQuery
      */
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?Message
     {
+        /** @var UntaggedResponse $response */
         if (! $response = $this->uid($id, $identifier)->first()) {
             return null;
         }
@@ -557,11 +560,27 @@ class MessageQuery
     }
 
     /**
-     * Get the UID for theb given identifier.
+     * Get the UID for the given identifier.
      */
     protected function uid(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
     {
-        return $this->connection()->uid([$id], $identifier);
+        try {
+            return $this->connection()->uid([$id], $identifier);
+        } catch (ImapCommandException $e) {
+            // IMAP servers may return an error if the message number is not found.
+            // If the identifier being used is a message number, and the message
+            // number is in the command tokens, we can assume this has occurred
+            // and safely ignore the error and return an empty collection.
+            if (
+                $identifier === ImapFetchIdentifier::MessageNumber
+                && in_array($id, $e->command()->tokens())
+            ) {
+                return ResponseCollection::make();
+            }
+
+            // Otherwise, re-throw the exception.
+            throw $e;
+        }
     }
 
     /**
