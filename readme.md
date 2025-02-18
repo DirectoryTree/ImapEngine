@@ -392,21 +392,26 @@ The `Message` class provides several methods to access basic properties:
 
 **UID and Flags**
  
-- `$message->uid()`: Returns the unique identifier (UID) of the message.
-- `$message->flags()`: Returns an array of flags currently set on the message.
+- `$message->uid(): int`: Retrieve the unique identifier (UID) of the message.
+- `$message->flags(): array`: Retrieve an array of flags currently set on the message.
 
-**Headers and Contents**
+**Contents**
 
-- `$message->head()`: Returns the raw message header.
-- `$message->body()`: Returns the raw message body.
-- `$message->header($name)`: Returns a specific header.
-- `$message->headers()`: Returns an array of all headers.
-- `$message->hasHead()` / `hasBody()`: Determine whether the message has headers or body.
+- `$message->head(): string|null`: Retrieve the raw message header.
+- `$message->body(): string|null`: Retrieve the raw message body.
+- `$message->hasHead(): bool` / `$message->hasBody(): bool`: Determine whether the message has headers or body.
+- 
+**Headers**
 
-**Metadata**
+To conveniently work with headers, the `Message` class includes several methods that return headers as instances of the `ZBateson\MailMimeParser\Header\IHeader` class:
 
-- `$message->subject()`: Returns the subject of the message.
-- `$message->date()`: Returns the message’s date as a Carbon instance (if available).
+- `$message->header($name): IHeader|null`: Retrieve a specific header.
+- `$message->headers(): IHeader[]`: Retrieve an array of all headers.
+
+- **Metadata**
+
+- `$message->subject()`: Retrieve the subject of the message.
+- `$message->date()`: Retrieve the message’s date as a Carbon instance (if available).
 - `$message->messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
 
 #### Additional Message Details
@@ -428,28 +433,28 @@ Quickly check whether a message has a specific flag:
 
 To conveniently work with email addresses, the `Message` class includes methods that return addresses as instances of the `DirectoryTree\ImapEngine\Address` class:
 
-- `from()`: The sender’s address.
-- `sender()`: The actual sender (if different from "from").
-- `replyTo()`: The reply-to address.
-- `inReplyTo()`: The In-Reply-To address.
-- `to()`: An array of recipient addresses.
-- `cc()`: An array of CC addresses.
-- `bcc()`: An array of BCC addresses.
+- `$message->from(): Address|null`: The sender’s address.
+- `$message->sender(): Address|null`: The actual sender (if different from "from").
+- `$message->replyTo(): Address|null`: The reply-to address.
+- `$message->inReplyTo(): Address|null`: The In-Reply-To address.
+- `$message->to(): Address[]`: An array of recipient addresses.
+- `$message->cc(): Address[]`: An array of CC addresses.
+- `$message->bcc(): Address[]`: An array of BCC addresses.
 
 #### Content Retrieval
 
 For accessing the message content in different formats:
 
-- `html()`: Returns the HTML version of the message (if available).
-- `text()`: Returns the plain text version of the message (if available).
+- `$message->html(): string`: Retrieve the HTML version of the message (if available).
+- `$message->text(): string`: Retrieve the plain text version of the message (if available).
 
 #### Attachment Handling
 
-Messages that include attachments can be inspected with:
+To conveniently work with attachments, the `Message` class includes methods that return attachments as instances of the `DirectoryTree\ImapEngine\Attachment` class:
 
-- `attachments()`: Returns an array of `Attachment` objects.
-- `hasAttachments()`: Checks if the message contains any attachments.
-- `attachmentCount()`: Returns the number of attachments in the message.
+- `$message->attachments(): Attachment[]`: Retrieve an array of `Attachment` objects.
+- `$message->hasAttachments(): bool`: Checks if the message contains any attachments.
+- `$message->attachmentCount(): int`: Retrieve the number of attachments in the message.
 
 #### Flag Operations
 
@@ -457,17 +462,17 @@ The class also provides methods to modify message flags, which help you manage t
 
 **Marking as Seen/Unseen**
 
-- `markSeen()`: Marks the message as read.
-- `unmarkSeen()`: Marks the message as unread.
-- *Aliases:* `markRead()` and `markUnread()`.
+- `$message->markSeen(): void`: Marks the message as read.
+- `$message->unmarkSeen(): void`: Marks the message as unread.
+- *Aliases:* `$message->markRead(): void` and `$message->markUnread(): void`.
 
 **Other Flags**
 
-- `markDraft()` / `unmarkDraft()`
-- `markRecent()` / `unmarkRecent()`
-- `markFlagged()` / `unmarkFlagged()`
-- `markDeleted()` / `unmarkDeleted()`
-- `markAnswered()` / `unmarkAnswered()`
+- `$message->markDraft()` / `$message->unmarkDraft()`
+- `$message->markRecent()` / `$message->unmarkRecent()`
+- `$message->markFlagged()` / `$message->unmarkFlagged()`
+- `$message->markDeleted()` / `$message->unmarkDeleted()`
+- `$message->markAnswered()` / `$message->unmarkAnswered()`
 
 All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation).
 
@@ -475,10 +480,10 @@ All these methods work by invoking the underlying IMAP `STORE` command (with the
 
 Beyond just flagging, you may move or copy messages between folders, as well as delete them:
 
-- `restore()`: Restores the message from the trash.
-- `copy(string $folder)`: Copies the message to the specified folder.
-- `move(string $folder, bool $expunge = false)`: Moves the message to the specified folder.
-- `delete(bool $expunge = false)`: Marks the message as deleted and, if desired, expunges it from the folder.
+- `$message->restore()`: Restores the message from the trash.
+- `$message->copy(string $folder)`: Copies the message to the specified folder.
+- `$message->move(string $folder, bool $expunge = false)`: Moves the message to the specified folder.
+- `$message->delete(bool $expunge = false)`: Marks the message as deleted and, if desired, expunges it from the folder.
 
 #### Example: Interacting with a Retrieved Message
 
