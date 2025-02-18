@@ -400,7 +400,7 @@ The `Message` class provides several methods to access basic properties:
 - `$message->head(): string|null`: Retrieve the raw message header.
 - `$message->body(): string|null`: Retrieve the raw message body.
 - `$message->hasHead(): bool` / `$message->hasBody(): bool`: Determine whether the message has headers or body.
-- 
+
 **Headers**
 
 To conveniently work with headers, the `Message` class includes several methods that return headers as instances of the `ZBateson\MailMimeParser\Header\IHeader` class:
@@ -408,7 +408,7 @@ To conveniently work with headers, the `Message` class includes several methods 
 - `$message->header($name): IHeader|null`: Retrieve a specific header.
 - `$message->headers(): IHeader[]`: Retrieve an array of all headers.
 
-- **Metadata**
+**Metadata**
 
 - `$message->subject()`: Retrieve the subject of the message.
 - `$message->date()`: Retrieve the message’s date as a Carbon instance (if available).
