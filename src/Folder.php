@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Support\ItemNotFoundException;
 use JsonSerializable;
 
 class Folder implements Arrayable, JsonSerializable
@@ -115,8 +116,12 @@ class Folder implements Arrayable, JsonSerializable
 
                 try {
                     $message = $fetch($msgn);
+                } catch (ItemNotFoundException) {
+                    // The message wasn't found. We will skip
+                    // it and continue awaiting new messages.
+                    return;
                 } catch (Exception) {
-                    // If fetching the message fails, we'll attempt
+                    // Something else happened. We will attempt
                     // reconnecting and re-fetching the message.
                     $this->mailbox->reconnect();
 
