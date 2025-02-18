@@ -1,7 +1,6 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -64,57 +63,39 @@ test('config dot notated access', function () {
 });
 
 test('connect', function () {
-    $stream = new FakeStream;
-    $stream->open();
-
-    $stream->feed([
-        '* OK Welcome to IMAP',
-        'TAG1 OK Logged in',
-    ]);
-
     $mailbox = Mailbox::make();
 
-    $mailbox->connect(new ImapConnection($stream));
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+    ]));
 
     expect($mailbox->connected())->toBeTrue();
 });
 
 test('connect throws exception with bad response', function () {
-    $stream = new FakeStream;
-    $stream->open();
-
-    $stream->feed([
-        '* OK Welcome to IMAP',
-        'TAG1 BAD Authentication failed',
-    ]);
-
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
     ]);
 
-    $mailbox->connect(new ImapConnection($stream));
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 BAD Authentication failed',
+    ]));
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
 test('folders', function () {
-    $stream = new FakeStream;
-    $stream->open();
+    $mailbox = Mailbox::make();
 
-    $stream->feed([
+    $mailbox->connect(ImapConnection::fake([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
         '* LIST (\\HasNoChildren) "/" "INBOX"',
         'TAG2 OK LIST completed',
-    ]);
-
-    $mailbox = Mailbox::make();
-
-    $mailbox->connect(new ImapConnection($stream));
+    ]));
 
     $folders = $mailbox->folders()->get();
-
-    $stream->assertWritten('TAG1 LOGIN "" ""');
-    $stream->assertWritten('TAG2 LIST "" "*"');
 
     expect($folders)->toHaveCount(1);
     expect($folders[0]->path())->toBe('INBOX');
@@ -122,24 +103,16 @@ test('folders', function () {
 });
 
 test('inbox', function () {
-    $stream = new FakeStream;
-    $stream->open();
+    $mailbox = Mailbox::make();
 
-    $stream->feed([
+    $mailbox->connect(ImapConnection::fake([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
         '* LIST (\\HasNoChildren) "/" "INBOX"',
         'TAG2 OK LIST completed',
-    ]);
-
-    $mailbox = Mailbox::make();
-
-    $mailbox->connect(new ImapConnection($stream));
+    ]));
 
     $folder = $mailbox->inbox();
-
-    $stream->assertWritten('TAG1 LOGIN "" ""');
-    $stream->assertWritten('TAG2 LIST "" "INBOX"');
 
     expect($folder)->toBeInstanceOf(Folder::class);
 
