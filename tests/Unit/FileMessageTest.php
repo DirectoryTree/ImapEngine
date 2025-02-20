@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\FileMessage;
 test('it throws an exception if the message is empty', function () {
     $message = new FileMessage('');
 
-    $message->parse(); // Attempting to parse
+    $message->parse();
 })->throws(RuntimeException::class);
 
 test('it can parse a standard EML message and read basic headers', function () {
@@ -155,6 +155,5 @@ EOT;
 
     $message = new FileMessage($contents);
 
-    // Casting to string should return the original contents
     expect((string) $message)->toBe($contents);
 });
