@@ -29,17 +29,11 @@ class ImapTokenizer
     protected string $buffer = '';
 
     /**
-     * The current stream instance.
-     */
-    protected StreamInterface $stream;
-
-    /**
      * Constructor.
      */
-    public function __construct(StreamInterface $stream)
-    {
-        $this->stream = $stream;
-    }
+    public function __construct(
+        protected StreamInterface $stream
+    ) {}
 
     /**
      * Returns the next token from the stream.

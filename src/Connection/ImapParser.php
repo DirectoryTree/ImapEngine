@@ -21,11 +21,6 @@ use DirectoryTree\ImapEngine\Exceptions\ImapParserException;
 class ImapParser
 {
     /**
-     * The tokenizer instance that provides tokens from the raw stream.
-     */
-    protected ImapTokenizer $tokenizer;
-
-    /**
      * The current token being parsed.
      *
      * Expected to be an associative array with keys like "type" and "value".
@@ -35,10 +30,9 @@ class ImapParser
     /**
      * Constructor.
      */
-    public function __construct(ImapTokenizer $tokenizer)
-    {
-        $this->tokenizer = $tokenizer;
-    }
+    public function __construct(
+        protected ImapTokenizer $tokenizer
+    ) {}
 
     /**
      * Get the next response from the tokenizer.
