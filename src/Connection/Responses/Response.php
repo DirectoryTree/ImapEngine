@@ -15,7 +15,7 @@ class Response implements Arrayable, Stringable
      * Constructor.
      */
     public function __construct(
-        protected array $tokens,
+        protected array $tokens
     ) {}
 
     /**
