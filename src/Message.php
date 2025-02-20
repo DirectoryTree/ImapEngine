@@ -34,6 +34,14 @@ class Message implements Arrayable, JsonSerializable, Stringable
     }
 
     /**
+     * Get the message's folder.
+     */
+    public function folder(): Folder
+    {
+        return $this->folder;
+    }
+
+    /**
      * Get the message's identifier.
      */
     public function uid(): int
