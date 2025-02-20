@@ -7,9 +7,8 @@ use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
-use Stringable;
 
-class Message implements Arrayable, JsonSerializable, Stringable
+class Message implements Arrayable, JsonSerializable, MessageInterface
 {
     use HasParsedMessage;
 
