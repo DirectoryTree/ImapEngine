@@ -2,9 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use Stringable;
-
-class FileMessage implements Stringable
+class FileMessage implements MessageInterface
 {
     use HasParsedMessage;
 
