@@ -428,7 +428,7 @@ class MessageQuery
     /**
      * Get the first message in the resulting collection.
      */
-    public function first(): ?Message
+    public function first(): ?MessageInterface
     {
         return $this->limit(1)->get()->first();
     }
@@ -545,7 +545,7 @@ class MessageQuery
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?Message
+    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {
         /** @var UntaggedResponse $response */
         if (! $response = $this->uid($id, $identifier)->first()) {

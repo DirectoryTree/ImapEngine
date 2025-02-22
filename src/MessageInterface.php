@@ -10,6 +10,11 @@ use ZBateson\MailMimeParser\Message as MailMimeMessage;
 interface MessageInterface extends Stringable
 {
     /**
+     * Get the message's identifier.
+     */
+    public function uid(): int;
+
+    /**
      * Get the message date and time.
      */
     public function date(): ?Carbon;
