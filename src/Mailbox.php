@@ -173,6 +173,8 @@ class Mailbox implements MailboxInterface
      */
     public function inbox(): FolderInterface
     {
+        // "INBOX" is a special name reserved for the user's primary mailbox.
+        // See: https://datatracker.ietf.org/doc/html/rfc9051#section-5.1
         return $this->folders()->find('INBOX');
     }
 

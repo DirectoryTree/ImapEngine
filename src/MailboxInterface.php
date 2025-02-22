@@ -38,10 +38,6 @@ interface MailboxInterface
 
     /**
      * Get the mailbox's inbox folder.
-     *
-     * "INBOX" is a special name reserved for the user's primary mailbox.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-5.1
      */
     public function inbox(): FolderInterface;
 
