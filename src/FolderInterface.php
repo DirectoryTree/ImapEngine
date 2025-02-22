@@ -32,7 +32,7 @@ interface FolderInterface
     public function name(): string;
 
     /**
-     * Determine if the folder is the same as the given folder.
+     * Determine if the current folder is the same as the given.
      */
     public function is(FolderInterface $folder): bool;
 
