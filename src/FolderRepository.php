@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 
-class FolderRepository
+class FolderRepository implements FolderRepositoryInterface
 {
     /**
      * Constructor.
@@ -15,25 +15,25 @@ class FolderRepository
     ) {}
 
     /**
-     * Find a folder.
+     * {@inheritDoc}
      */
-    public function find(string $folder): ?Folder
+    public function find(string $folder): ?FolderInterface
     {
         return $this->get($folder)->first();
     }
 
     /**
-     * Find a folder or throw an exception.
+     * {@inheritDoc}
      */
-    public function findOrFail(string $folder): Folder
+    public function findOrFail(string $folder): FolderInterface
     {
         return $this->get($folder)->firstOrFail();
     }
 
     /**
-     * Create a new folder.
+     * {@inheritDoc}
      */
-    public function create(string $folder): Folder
+    public function create(string $folder): FolderInterface
     {
         $this->mailbox->connection()->create($folder);
 
@@ -41,15 +41,15 @@ class FolderRepository
     }
 
     /**
-     * Find or create a folder.
+     * {@inheritDoc}
      */
-    public function firstOrCreate(string $folder): Folder
+    public function firstOrCreate(string $folder): FolderInterface
     {
         return $this->find($folder) ?? $this->create($folder);
     }
 
     /**
-     * Get the mailboxes folders.
+     * {@inheritDoc}
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {

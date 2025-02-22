@@ -67,7 +67,7 @@ class MessageQuery
      * Constructor.
      */
     public function __construct(
-        protected Folder $folder,
+        protected FolderInterface $folder,
         protected ImapQueryBuilder $query,
     ) {}
 

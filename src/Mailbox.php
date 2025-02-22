@@ -9,7 +9,7 @@ use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
-class Mailbox
+class Mailbox implements MailboxInterface
 {
     /**
      * The mailbox configuration.
@@ -35,7 +35,7 @@ class Mailbox
     /**
      * The currently selected folder.
      */
-    protected ?Folder $selected = null;
+    protected ?FolderInterface $selected = null;
 
     /**
      * The mailbox connection.
@@ -67,7 +67,7 @@ class Mailbox
     }
 
     /**
-     * Get the mailbox configuration.
+     * {@inheritdoc}
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
@@ -79,7 +79,7 @@ class Mailbox
     }
 
     /**
-     * Get the mailbox connection.
+     * {@inheritdoc}
      */
     public function connection(): ConnectionInterface
     {
@@ -91,7 +91,7 @@ class Mailbox
     }
 
     /**
-     * Determine if connection was established.
+     * {@inheritdoc}
      */
     public function connected(): bool
     {
@@ -99,7 +99,7 @@ class Mailbox
     }
 
     /**
-     * Force a reconnection to the IMAP server.
+     * {@inheritdoc}
      */
     public function reconnect(): void
     {
@@ -109,7 +109,7 @@ class Mailbox
     }
 
     /**
-     * Connect to the IMAP server.
+     * {@inheritdoc}
      */
     public function connect(?ConnectionInterface $connection = null): void
     {
@@ -156,7 +156,7 @@ class Mailbox
     }
 
     /**
-     * Disconnect from server.
+     * {@inheritdoc}
      */
     public function disconnect(): void
     {
@@ -169,21 +169,17 @@ class Mailbox
     }
 
     /**
-     * Get the mailbox's inbox folder.
-     *
-     * "INBOX" is a special name reserved for the user's primary mailbox.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-5.1
+     * {@inheritdoc}
      */
-    public function inbox(): Folder
+    public function inbox(): FolderInterface
     {
         return $this->folders()->find('INBOX');
     }
 
     /**
-     * Begin querying for mailbox folders.
+     * {@inheritdoc}
      */
-    public function folders(): FolderRepository
+    public function folders(): FolderRepositoryInterface
     {
         // Ensure the connection is established.
         $this->connection();
@@ -192,7 +188,7 @@ class Mailbox
     }
 
     /**
-     * Get the mailbox's capabilities.
+     * {@inheritdoc}
      */
     public function capabilities(): array
     {
@@ -203,9 +199,9 @@ class Mailbox
     }
 
     /**
-     * Select the given folder.
+     * {@inheritdoc}
      */
-    public function select(Folder $folder, bool $force = false): void
+    public function select(FolderInterface $folder, bool $force = false): void
     {
         if (! $this->selected($folder) || $force) {
             $this->connection()->select($folder->path());
@@ -215,9 +211,9 @@ class Mailbox
     }
 
     /**
-     * Determine if the given folder is selected.
+     * {@inheritdoc}
      */
-    public function selected(Folder $folder): bool
+    public function selected(FolderInterface $folder): bool
     {
         return $this->selected?->is($folder) ?? false;
     }
