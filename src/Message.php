@@ -16,7 +16,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      * Constructor.
      */
     public function __construct(
-        protected Folder $folder,
+        protected FolderInterface $folder,
         protected int $uid,
         protected array $flags,
         protected string $head,
@@ -35,7 +35,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's folder.
      */
-    public function folder(): Folder
+    public function folder(): FolderInterface
     {
         return $this->folder;
     }

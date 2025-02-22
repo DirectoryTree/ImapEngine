@@ -11,7 +11,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\ItemNotFoundException;
 use JsonSerializable;
 
-class Folder implements Arrayable, JsonSerializable
+class Folder implements Arrayable, FolderInterface, JsonSerializable
 {
     /**
      * The folder's cached capabilities.
@@ -55,7 +55,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get the folder delimiter.
+     * {@inheritDoc}
      */
     public function delimiter(): string
     {
@@ -63,7 +63,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get the folder name.
+     * {@inheritDoc}
      */
     public function name(): string
     {
@@ -71,17 +71,17 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Determine if the folder is the same as the given folder.
+     * {@inheritDoc}
      */
-    public function is(Folder $folder): bool
+    public function is(FolderInterface $folder): bool
     {
-        return $this->path === $folder->path
-            && $this->mailbox->config('host') === $folder->mailbox->config('host')
-            && $this->mailbox->config('username') === $folder->mailbox->config('username');
+        return $this->path === $folder->path()
+            && $this->mailbox->config('host') === $folder->mailbox()->config('host')
+            && $this->mailbox->config('username') === $folder->mailbox()->config('username');
     }
 
     /**
-     * Begin querying for messages.
+     * {@inheritDoc}
      */
     public function messages(): MessageQuery
     {
@@ -92,7 +92,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Begin idling on the current folder.
+     * {@inheritDoc}
      */
     public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
@@ -134,7 +134,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Move or rename the current folder.
+     * {@inheritDoc}
      */
     public function move(string $newPath): void
     {
@@ -144,7 +144,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Select the current folder.
+     * {@inheritDoc}
      */
     public function select(bool $force = false): void
     {
@@ -152,7 +152,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get the folder's status.
+     * {@inheritDoc}
      */
     public function status(): array
     {
@@ -171,7 +171,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Examine the current folder and get detailed status information.
+     * {@inheritDoc}
      */
     public function examine(): array
     {
@@ -181,7 +181,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Expunge the mailbox and return the expunged message sequence numbers.
+     * {@inheritDoc}
      */
     public function expunge(): array
     {
@@ -191,7 +191,7 @@ class Folder implements Arrayable, JsonSerializable
     }
 
     /**
-     * Delete the current folder.
+     * {@inheritDoc}
      */
     public function delete(): void
     {

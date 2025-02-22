@@ -3,26 +3,27 @@
 namespace DirectoryTree\ImapEngine\Collections;
 
 use DirectoryTree\ImapEngine\Message;
+use DirectoryTree\ImapEngine\MessageInterface;
 
 class MessageCollection extends PaginatedCollection
 {
     /**
      * Find a message by its UID.
      */
-    public function find(int $uid): ?Message
+    public function find(int $uid): ?MessageInterface
     {
         return $this->first(
-            fn (Message $message) => $message->uid() === $uid
+            fn (MessageInterface $message) => $message->uid() === $uid
         );
     }
 
     /**
      * Find a message by its UID or throw an exception.
      */
-    public function findOrFail(int $uid): Message
+    public function findOrFail(int $uid): MessageInterface
     {
         return $this->firstOrFail(
-            fn (Message $message) => $message->uid() === $uid
+            fn (MessageInterface $message) => $message->uid() === $uid
         );
     }
 }
