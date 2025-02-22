@@ -67,7 +67,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
@@ -79,7 +79,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function connection(): ConnectionInterface
     {
@@ -91,7 +91,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function connected(): bool
     {
@@ -99,7 +99,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function reconnect(): void
     {
@@ -109,7 +109,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function connect(?ConnectionInterface $connection = null): void
     {
@@ -156,7 +156,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function disconnect(): void
     {
@@ -169,7 +169,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function inbox(): FolderInterface
     {
@@ -177,7 +177,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function folders(): FolderRepositoryInterface
     {
@@ -188,7 +188,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function capabilities(): array
     {
@@ -199,7 +199,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function select(FolderInterface $folder, bool $force = false): void
     {
@@ -211,7 +211,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     public function selected(FolderInterface $folder): bool
     {
