@@ -602,7 +602,7 @@ use DirectoryTree\ImapEngine\MessageQuery;
 $inbox->idle(function (Message $message) {
     // Fetched message with all of its content.
 }, function (MessageQuery $query) {
-    // Set the query to fetch message content.
+    // Adjust the query to fetch all message content.
     return $query->withBody()
         ->withHeaders()
         ->withFlags();
