@@ -13,7 +13,7 @@ class Attachment implements Arrayable, JsonSerializable
      * Constructor.
      */
     public function __construct(
-        protected string $filename,
+        protected ?string $filename,
         protected string $contentType,
         protected StreamInterface $contentStream,
     ) {}
@@ -21,7 +21,7 @@ class Attachment implements Arrayable, JsonSerializable
     /**
      * Get the attachment's filename.
      */
-    public function filename(): string
+    public function filename(): ?string
     {
         return $this->filename;
     }
