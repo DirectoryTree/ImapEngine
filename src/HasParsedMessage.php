@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use GuzzleHttp\Psr7\Utils;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Header\IHeaderPart;
@@ -121,7 +122,7 @@ trait HasParsedMessage
             return new Attachment(
                 $part->getFilename(),
                 $part->getContentType(),
-                $part->getContentStream(),
+                $part->getContentStream() ?? Utils::streamFor(''),
             );
         }, $this->parse()->getAllAttachmentParts());
     }
