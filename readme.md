@@ -410,9 +410,9 @@ To conveniently work with headers, the `Message` class includes several methods 
 
 **Metadata**
 
-- `$message->subject()`: Retrieve the subject of the message.
-- `$message->date()`: Retrieve the message’s date as a Carbon instance (if available).
-- `$message->messageId()`: Retrieves the Message-ID header (globally unique identifier for the message).
+- `$message->subject(): string|null`: Retrieve the subject of the message.
+- `$message->date(): Carbon|null`: Retrieve the message’s date as a Carbon instance (if available).
+- `$message->messageId(): ?string|null`: Retrieves the Message-ID header (globally unique identifier for the message).
 
 #### Additional Message Details
 
@@ -422,12 +422,12 @@ In addition to the methods shown above, the `Message` class provides several add
 
 Quickly check whether a message has a specific flag:
 
-- `$message->isSeen()`: Determine if the message marked as `\Seen`
-- `$message->isDraft()`: Determine if the message marked as `\Draft`
-- `$message->isRecent()`: Determine if the message marked as `\Recent`
-- `$message->isFlagged()`: Determine if the message marked as `\Flagged`
-- `$message->isDeleted()`: Determine if the message marked as `\Deleted`
-- `$message->isAnswered()`: Determine if the message marked as `\Answered`
+- `$message->isSeen(): bool`: Determine if the message marked as `\Seen`
+- `$message->isDraft(): bool`: Determine if the message marked as `\Draft`
+- `$message->isRecent(): bool`: Determine if the message marked as `\Recent`
+- `$message->isFlagged(): bool`: Determine if the message marked as `\Flagged`
+- `$message->isDeleted(): bool`: Determine if the message marked as `\Deleted`
+- `$message->isAnswered(): bool`: Determine if the message marked as `\Answered`
 
 #### Address Handling
 
@@ -458,9 +458,11 @@ To conveniently work with attachments, the `Message` class includes methods that
 
 For each attachment, you may access the following properties:
 
-- `$attachment->filename()`: Retrieve the attachment's filename.
-- `$attachment->contents()`: Retrieve the attachment's contents.
-- `$attachment->contentType()`: Retrieve the attachment's content type.
+- `$attachment->filename(): string`: Retrieve the attachment's filename.
+- `$attachment->contents(): string`: Retrieve the attachment's contents.
+- `$attachment->contentType(): string`: Retrieve the attachment's content type.
+- `$attachment->contentStream(): StreamInterface`: Retrieve the attachment's contents as a stream.
+
 
 > [!important]
 > The attachment's content type is determined by the `Content-Type` header provided in the email, and may not always be accurate.
@@ -478,11 +480,11 @@ The class also provides methods to modify message flags, which help you manage t
 
 **Other Flags**
 
-- `$message->markDraft()` / `$message->unmarkDraft()`
-- `$message->markRecent()` / `$message->unmarkRecent()`
-- `$message->markFlagged()` / `$message->unmarkFlagged()`
-- `$message->markDeleted()` / `$message->unmarkDeleted()`
-- `$message->markAnswered()` / `$message->unmarkAnswered()`
+- `$message->markDraft(): void` / `$message->unmarkDraft(): void`
+- `$message->markRecent(): void` / `$message->unmarkRecent(): void`
+- `$message->markFlagged(): void` / `$message->unmarkFlagged(): void`
+- `$message->markDeleted(): void` / `$message->unmarkDeleted(): void`
+- `$message->markAnswered(): void` / `$message->unmarkAnswered(): void`
 
 All these methods work by invoking the underlying IMAP `STORE` command (with the appropriate flag and operation).
 
@@ -490,10 +492,10 @@ All these methods work by invoking the underlying IMAP `STORE` command (with the
 
 Beyond just flagging, you may move or copy messages between folders, as well as delete them:
 
-- `$message->restore()`: Restores the message from the trash.
-- `$message->copy(string $folder)`: Copies the message to the specified folder.
-- `$message->move(string $folder, bool $expunge = false)`: Moves the message to the specified folder.
-- `$message->delete(bool $expunge = false)`: Marks the message as deleted and, if desired, expunges it from the folder.
+- `$message->restore(): void`: Restores the message from the trash.
+- `$message->copy(string $folder): void`: Copies the message to the specified folder.
+- `$message->move(string $folder, bool $expunge = false): void`: Moves the message to the specified folder.
+- `$message->delete(bool $expunge = false): void`: Marks the message as deleted and, if desired, expunges it from the folder.
 
 #### Example: Interacting with a Retrieved Message
 
