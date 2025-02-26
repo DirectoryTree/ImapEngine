@@ -456,6 +456,16 @@ To conveniently work with attachments, the `Message` class includes methods that
 - `$message->hasAttachments(): bool`: Checks if the message contains any attachments.
 - `$message->attachmentCount(): int`: Retrieve the number of attachments in the message.
 
+For each attachment, you may access the following properties:
+
+- `$attachment->filename()`: Retrieve the attachment's filename.
+- `$attachment->contents()`: Retrieve the attachment's contents.
+- `$attachment->contentType()`: Retrieve the attachment's content type.
+
+> [!important]
+> The attachment's content type is determined by the `Content-Type` header provided in the email, and may not always be accurate.
+> If `application/octet-stream` is returned, using [`mime_content_type()`](https://www.php.net/manual/en/function.mime-content-type.php) over the filename or contents may be used to clarify the type.
+
 #### Flag Operations
 
 The class also provides methods to modify message flags, which help you manage the state of a message:
