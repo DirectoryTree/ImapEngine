@@ -25,6 +25,7 @@
         "egulias/email-validator": "^4.0"
     },
     "require-dev": {
+        "spatie/ray": "^1.0",
         "pestphp/pest": "^2.0|^3.0"
     },
     "autoload": {
