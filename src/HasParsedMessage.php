@@ -121,6 +121,7 @@ trait HasParsedMessage
         return array_map(function (MimePart $part) {
             return new Attachment(
                 $part->getFilename(),
+                $part->getContentId(),
                 $part->getContentType(),
                 $part->getContentStream() ?? Utils::streamFor(''),
             );

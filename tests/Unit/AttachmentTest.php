@@ -6,7 +6,7 @@ use GuzzleHttp\Psr7\LazyOpenStream;
 test('extension', function () {
     $stream = new LazyOpenStream('test.jpg', 'r');
 
-    $ext = (new Attachment('test.jpg', 'image/jpeg', $stream))->extension();
+    $ext = (new Attachment('test.jpg', null, 'image/jpeg', $stream))->extension();
 
     expect($ext)->toBe('jpg');
 });
@@ -14,7 +14,7 @@ test('extension', function () {
 test('extension with content type', function () {
     $stream = new LazyOpenStream('test', 'r');
 
-    $ext = (new Attachment('test', 'image/jpeg', $stream))->extension();
+    $ext = (new Attachment('test', null, 'image/jpeg', $stream))->extension();
 
     expect($ext)->toBe('jpg');
 });
