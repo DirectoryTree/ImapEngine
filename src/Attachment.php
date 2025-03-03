@@ -14,6 +14,7 @@ class Attachment implements Arrayable, JsonSerializable
      */
     public function __construct(
         protected ?string $filename,
+        protected ?string $contentId,
         protected string $contentType,
         protected StreamInterface $contentStream,
     ) {}
@@ -24,6 +25,14 @@ class Attachment implements Arrayable, JsonSerializable
     public function filename(): ?string
     {
         return $this->filename;
+    }
+
+    /**
+     * Get the attachment's content ID.
+     */
+    public function contentId(): ?string
+    {
+        return $this->contentId;
     }
 
     /**
