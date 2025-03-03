@@ -272,7 +272,7 @@ For example, to retrieve messages from the last 7 days with a specific subject:
 
 ```php
 $messages = $inbox->messages()
-    ->since(now()->subDays(7))
+    ->since(Carbon::now()->subDays(7))
     ->subject('Hello World')
     ->get();
 ```
