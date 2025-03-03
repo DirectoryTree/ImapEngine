@@ -11,8 +11,8 @@ test('it can read messages', function () {
 
     expect($messages)->toHaveCount(40);
 
-    foreach ($messages as $email) {
-        expect($email->from())->toBeInstanceOf(Address::class);
-        expect($email->date())->toBeInstanceOf(Carbon::class);
+    foreach ($messages as $message) {
+        expect($message->from())->toBeInstanceOf(Address::class);
+        expect($message->date())->toBeInstanceOf(Carbon::class);
     }
 });
