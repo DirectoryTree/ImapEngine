@@ -147,7 +147,7 @@ X-List-Received-Date: Tue, 08 Dec 2009 00:26:44 -0000
 Changes since last announcement here:
 
 0.1.20:
-
+From nobody
 * segway: limits the number of jobs dumped into the queuing system at
    once to avoid overloading it
 * segway: increase robustness by adding a ulimit wrapper script to
@@ -2197,19 +2197,19 @@ Content-Transfer-Encoding: 8bit
       <br>
       * segway: fix numpy array casting bug in posterior with newer
       versions of<br>
-        numpy (&gt;= 1.10)<br>
+      ï¿½ numpy (&gt;= 1.10)<br>
       * segway: fixed case where a track was specified that existed in
       more than 1<br>
-        genomedata<br>
+      ï¿½ genomedata<br>
       <br>
       Enchancements:<br>
       <br>
       * segway: ruler default is now 10x resolution. Default resolution
       is still 1,<br>
-        so default ruler is 10<br>
+      ï¿½ so default ruler is 10<br>
       * segway: helpful error messages when segment table boundaries or
       the resolution<br>
-        is not divisible by the ruler<br>
+      ï¿½ is not divisible by the ruler<br>
       <br>
       Misc:<br>
       <br>
@@ -2764,7 +2764,7 @@ Content-Transfer-Encoding: 8bit
       (identify)<br>
       * segway: change tests to use $testdir instead of $TMPDIR to avoid
       setting new<br>
-        base directory for segway-wrapper.sh<br>
+      ï¿½ base directory for segway-wrapper.sh<br>
       <br>
       Enchancements:<br>
       <br>
@@ -2775,7 +2775,7 @@ Content-Transfer-Encoding: 8bit
       <br>
       * segway: remove simpleresubmit test from being tested with all
       tests by<br>
-        default due to memory requirement differences between platforms<br>
+      ï¿½ default due to memory requirement differences between platforms<br>
       <br>
       <br>
       Known Bugs: To see all known bugs head to the issue tracker at <a
@@ -2955,16 +2955,16 @@ Content-Transfer-Encoding: 8bit
       Bug Fixes<br>
       * segway: fix --split-sequences specifying where to split GMTK
       frames instead<br>
-        of by base pair length<br>
+      ï¿½ of by base pair length<br>
       <br>
       Enchancements:<br>
       * segway: added support for --num-minibatch-windows, which causes
       Segway<br>
-        to train on random subset of windows at each iteration in order
+      ï¿½ to train on random subset of windows at each iteration in order
       to<br>
-        enable training to touch every genomic position while
+      ï¿½ enable training to touch every genomic position while
       maintaining fast<br>
-        iterations. (thanks to Max Libbrecht)<br>
+      ï¿½ iterations. (thanks to Max Libbrecht)<br>
       <br>
       Misc:<br>
       * segway: remove optparse in favour of using argparse instead<br>
@@ -3312,33 +3312,33 @@ Content-Transfer-Encoding: 8bit
       Enchancements:<br>
       * segway: --minibatch-fraction can now be seeded with
       SEGWAY_RAND_SEED and<br>
-        will select the same windows with when given the same seed <br>
-        (thanks to Rachel Chan)<br>
+      ï¿½ will select the same windows with when given the same seed <br>
+      ï¿½ (thanks to Rachel Chan)<br>
       * segway: local job submission now appends error logs instead of
       rewriting them<br>
       * segway: change output message to specify whether the job is
       queued or<br>
-        run locally (thanks to Rachel Chan)<br>
+      ï¿½ run locally (thanks to Rachel Chan)<br>
       * segway: change queueing functionality such that segway queues a
       shell file<br>
-        containing the to-be-queued arguments, instead of queueing the
+      ï¿½ containing the to-be-queued arguments, instead of queueing the
       arguments<br>
-        themselves (thanks to Rachel Chan)<br>
+      ï¿½ themselves (thanks to Rachel Chan)<br>
       * segway: add 'annotate' as an alias for 'identify' (thanks to
       Rachel Chan)<br>
       * segway: add resolution functionality for semisupervised mode <br>
-        (thanks to Rachel Chan)<br>
+      ï¿½ (thanks to Rachel Chan)<br>
       <br>
       Bug Fixes:<br>
       * segway: fix --bigBed for assemblies with alt chromosomes not
       being sorted<br>
-        correctly<br>
+      ï¿½ correctly<br>
       * segway: fix --prior-strength option<br>
       * segway: fix memory leak due to DRMAA job templates not being
       deleted<br>
       * segway: work around a GMTK bug when indexing a genomic region
       with a number<br>
-        greater than 9999 (thanks to Rachel Chan)<br>
+      ï¿½ greater than 9999 (thanks to Rachel Chan)<br>
       <br>
       <br>
       Known Bugs: To see all known bugs head to the issue tracker at <a
@@ -3586,15 +3586,15 @@ Content-Transfer-Encoding: 8bit
       Enchancements:<br>
       * genomedata-load-data now support bigWig files if the
       bigWigToBedGraph<br>
-        utility is installed<br>
+      ï¿½ utility is installed<br>
       * `sizes` command added to `genomedata-info` (Jay Hesselberth)<br>
       * toward python3 compatibility (Jay Hesselberth)<br>
-        - genomedata now requires python 2.7+<br>
-        - moved from `optparse` to `argparse` throughout<br>
-        - package-wide `__version__` lets modules report true version
+      ï¿½ - genomedata now requires python 2.7+<br>
+      ï¿½ - moved from `optparse` to `argparse` throughout<br>
+      ï¿½ - package-wide `__version__` lets modules report true version
       number<br>
-        - __future__ imports added to all modules and python3 `print()`<br>
-          functions<br>
+      ï¿½ - __future__ imports added to all modules and python3 `print()`<br>
+      ï¿½ï¿½ï¿½ functions<br>
       <br>
       Bug Fixes:<br>
       * Fixed naming issues with newer versions of PyTables<br>
@@ -3781,10 +3781,10 @@ Content-Transfer-Encoding: 8bit
       * segway: training is now submitted as a segway-task<br>
       * segway: all observations are now written out to temporary
       storage. As a<br>
-        result, the --observation option has been disabled<br>
+      ï¿½ result, the --observation option has been disabled<br>
       * segway: Change Segway to raise warning if running Segway in
       identify mode<br>
-        with non-zero verbosity.<br>
+      ï¿½ with non-zero verbosity.<br>
       <br>
       Bug Fixes:<br>
       * segway: disabled the erroneous --dinucleotide option<br>
@@ -3931,7 +3931,7 @@ Content-Transfer-Encoding: 8bit
       Bug Fixes:<br>
       * segway: fix "bad interpreter: Text file busy" errors reported by
       submitted<br>
-        jobs<br>
+      ï¿½ jobs<br>
       <br>
       <br>
       Known Bugs: To see all known bugs head to the issue tracker at <a
@@ -4092,7 +4092,7 @@ Content-Transfer-Encoding: 8bit
       New Features:<br>
       * segway: Add mixture of Gaussians and variance floor
       functionality to Segway<br>
-        (thanks to Max Libbrecht, Oscar Rodriguez, and Rachel Chan)<br>
+      ï¿½ (thanks to Max Libbrecht, Oscar Rodriguez, and Rachel Chan)<br>
       <br>
       <br>
       Known Bugs: To see all known bugs head to the issue tracker at <a
@@ -4291,9 +4291,9 @@ Content-Transfer-Encoding: 8bit
       New Features:<br>
       * segway: Add ability to use validation set to choose winner for
       training<br>
-        (activate using --validation-coords or --validation-fraction
+      ï¿½ (activate using --validation-coords or --validation-fraction
       options)<br>
-        (thanks to Rachel Chan)<br>
+      ï¿½ (thanks to Rachel Chan)<br>
       <br>
       <br>
       Known Bugs: To see all known bugs head to the issue tracker at <a
