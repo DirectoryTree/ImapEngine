@@ -458,11 +458,11 @@ To conveniently work with attachments, the `Message` class includes methods that
 
 For each attachment, you may access the following properties:
 
-- `$attachment->filename(): string`: Retrieve the attachment's filename.
+- `$attachment->filename(): string|null`: Retrieve the attachment's filename.
 - `$attachment->contents(): string`: Retrieve the attachment's contents.
+- `$attachment->contentId(): string|null`: Retrieve the attachment's content ID (cid).
 - `$attachment->contentType(): string`: Retrieve the attachment's content type.
 - `$attachment->contentStream(): StreamInterface`: Retrieve the attachment's contents as a stream.
-
 
 > [!important]
 > The attachment's content type is determined by the `Content-Type` header provided in the email, and may not always be accurate.
