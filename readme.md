@@ -287,9 +287,9 @@ $messages = $inbox->messages()
 
 #### Fetching Additional Message Data
 
-By default, ImapEngine search queries only fetches UIDs. 
+By default, ImapEngine search queries only fetch message UIDs.
 
-To fetch additional message data, you have to enable it explicitly.
+To fetch additional message data, you have to enable it explicitly by calling one or more of the methods below on the message query.
 
 **Message Flags:**
 
