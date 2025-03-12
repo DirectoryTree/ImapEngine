@@ -66,7 +66,7 @@ class ImapParser
                 return $this->parseContinuationResponse();
             }
 
-            // If it's an Atom and not '*' or '+', it's likely a TAGGED response.
+            // If it's an ATOM and not '*' or '+', it's likely a tagged response.
             return $this->parseTaggedResponse();
         }
 
