@@ -92,7 +92,6 @@ class ImapConnection implements ConnectionInterface
             $this->newParser($this->stream)
         );
 
-        // If we're using STARTTLS, we first connect plain and then upgrade the connection.
         $this->stream->open(
             $transport === 'starttls' ? 'tcp' : $transport,
             $host,
@@ -123,8 +122,13 @@ class ImapConnection implements ConnectionInterface
     {
         $options = [];
 
+        $key = match ($transport) {
+            'ssl', 'tls' => 'ssl',
+            'tcp' => 'tcp',
+        };
+
         if (in_array($transport, ['ssl', 'tls'])) {
-            $options['ssl'] = [
+            $options[$key] = [
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
             ];
@@ -134,13 +138,13 @@ class ImapConnection implements ConnectionInterface
             return $options;
         }
 
-        $options[$transport]['proxy'] = $proxy['socket'];
-        $options[$transport]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
+        $options[$key]['proxy'] = $proxy['socket'];
+        $options[$key]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
 
         if (isset($proxy['username'])) {
             $auth = base64_encode($proxy['username'].':'.$proxy['password']);
 
-            $options[$transport]['header'] = ["Proxy-Authorization: Basic $auth"];
+            $options[$key]['header'] = ["Proxy-Authorization: Basic $auth"];
         }
 
         return $options;
