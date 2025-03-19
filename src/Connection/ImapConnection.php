@@ -92,7 +92,6 @@ class ImapConnection implements ConnectionInterface
             $this->newParser($this->stream)
         );
 
-        // If we're using STARTTLS, we first connect plain and then upgrade the connection.
         $this->stream->open(
             $transport === 'starttls' ? 'tcp' : $transport,
             $host,
