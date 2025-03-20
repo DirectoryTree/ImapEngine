@@ -46,6 +46,7 @@ ImapEngine provides a simple, fluent API for working with IMAP mailboxes, messag
 To connect to a mailbox, create a new `Mailbox` instance with the configuration options:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
 $mailbox = new Mailbox([
     'port' => 993,
     'username' => '...',
