@@ -46,6 +46,8 @@ ImapEngine provides a simple, fluent API for working with IMAP mailboxes, messag
 To connect to a mailbox, create a new `Mailbox` instance with the configuration options:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 $mailbox = new Mailbox([
     'port' => 993,
     'username' => '...',
@@ -58,6 +60,8 @@ $mailbox = new Mailbox([
 To connect using an OAuth token, pass the token as the password, and set the `authentication` method to `oauth`:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 $token = '...';
 
 $mailbox = new Mailbox([
@@ -73,6 +77,8 @@ $mailbox = new Mailbox([
 To connect using plain (without encryption) or starttls, set the `encryption` option to `starttls`:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 $mailbox = new Mailbox([
     'port' => 143,
     'encryption' => 'starttls',
@@ -85,6 +91,8 @@ $mailbox = new Mailbox([
 There are also many other configuration options available you may find useful:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 $mailbox = new Mailbox([
     'port' => 993,
     'host' => '',
@@ -115,6 +123,8 @@ It accepts the following values:
 - `true` – Enables debugging using an `EchoLogger`, which outputs debug messages to the console
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 // No debug output.
 $mailbox = new Mailbox([
     // ...
@@ -132,6 +142,8 @@ $mailbox = new Mailbox([
 When set to a file path (e.g., `'/path/to/log/file.log'`), a `FileLogger` is instantiated to write debug messages to the specified file.
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
+
 // Output debug messages to a file.
 $mailbox = new Mailbox([
     // ...
@@ -145,6 +157,8 @@ If provided with a fully-qualified class name (and the class exists), an instanc
 The class must implement `DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface`. 
 
 ```php
+namespace App\Loggers;
+
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 
 class CustomLogger implements LoggerInterface
@@ -168,6 +182,9 @@ class CustomLogger implements LoggerInterface
 ```
 
 ```php
+use App\Loggers\CustomLogger;
+use DirectoryTree\ImapEngine\Mailbox;
+
 $mailbox = new Mailbox([
     // ...
     'debug' => CustomLogger::class,
@@ -177,6 +194,7 @@ $mailbox = new Mailbox([
 Or, if you use [Spatie Ray](https://spatie.be/products/ray), you may use the built in `RayLogger`:
 
 ```php
+use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Connection\Loggers\RayLogger;
 
 $mailbox = new Mailbox([
