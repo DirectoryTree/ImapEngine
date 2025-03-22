@@ -18,7 +18,12 @@ class Mbox
      * Get the messages from the mbox file.
      */
     public function messages(
-        string $delimiter = '/^From \\S+\\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2}\\s+\\d{2}:\\d{2}:\\d{2}\\s+\\d{4}/'
+        string $delimiter = '/^From\s+\S+\s+' // From
+        .'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+' // Day
+        .'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+' // Month
+        .'\d{1,2}\s+\d{2}:\d{2}:\d{2}' // Time (HH:MM:SS)
+        .'(?:\s+[+-]\d{4})?' // Optionally match "+0000"
+        .'\s+\d{4}/' // Year
     ): Generator {
         if (! $handle = fopen($this->filepath, 'r')) {
             throw new RuntimeException('Failed to open mbox file: '.$this->filepath);
