@@ -22,7 +22,7 @@ class Mbox
         .'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+' // Day
         .'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+' // Month
         .'\d{1,2}\s+\d{2}:\d{2}:\d{2}' // Time (HH:MM:SS)
-        .'(?:\s+[+-]\d{4})?' // Optionally match "+0000"
+        .'(?:\s+[+-]\d{4})?' // Optional Timezone ("+0000")
         .'\s+\d{4}/' // Year
     ): Generator {
         if (! $handle = fopen($this->filepath, 'r')) {
