@@ -214,7 +214,7 @@ class ImapConnection implements ConnectionInterface
 
         $this->assertTaggedResponse($tag);
 
-        $this->stream->setSocketSetCrypto(true, STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT);
+        $this->stream->setSocketSetCrypto(true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
     }
 
     /**
