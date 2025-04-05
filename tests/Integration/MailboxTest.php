@@ -18,7 +18,6 @@ test('capabilities', function () {
     $mailbox = mailbox();
 
     expect($mailbox->capabilities())->toBe([
-        'CAPABILITY',
         'IMAP4rev1',
         'LITERAL+',
         'UIDPLUS',

@@ -14,11 +14,6 @@ use JsonSerializable;
 class Folder implements Arrayable, FolderInterface, JsonSerializable
 {
     /**
-     * The folder's cached capabilities.
-     */
-    protected array $capabilities;
-
-    /**
      * Constructor.
      */
     public function __construct(
@@ -96,8 +91,8 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
-        if (! $this->hasCapability('IDLE')) {
-            throw new ImapCapabilityException('IMAP server does not support IDLE');
+        if (! in_array('IDLE', $this->mailbox->capabilities())) {
+            throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
         // The message query to use when fetching messages.
@@ -196,22 +191,6 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function delete(): void
     {
         $this->mailbox->connection()->delete($this->path);
-    }
-
-    /**
-     * Determine if the mailbox has the given capability.
-     */
-    protected function hasCapability(string $capability): bool
-    {
-        return in_array($capability, $this->capabilities());
-    }
-
-    /**
-     * Get and in-memory cache the mailboxes's capabilities.
-     */
-    protected function capabilities(): array
-    {
-        return $this->capabilities ??= $this->mailbox->capabilities();
     }
 
     /**
