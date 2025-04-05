@@ -6,6 +6,7 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -337,36 +338,15 @@ class MessageQuery
 
         $flags = $this->fetchFlags ? $this->connection()
             ->flags($uids)
-            ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3);
-
-                $uid = $data->lookup('UID')->value;
-                $flags = $data->lookup('FLAGS')->values();
-
-                return [$uid => $flags];
-            }) : new Collection;
+            ->mapWithKeys(MessageResponseParser::getFlags(...))->all() : [];
 
         $headers = $this->fetchHeaders ? $this->connection()
             ->bodyHeader($uids, $this->fetchAsUnread)
-            ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3);
-
-                $uid = $data->lookup('UID')->value;
-                $headers = $data->lookup('[HEADER]')->value;
-
-                return [$uid => $headers];
-            }) : new Collection;
+            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))->all() : [];
 
         $contents = $this->fetchBody ? $this->connection()
             ->bodyText($uids, $this->fetchAsUnread)
-            ->mapWithKeys(function (UntaggedResponse $response) {
-                $data = $response->tokenAt(3);
-
-                $uid = $data->lookup('UID')->value;
-                $contents = $data->lookup('[TEXT]')->value;
-
-                return [$uid => $contents];
-            }) : new Collection;
+            ->mapWithKeys(MessageResponseParser::getBodyText(...))->all() : [];
 
         return [
             'uids' => $uids,
@@ -381,13 +361,7 @@ class MessageQuery
      */
     protected function newMessage(int $uid, array $flags, string $headers, string $contents): Message
     {
-        return new Message(
-            $this->folder,
-            $uid,
-            $flags,
-            $headers,
-            $contents,
-        );
+        return new Message($this->folder, $uid, $flags, $headers, $contents);
     }
 
     /**
@@ -459,11 +433,11 @@ class MessageQuery
      */
     public function append(string $message, mixed $flags = null): int
     {
-        $result = $this->connection()->append(
+        $response = $this->connection()->append(
             $this->folder->path(), $message, Str::enums($flags),
         );
 
-        return $result // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
+        return $response // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
             ->tokenAt(2) // [APPENDUID <uidvalidity> <uid>]
             ->tokenAt(2) // <uid>
             ->value;
