@@ -119,3 +119,23 @@ test('inbox', function () {
     expect($folder->path())->toBe('INBOX');
     expect($folder->flags())->toBe(['\\HasNoChildren']);
 });
+
+test('capabilities', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 STARTTLS AUTH=PLAIN',
+        'TAG2 OK CAPABILITY completed',
+    ]));
+
+    expect($mailbox->capabilities())->toBe([
+        'IMAP4rev1',
+        'STARTTLS',
+        'AUTH=PLAIN',
+    ]);
+});
