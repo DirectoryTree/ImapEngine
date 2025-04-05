@@ -345,7 +345,7 @@ class MessageQuery
 
         $contents = $this->fetchBody ? $this->connection()
             ->bodyText($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyText(...)) : [];
+            ->mapWithKeys(MessageResponseParser::getBodyText(...))->all() : [];
 
         return [
             'uids' => $uids,
