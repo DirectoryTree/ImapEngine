@@ -203,7 +203,7 @@ class Mailbox implements MailboxInterface
     {
         return $this->capabilities ??= array_map(
             fn (Atom $token) => $token->value,
-            $this->connection()->capability()->tokensAfter(1)
+            $this->connection()->capability()->tokensAfter(2)
         );
     }
 
