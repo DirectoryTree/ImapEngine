@@ -55,6 +55,18 @@ test('first', function () {
     expect($folder->messages()->first()->uid())->toBe($uid);
 });
 
+test('first or fail', function () {
+    $folder = folder();
+
+    expect(fn () => $folder->messages()->firstOrFail())->toThrow(ItemNotFoundException::class);
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(from: 'foo@example.com', text: 'hello world'),
+    );
+
+    expect($folder->messages()->firstOrFail()->uid())->toBe($uid);
+});
+
 test('find', function () {
     $folder = folder();
 
