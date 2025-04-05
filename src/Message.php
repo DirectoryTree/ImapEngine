@@ -316,7 +316,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
             default:
                 throw new ImapCapabilityException(
-                    'Unable to move message. Server does not support MOVE or UIDPLUS capabilities.'
+                    'Unable to move message. Server does not support MOVE or UIDPLUS capabilities'
                 );
         }
     }
