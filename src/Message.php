@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
@@ -292,12 +293,31 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function move(string $folder, bool $expunge = false): void
     {
-        $this->folder->mailbox()
-            ->connection()
-            ->move($folder, $this->uid);
+        $mailbox = $this->folder->mailbox();
 
-        if ($expunge) {
-            $this->folder->expunge();
+        $capabilities = $mailbox->capabilities();
+
+        switch (true) {
+            case in_array('MOVE', $capabilities):
+                $mailbox->connection()->move($folder, $this->uid);
+
+                if ($expunge) {
+                    $this->folder->expunge();
+                }
+
+                return;
+
+            case in_array('UIDPLUS', $capabilities):
+                $this->copy($folder);
+
+                $this->delete($expunge);
+
+                return;
+
+            default:
+                throw new ImapCapabilityException(
+                    'Unable to move message. Server does not support MOVE or UIDPLUS capabilities.'
+                );
         }
     }
 
