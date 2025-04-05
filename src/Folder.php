@@ -14,11 +14,6 @@ use JsonSerializable;
 class Folder implements Arrayable, FolderInterface, JsonSerializable
 {
     /**
-     * The folder's cached capabilities.
-     */
-    protected array $capabilities;
-
-    /**
      * Constructor.
      */
     public function __construct(
