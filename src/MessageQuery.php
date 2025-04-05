@@ -14,6 +14,7 @@ use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
+use Illuminate\Support\ItemNotFoundException;
 use Illuminate\Support\Traits\Conditionable;
 
 /**
@@ -430,7 +431,19 @@ class MessageQuery
      */
     public function first(): ?MessageInterface
     {
-        return $this->limit(1)->get()->first();
+        try {
+            return $this->firstOrFail();
+        } catch (ItemNotFoundException) {
+            return null;
+        }
+    }
+
+    /**
+     * Get the first message in the resulting collection or throw an exception.
+     */
+    public function firstOrFail(): MessageInterface
+    {
+        return $this->limit(1)->get()->firstOrFail();
     }
 
     /**
