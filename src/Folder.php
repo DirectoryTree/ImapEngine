@@ -97,7 +97,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
         if (! in_array('IDLE', $this->mailbox->capabilities())) {
-            throw new ImapCapabilityException('IMAP server does not support IDLE');
+            throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
         // The message query to use when fetching messages.
