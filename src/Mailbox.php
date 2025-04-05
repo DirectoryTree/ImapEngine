@@ -33,6 +33,13 @@ class Mailbox implements MailboxInterface
     ];
 
     /**
+     * The cached mailbox capabilities.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.1.1
+     */
+    protected ?array $capabilities = null;
+
+    /**
      * The currently selected folder.
      */
     protected ?FolderInterface $selected = null;
@@ -194,7 +201,7 @@ class Mailbox implements MailboxInterface
      */
     public function capabilities(): array
     {
-        return array_map(
+        return $this->capabilities ??= array_map(
             fn (Atom $token) => $token->value,
             $this->connection()->capability()->tokensAfter(1)
         );
