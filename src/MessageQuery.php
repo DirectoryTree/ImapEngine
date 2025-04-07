@@ -10,6 +10,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
@@ -544,6 +545,22 @@ class MessageQuery
             ->value; // UID
 
         return $this->process(new MessageCollection([$uid]))->first();
+    }
+
+    /**
+     * Destroy the given messages.
+     */
+    public function destroy(array|int $uids, bool $expunge = false): void
+    {
+        $uids = (array) $uids;
+
+        $this->folder->mailbox()
+            ->connection()
+            ->store([ImapFlag::Deleted->value], $uids, mode: '+');
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
     }
 
     /**
