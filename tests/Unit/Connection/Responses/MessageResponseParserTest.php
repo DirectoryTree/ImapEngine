@@ -46,7 +46,7 @@ it('parses body header from untagged response', function () {
         ]),
     ]);
 
-    $parsedHeader = MessageResponseParser::getBodyHeader($response); //
+    $parsedHeader = MessageResponseParser::getBodyHeader($response);
 
     expect($parsedHeader)->toBe(['54321' => $headerContent]);
 });
