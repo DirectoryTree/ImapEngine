@@ -5,7 +5,8 @@ namespace DirectoryTree\ImapEngine\Pagination;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
-use JsonSerializable;use Psalm\Type\Atomic\TValueOf;
+use JsonSerializable;
+use Psalm\Type\Atomic\TValueOf;
 
 /**
  * @template TKey of array-key
