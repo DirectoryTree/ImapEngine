@@ -5,6 +5,9 @@ namespace DirectoryTree\ImapEngine\Collections;
 use DirectoryTree\ImapEngine\Message;
 use DirectoryTree\ImapEngine\MessageInterface;
 
+/**
+ * @template-extends PaginatedCollection<array-key, MessageInterface>
+ */
 class MessageCollection extends PaginatedCollection
 {
     /**

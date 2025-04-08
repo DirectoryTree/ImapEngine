@@ -5,8 +5,14 @@ namespace DirectoryTree\ImapEngine\Pagination;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
-use JsonSerializable;
+use JsonSerializable;use Psalm\Type\Atomic\TValueOf;
 
+/**
+ * @template TKey of array-key
+ * @template-covariant TValue
+ *
+ * @template-implements Arrayable<TKey, TValue>
+ */
 class LengthAwarePaginator implements Arrayable, JsonSerializable
 {
     use ForwardsCalls;
@@ -38,6 +44,8 @@ class LengthAwarePaginator implements Arrayable, JsonSerializable
 
     /**
      * Get the items being paginated.
+     * 
+     * @return Collection<TKey, TValue>
      */
     public function items(): Collection
     {
