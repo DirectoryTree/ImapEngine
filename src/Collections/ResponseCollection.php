@@ -3,7 +3,8 @@
 namespace DirectoryTree\ImapEngine\Collections;
 
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
-use DirectoryTree\ImapEngine\Connection\Responses\Response;use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Responses\Response;
+use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use Illuminate\Support\Collection;
 
