@@ -9,6 +9,7 @@ use JsonSerializable;
 
 /**
  * @template TKey of array-key
+ *
  * @template-covariant TValue
  *
  * @template-implements Arrayable<TKey, TValue>
@@ -44,7 +45,7 @@ class LengthAwarePaginator implements Arrayable, JsonSerializable
 
     /**
      * Get the items being paginated.
-     * 
+     *
      * @return Collection<TKey, TValue>
      */
     public function items(): Collection

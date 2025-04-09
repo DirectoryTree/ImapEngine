@@ -15,7 +15,7 @@ class ResponseCollection extends Collection
 {
     /**
      * Filter the collection to only tagged responses.
-     * 
+     *
      * @return self<array-key, TaggedResponse>
      */
     public function tagged(): self
@@ -35,8 +35,8 @@ class ResponseCollection extends Collection
 
     /**
      * Filter the collection to only continuation responses.
-     * 
-     *  @return self<array-key, ContinuationResponse>
+     *
+     * @return self<array-key, ContinuationResponse>
      */
     public function continuation(): self
     {
