@@ -5,6 +5,12 @@ namespace DirectoryTree\ImapEngine\Collections;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
+/**
+ * @template TKey of array-key
+ * @template-covariant TValue
+ *
+ * @template-extends Collection<TKey, TValue>
+ */
 class PaginatedCollection extends Collection
 {
     /**
@@ -14,6 +20,8 @@ class PaginatedCollection extends Collection
 
     /**
      * Paginate the current collection.
+     * 
+     * @return LengthAwarePaginator<TKey, TValue>
      */
     public function paginate(int $perPage = 15, ?int $page = null, string $pageName = 'page', bool $prepaginated = false): LengthAwarePaginator
     {
@@ -26,6 +34,8 @@ class PaginatedCollection extends Collection
 
     /**
      * Create a new length-aware paginator instance.
+     * 
+     *  @return LengthAwarePaginator<TKey, TValue>
      */
     protected function paginator(Collection $items, int $total, int $perPage, ?int $currentPage, string $pageName): LengthAwarePaginator
     {
