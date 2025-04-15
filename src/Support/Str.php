@@ -136,7 +136,7 @@ class Str
      */
     public static function decodeUtf7Imap(string $string): string
     {
-        // If the string doesn't contain any '&' character, it's not UTF-7 encoded/
+        // If the string doesn't contain any '&' character, it's not UTF-7 encoded.
         if (! str_contains($string, '&')) {
             return $string;
         }
