@@ -7,6 +7,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\ItemNotFoundException;
 use JsonSerializable;
@@ -62,7 +63,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function name(): string
     {
-        return last(explode($this->delimiter, $this->path));
+        return Str::decodeUtf7Imap(
+            last(explode($this->delimiter, $this->path))
+        );
     }
 
     /**
