@@ -130,4 +130,73 @@ class Str
         // Escape backslashes first to avoid double-escaping and then escape double quotes.
         return str_replace(['\\', '"'], ['\\\\', '\\"'], $string);
     }
+
+    /**
+     * Decode a modified UTF-7 string (IMAP specific) to UTF-8.
+     */
+    public static function decodeUtf7Imap(string $string): string
+    {
+        // If the string doesn't contain any '&' character, it's not UTF-7 encoded.
+        if (! str_contains($string, '&')) {
+            return $string;
+        }
+
+        // Handle the special case of '&-' which represents '&' in UTF-7.
+        if ($string === '&-') {
+            return '&';
+        }
+
+        // Direct implementation of IMAP's modified UTF-7 decoding.
+        return preg_replace_callback('/&([^-]*)-?/', function ($matches) {
+            // If it's just an ampersand.
+            if ($matches[1] === '') {
+                return '&';
+            }
+
+            // If it's the special case for ampersand.
+            if ($matches[1] === '-') {
+                return '&';
+            }
+
+            // Convert modified base64 to standard base64.
+            $base64 = strtr($matches[1], ',', '/');
+
+            // Add padding if necessary.
+            switch (strlen($base64) % 4) {
+                case 1: $base64 .= '===';
+                    break;
+                case 2: $base64 .= '==';
+                    break;
+                case 3: $base64 .= '=';
+                    break;
+            }
+
+            // Decode base64 to binary.
+            $binary = base64_decode($base64, true);
+
+            if ($binary === false) {
+                // If decoding fails, return the original string.
+                return '&'.$matches[1].($matches[2] ?? '');
+            }
+
+            $result = '';
+
+            // Convert binary UTF-16BE to UTF-8.
+            for ($i = 0; $i < strlen($binary); $i += 2) {
+                if (isset($binary[$i + 1])) {
+                    $char = (ord($binary[$i]) << 8) | ord($binary[$i + 1]);
+
+                    if ($char < 0x80) {
+                        $result .= chr($char);
+                    } elseif ($char < 0x800) {
+                        $result .= chr(0xC0 | ($char >> 6)).chr(0x80 | ($char & 0x3F));
+                    } else {
+                        $result .= chr(0xE0 | ($char >> 12)).chr(0x80 | (($char >> 6) & 0x3F)).chr(0x80 | ($char & 0x3F));
+                    }
+                }
+            }
+
+            return $result;
+        }, $string);
+    }
 }
