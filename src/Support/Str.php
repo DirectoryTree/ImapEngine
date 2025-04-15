@@ -176,12 +176,12 @@ class Str
 
             if ($binary === false) {
                 // If decoding fails, return the original string.
-                return '&'.$matches[1].(isset($matches[2]) ? $matches[2] : '');
+                return '&'.$matches[1].($matches[2] ?? '');
             }
 
-            // Convert binary UTF-16BE to UTF-8.
             $result = '';
 
+            // Convert binary UTF-16BE to UTF-8.
             for ($i = 0; $i < strlen($binary); $i += 2) {
                 if (isset($binary[$i + 1])) {
                     $char = (ord($binary[$i]) << 8) | ord($binary[$i + 1]);
