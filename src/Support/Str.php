@@ -133,11 +133,6 @@ class Str
 
     /**
      * Decode a modified UTF-7 string (IMAP specific) to UTF-8.
-     *
-     * This is used for decoding IMAP folder names that contain non-ASCII characters.
-     *
-     * @param  string  $string  The UTF-7 encoded string
-     * @return string The decoded UTF-8 string
      */
     public static function decodeUtf7Imap(string $string): string
     {
