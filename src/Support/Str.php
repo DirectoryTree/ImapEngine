@@ -136,32 +136,32 @@ class Str
      */
     public static function decodeUtf7Imap(string $string): string
     {
-        // If the string doesn't contain any '&' character, it's not UTF-7 encoded
+        // If the string doesn't contain any '&' character, it's not UTF-7 encoded/
         if (! str_contains($string, '&')) {
             return $string;
         }
 
-        // Handle the special case of '&-' which represents '&' in UTF-7
+        // Handle the special case of '&-' which represents '&' in UTF-7.
         if ($string === '&-') {
             return '&';
         }
 
-        // Direct implementation of IMAP's modified UTF-7 decoding
+        // Direct implementation of IMAP's modified UTF-7 decoding.
         return preg_replace_callback('/&([^-]*)-?/', function ($matches) {
-            // If it's just an ampersand
+            // If it's just an ampersand.
             if ($matches[1] === '') {
                 return '&';
             }
 
-            // If it's the special case for ampersand
+            // If it's the special case for ampersand.
             if ($matches[1] === '-') {
                 return '&';
             }
 
-            // Convert modified base64 to standard base64
+            // Convert modified base64 to standard base64.
             $base64 = strtr($matches[1], ',', '/');
 
-            // Add padding if necessary
+            // Add padding if necessary.
             switch (strlen($base64) % 4) {
                 case 1: $base64 .= '===';
                     break;
@@ -171,15 +171,15 @@ class Str
                     break;
             }
 
-            // Decode base64 to binary
+            // Decode base64 to binary.
             $binary = base64_decode($base64, true);
 
             if ($binary === false) {
-                // If decoding fails, return the original string
+                // If decoding fails, return the original string.
                 return '&'.$matches[1].(isset($matches[2]) ? $matches[2] : '');
             }
 
-            // Convert binary UTF-16BE to UTF-8
+            // Convert binary UTF-16BE to UTF-8.
             $result = '';
 
             for ($i = 0; $i < strlen($binary); $i += 2) {
