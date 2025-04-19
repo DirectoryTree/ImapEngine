@@ -439,7 +439,7 @@ class ImapQueryBuilder
 
         if ($where['value'] instanceof RawQueryValue) {
             $part .= ' '.$where['value']->value;
-        } else {
+        } elseif ($where['value']) {
             $part .= ' "'.$where['value'].'"';
         }
 
