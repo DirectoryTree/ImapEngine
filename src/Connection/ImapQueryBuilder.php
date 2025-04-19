@@ -413,7 +413,7 @@ class ImapQueryBuilder
         }
 
         // Convert each "where" into a node for later merging.
-        $exprNodes = array_map(fn ($where) => (
+        $exprNodes = array_map(fn (array $where) => (
             $this->makeExpressionNode($where)
         ), $wheres);
 
