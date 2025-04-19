@@ -182,20 +182,18 @@ test('copy', function () {
         $targetFolderName = uniqid()
     );
 
-    $message->copy($targetFolderName);
+    $newUid = $message->copy($targetFolderName);
 
-    $targetMessages = $targetFolder->messages()
-        ->withHeaders()
+    expect($newUid)->toBeInt();
+    expect($newUid)->toBeGreaterThan(0);
+
+    $copiedMessage = $targetFolder->messages()
         ->withBody()
-        ->get();
+        ->withHeaders()
+        ->findOrFail($newUid);
 
-    expect($targetMessages->count())->toBe(1);
-
-    /** @var Message $movedMessage */
-    $movedMessage = $targetMessages->first();
-
-    expect($movedMessage->from()->email())->toBe('foo@email.com');
-    expect($movedMessage->text())->toBe('copy test');
+    expect($copiedMessage->from()->email())->toBe('foo@email.com');
+    expect($copiedMessage->text())->toBe('copy test');
 });
 
 test('move', function () {
@@ -216,13 +214,14 @@ test('move', function () {
         $targetFolderName = uniqid()
     );
 
-    $message->move($targetFolderName);
+    expect($message->move($targetFolderName))->toBeNull();
 
     $targetMessages = $targetFolder->messages()
         ->withHeaders()
         ->withBody()
         ->get();
 
+    expect($folder->messages()->count())->toBe(0);
     expect($targetMessages->count())->toBe(1);
 
     /** @var Message $movedMessage */

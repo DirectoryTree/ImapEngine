@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -281,17 +282,27 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Copy the message to the given folder.
      */
-    public function copy(string $folder): void
+    public function copy(string $folder): ?int
     {
-        $this->folder->mailbox()
-            ->connection()
-            ->copy($folder, $this->uid);
+        $mailbox = $this->folder->mailbox();
+
+        $capabilities = $mailbox->capabilities();
+
+        if (! in_array('UIDPLUS', $capabilities)) {
+            throw new ImapCapabilityException(
+                'Unable to copy message. IMAP server does not support UIDPLUS capability'
+            );
+        }
+
+        $response = $mailbox->connection()->copy($folder, $this->uid);
+
+        return MessageResponseParser::getUidFromCopy($response);
     }
 
     /**
      * Move the message to the given folder.
      */
-    public function move(string $folder, bool $expunge = false): void
+    public function move(string $folder, bool $expunge = false): ?int
     {
         $mailbox = $this->folder->mailbox();
 
@@ -299,20 +310,20 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         switch (true) {
             case in_array('MOVE', $capabilities):
-                $mailbox->connection()->move($folder, $this->uid);
+                $response = $mailbox->connection()->move($folder, $this->uid);
 
                 if ($expunge) {
                     $this->folder->expunge();
                 }
 
-                return;
+                return MessageResponseParser::getUidFromCopy($response);
 
             case in_array('UIDPLUS', $capabilities):
-                $this->copy($folder);
+                $uid = $this->copy($folder);
 
                 $this->delete($expunge);
 
-                return;
+                return $uid;
 
             default:
                 throw new ImapCapabilityException(

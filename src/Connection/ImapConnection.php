@@ -353,27 +353,27 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function copy(string $folder, array|int $from, ?int $to = null): void
+    public function copy(string $folder, array|int $from, ?int $to = null): TaggedResponse
     {
         $this->send('UID COPY', [
             Str::set($from, $to),
             Str::literal($folder),
         ], $tag);
 
-        $this->assertTaggedResponse($tag);
+        return $this->assertTaggedResponse($tag);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function move(string $folder, array|int $from, ?int $to = null): void
+    public function move(string $folder, array|int $from, ?int $to = null): TaggedResponse
     {
         $this->send('UID MOVE', [
             Str::set($from, $to),
             Str::literal($folder),
         ], $tag);
 
-        $this->assertTaggedResponse($tag);
+        return $this->assertTaggedResponse($tag);
     }
 
     /**
