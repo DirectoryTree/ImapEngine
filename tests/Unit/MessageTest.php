@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Message;
 
-test('it moves message using MOVE when capable', function () {
+test('it moves message using MOVE when capable and returns the new UID', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -18,17 +18,19 @@ test('it moves message using MOVE when capable', function () {
         'TAG1 OK Logged in',
         '* CAPABILITY IMAP4rev1 STARTTLS MOVE AUTH=PLAIN',
         'TAG2 OK CAPABILITY completed',
-        'TAG3 OK MOVE completed',
+        'TAG3 OK [COPYUID 1234567890 1 42] MOVE completed',
     ]));
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
     $message = new Message($folder, 1, [], 'header', 'body');
 
-    $message->move('INBOX.Sent');
-})->throwsNoExceptions();
+    $newUid = $message->move('INBOX.Sent');
 
-test('it copies and then deletes message using UIDPLUS when incapable of MOVE', function () {
+    expect($newUid)->toBe(42);
+});
+
+test('it copies and then deletes message using UIDPLUS when incapable of MOVE and returns the new UID', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -39,16 +41,18 @@ test('it copies and then deletes message using UIDPLUS when incapable of MOVE', 
         'TAG1 OK Logged in',
         '* CAPABILITY IMAP4rev1 STARTTLS UIDPLUS AUTH=PLAIN',
         'TAG2 OK CAPABILITY completed',
-        'TAG3 OK UID MOVE completed',
-        'TAG4 OK COPY completed',
+        'TAG3 OK [COPYUID 1234567890 1 123] COPY completed',
+        'TAG4 OK STORE completed',
     ]));
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
     $message = new Message($folder, 1, [], 'header', 'body');
 
-    $message->move('INBOX.Sent');
-})->throwsNoExceptions();
+    $newUid = $message->move('INBOX.Sent');
+
+    expect($newUid)->toBe(123);
+});
 
 test('it throws exception when server does not support MOVE or UIDPLUS capabilities', function () {
     $mailbox = Mailbox::make([
