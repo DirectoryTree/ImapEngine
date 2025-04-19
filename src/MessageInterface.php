@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Stringable;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
@@ -17,7 +17,7 @@ interface MessageInterface extends Stringable
     /**
      * Get the message date and time.
      */
-    public function date(): ?Carbon;
+    public function date(): ?CarbonInterface;
 
     /**
      * Get the message's subject.

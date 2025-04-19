@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use BackedEnum;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -177,7 +178,9 @@ class ImapQueryBuilder
      */
     public function on(mixed $date): static
     {
-        return $this->where(ImapSearchKey::On, $this->parseDate($date));
+        return $this->where(ImapSearchKey::On, new RawQueryValue(
+            $this->parseDate($date)->format($this->dateFormat)
+        ));
     }
 
     /**
@@ -185,7 +188,9 @@ class ImapQueryBuilder
      */
     public function since(mixed $date): static
     {
-        return $this->where(ImapSearchKey::Since, $this->parseDate($date));
+        return $this->where(ImapSearchKey::Since, new RawQueryValue(
+            $this->parseDate($date)->format($this->dateFormat)
+        ));
     }
 
     /**
@@ -193,7 +198,9 @@ class ImapQueryBuilder
      */
     public function before(mixed $value): static
     {
-        return $this->where(ImapSearchKey::Before, $this->parseDate($value));
+        return $this->where(ImapSearchKey::Before, new RawQueryValue(
+            $this->parseDate($value)->format($this->dateFormat)
+        ));
     }
 
     /**
@@ -309,6 +316,34 @@ class ImapQueryBuilder
     }
 
     /**
+     * Prepare the where value, escaping it as needed.
+     */
+    protected function prepareWhereValue(mixed $value): RawQueryValue|string|null
+    {
+        if (is_null($value)) {
+            return null;
+        }
+
+        if ($value instanceof RawQueryValue) {
+            return $value;
+        }
+
+        if ($value instanceof BackedEnum) {
+            $value = $value->value;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            $value = Carbon::instance($value);
+        }
+
+        if ($value instanceof CarbonInterface) {
+            $value = $value->format($this->dateFormat);
+        }
+
+        return Str::escape($value);
+    }
+
+    /**
      * Add a nested condition group to the query.
      */
     protected function addNestedCondition(string $boolean, callable $callback): void
@@ -325,30 +360,15 @@ class ImapQueryBuilder
     }
 
     /**
-     * Recursively compile the wheres array into an IMAP-compatible string.
+     * Attempt to parse a date string into a Carbon instance.
      */
-    protected function compileWheres(array $wheres): string
+    protected function parseDate(mixed $date): CarbonInterface
     {
-        if (empty($wheres)) {
-            return '';
+        if ($date instanceof CarbonInterface) {
+            return $date;
         }
 
-        // Convert each "where" into a node for later merging.
-        $exprNodes = array_map(fn ($where) => (
-            $this->makeExpressionNode($where)
-        ), $wheres);
-
-        // Start with the first expression.
-        $combined = array_shift($exprNodes)['expr'];
-
-        // Merge the rest of the expressions.
-        foreach ($exprNodes as $node) {
-            $combined = $this->mergeExpressions(
-                $combined, $node['expr'], $node['boolean']
-            );
-        }
-
-        return trim($combined);
+        return Carbon::parse($date);
     }
 
     /**
@@ -384,39 +404,30 @@ class ImapQueryBuilder
     }
 
     /**
-     * Prepare the where value, escaping it as needed.
+     * Recursively compile the wheres array into an IMAP-compatible string.
      */
-    protected function prepareWhereValue(mixed $value): ?string
+    protected function compileWheres(array $wheres): string
     {
-        if (is_null($value)) {
-            return null;
+        if (empty($wheres)) {
+            return '';
         }
 
-        if ($value instanceof DateTimeInterface) {
-            $value = Carbon::instance($value);
+        // Convert each "where" into a node for later merging.
+        $exprNodes = array_map(fn ($where) => (
+            $this->makeExpressionNode($where)
+        ), $wheres);
+
+        // Start with the first expression.
+        $combined = array_shift($exprNodes)['expr'];
+
+        // Merge the rest of the expressions.
+        foreach ($exprNodes as $node) {
+            $combined = $this->mergeExpressions(
+                $combined, $node['expr'], $node['boolean']
+            );
         }
 
-        if ($value instanceof BackedEnum) {
-            $value = $value->value;
-        }
-
-        if ($value instanceof Carbon) {
-            $value = $value->format($this->dateFormat);
-        }
-
-        return Str::escape($value);
-    }
-
-    /**
-     * Attempt to parse a date string into a Carbon instance.
-     */
-    protected function parseDate(mixed $date): Carbon
-    {
-        if ($date instanceof Carbon) {
-            return $date;
-        }
-
-        return Carbon::parse($date);
+        return trim($combined);
     }
 
     /**
@@ -426,7 +437,9 @@ class ImapQueryBuilder
     {
         $part = strtoupper($where['key']);
 
-        if ($where['value']) {
+        if ($where['value'] instanceof RawQueryValue) {
+            $part .= ' '.$where['value']->value;
+        } elseif ($where['value']) {
             $part .= ' "'.$where['value'].'"';
         }
 
