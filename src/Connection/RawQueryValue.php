@@ -2,12 +2,14 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use Stringable;
+
 class RawQueryValue
 {
     /**
      * Constructor.
      */
     public function __construct(
-        public readonly mixed $value
+        public readonly Stringable|string $value
     ) {}
 }
