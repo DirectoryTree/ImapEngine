@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use GuzzleHttp\Psr7\Utils;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
@@ -24,7 +25,7 @@ trait HasParsedMessage
     /**
      * Get the message date and time.
      */
-    public function date(): ?Carbon
+    public function date(): ?CarbonInterface
     {
         if ($date = $this->header(HeaderConsts::DATE)?->getDateTime()) {
             return Carbon::instance($date);

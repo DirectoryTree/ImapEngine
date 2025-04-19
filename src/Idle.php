@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
@@ -152,7 +153,7 @@ class Idle
     /**
      * Get the next timeout as a Carbon instance.
      */
-    protected function getNextTimeout(): Carbon
+    protected function getNextTimeout(): CarbonInterface
     {
         return Carbon::now()->addSeconds($this->timeout);
     }
