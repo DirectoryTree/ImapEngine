@@ -244,7 +244,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-copy-command
      */
-    public function copy(string $folder, array|int $from, ?int $to = null): void;
+    public function copy(string $folder, array|int $from, ?int $to = null): TaggedResponse;
 
     /**
      * Send a "UID MOVE" command.
@@ -253,7 +253,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-move-command
      */
-    public function move(string $folder, array|int $from, ?int $to = null): void;
+    public function move(string $folder, array|int $from, ?int $to = null): TaggedResponse;
 
     /**
      * Send a "CREATE" command.
