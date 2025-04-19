@@ -1,6 +1,8 @@
 <?php
 
+use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Connection\RawQueryValue;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 
 test('returns an empty string if no conditions are provided', function () {
@@ -193,4 +195,28 @@ test('escapes multiple special characters', function () {
     $builder->where('subject', $value);
 
     expect($builder->toImap())->toBe('SUBJECT "Foo \\"Bar\\"Baz\\\\Zot"');
+});
+
+test('compiles a SINCE condition with unquoted date', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->since(Carbon::create(2024, 4, 4));
+
+    expect($builder->toImap())->toBe('SINCE 04-Apr-2024');
+});
+
+test('compiles a SINCE condition with quoted date', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('since', Carbon::create(2024, 4, 4));
+
+    expect($builder->toImap())->toBe('SINCE "04-Apr-2024"');
+});
+
+test('compiles raw value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('foo', new RawQueryValue('bar'));
+
+    expect($builder->toImap())->toBe('FOO bar');
 });
