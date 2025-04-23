@@ -124,7 +124,7 @@ class ImapConnection implements ConnectionInterface
 
         $key = match ($transport) {
             'ssl', 'tls' => 'ssl',
-            'tcp' => 'tcp',
+            'starttls', 'tcp' => 'tcp',
         };
 
         if (in_array($transport, ['ssl', 'tls'])) {
