@@ -38,5 +38,5 @@ test('to string', function () {
         new Atom('c'),
     ]);
 
-    expect($response->__toString())->toEqual('a b c');
+    expect((string) $response)->toEqual('a b c');
 });
