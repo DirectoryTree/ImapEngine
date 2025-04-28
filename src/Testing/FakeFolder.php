@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine\Testing;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
-use DirectoryTree\ImapEngine\MessageQuery;
+use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
@@ -77,7 +77,7 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function messages(): MessageQuery
+    public function messages(): MessageQueryInterface
     {
         // Ensure the folder is selected.
         $this->select(true);

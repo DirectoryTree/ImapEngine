@@ -16,11 +16,6 @@ class FakeMailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
-     * The next available message UID.
-     */
-    protected static int $nextMessageUid = 1;
-
-    /**
      * Constructor.
      */
     public function __construct(
@@ -124,13 +119,5 @@ class FakeMailbox implements MailboxInterface
     public function selected(FolderInterface $folder): bool
     {
         return $this->selected?->is($folder) ?? false;
-    }
-
-    /**
-     * Get the next available UID and increment the counter.
-     */
-    public function getNextUid(): int
-    {
-        return static::$nextMessageUid++;
     }
 }

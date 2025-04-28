@@ -6,7 +6,7 @@ use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
-use Illuminate\Support\ItemNotFoundException;
+use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolderRepository implements FolderRepositoryInterface
 {
@@ -22,33 +22,37 @@ class FakeFolderRepository implements FolderRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function find(string $folder): ?FolderInterface
+    public function find(string $path): ?FolderInterface
     {
-        return $this->folders[$folder] ?? null;
+        return $this->get()->first(
+            fn (FolderInterface $folder) => $folder->path() === $path
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findOrFail(string $folder): FolderInterface
+    public function findOrFail(string $path): FolderInterface
     {
-        return $this->folders[$folder] ?? throw new ItemNotFoundException("Folder [{$folder}] not found.");
+        return $this->get()->firstOrFail(
+            fn (FolderInterface $folder) => $folder->path() === $path
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function create(string $folder): FolderInterface
+    public function create(string $path): FolderInterface
     {
-        return $this->folders[$folder] = new FakeFolder($folder, mailbox: $this->mailbox);
+        return $this->folders[] = new FakeFolder($path, mailbox: $this->mailbox);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function firstOrCreate(string $folder): FolderInterface
+    public function firstOrCreate(string $path): FolderInterface
     {
-        return $this->find($folder) ?? $this->create($folder);
+        return $this->find($path) ?? $this->create($path);
     }
 
     /**
@@ -56,14 +60,8 @@ class FakeFolderRepository implements FolderRepositoryInterface
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        $pattern = str_replace(
-            ['*', '%'],
-            ['.*', '[^/]*'],
-            preg_quote($match, '/'),
-        );
-
         return FolderCollection::make($this->folders)->filter(
-            fn (FolderInterface $folder) => (bool) preg_match('/^'.$pattern.'$/', $folder->path())
+            fn (FolderInterface $folder) => Str::is($match, $folder->path())
         );
     }
 }

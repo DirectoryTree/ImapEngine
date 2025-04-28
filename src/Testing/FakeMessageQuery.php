@@ -62,11 +62,11 @@ class FakeMessageQuery implements MessageQueryInterface
     {
         $uid = 1;
 
-        if ($message = $this->get()->last()) {
-            $uid = $message->uid() + 1;
+        if ($lastMessage = $this->get()->last()) {
+            $uid = $lastMessage->uid() + 1;
         }
 
-        $this->messages[] = new FakeMessage($uid, $flags, $message);
+        $this->messages[] = new FakeMessage($uid, $flags === null ? [] : $flags, $message);
 
         return $uid;
     }
@@ -116,6 +116,14 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function destroy(array|int $uids, bool $expunge = false): void
     {
-        // Do nothing.
+        $messages = $this->get()->keyBy(
+            fn (MessageInterface $message) => $message->uid()
+        );
+
+        foreach ((array) $uids as $uid) {
+            $messages->pull($uid);
+        }
+
+        $this->messages = $messages->values()->all();
     }
 }

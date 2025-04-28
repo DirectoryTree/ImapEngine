@@ -39,7 +39,7 @@ interface FolderInterface
     /**
      * Begin querying for messages.
      */
-    public function messages(): MessageQuery;
+    public function messages(): MessageQueryInterface;
 
     /**
      * Begin idling on the current folder.

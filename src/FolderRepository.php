@@ -17,35 +17,35 @@ class FolderRepository implements FolderRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function find(string $folder): ?FolderInterface
+    public function find(string $path): ?FolderInterface
     {
-        return $this->get($folder)->first();
+        return $this->get($path)->first();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findOrFail(string $folder): FolderInterface
+    public function findOrFail(string $path): FolderInterface
     {
-        return $this->get($folder)->firstOrFail();
+        return $this->get($path)->firstOrFail();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function create(string $folder): FolderInterface
+    public function create(string $path): FolderInterface
     {
-        $this->mailbox->connection()->create($folder);
+        $this->mailbox->connection()->create($path);
 
-        return $this->find($folder);
+        return $this->find($path);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function firstOrCreate(string $folder): FolderInterface
+    public function firstOrCreate(string $path): FolderInterface
     {
-        return $this->find($folder) ?? $this->create($folder);
+        return $this->find($path) ?? $this->create($path);
     }
 
     /**
