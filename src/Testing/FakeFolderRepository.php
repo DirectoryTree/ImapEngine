@@ -60,8 +60,15 @@ class FakeFolderRepository implements FolderRepositoryInterface
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        return FolderCollection::make($this->folders)->filter(
-            fn (FolderInterface $folder) => Str::is($match, $folder->path())
-        );
+        $folders = FolderCollection::make($this->folders);
+
+        // If we're not matching all, filter the folders by the match pattern.
+        if (! in_array($match, ['*', null])) {
+            return $folders->filter(
+                fn (FolderInterface $folder) => Str::is($match, $folder->path())
+            );
+        }
+
+        return $folders;
     }
 }
