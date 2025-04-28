@@ -200,10 +200,11 @@ class Str
         }, $string);
     }
 
-    public static function is($pattern, $value, $ignoreCase = false)
+    /**
+     * Determine if a given string matches a given pattern.
+     */
+    public static function is(array|string $pattern, string $value, bool $ignoreCase = false)
     {
-        $value = (string) $value;
-
         if (! is_iterable($pattern)) {
             $pattern = [$pattern];
         }
