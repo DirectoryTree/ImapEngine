@@ -31,7 +31,7 @@ class FakeMessage implements MessageInterface
      */
     protected function isEmpty(): bool
     {
-        return empty($this->head) && empty($this->body);
+        return empty($this->contents);
     }
 
     /**
