@@ -254,7 +254,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid)
+    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
     {
         /** @var UntaggedResponse $response */
         $response = $this->uid($id, $identifier)->firstOrFail();
