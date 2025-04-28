@@ -7,7 +7,7 @@ test('it can be created with basic properties', function () {
 
     expect($message)->toBeInstanceOf(FakeMessage::class);
     expect($message->uid())->toBe(1);
-    expect($message->__toString())->toBe('Test message content');
+    expect((string) $message)->toBe('Test message content');
 });
 
 test('it returns uid correctly', function () {
@@ -37,9 +37,13 @@ EOT;
 
     $message = new FakeMessage(1, [], $content);
 
-    // We'll just test that the content is stored correctly
-    // The actual parsing is handled by the HasParsedMessage trait
-    expect($message->__toString())->toBe($content);
+    expect($message->date()->toDateTimeString())->toBe('2025-02-19 12:34:56');
+    expect($message->subject())->toBe('Test Subject');
+    expect($message->messageId())->toBe('unique-id@example.com');
+    expect($message->from()->email())->toBe('john@example.com');
+    expect($message->to())->toHaveCount(1);
+    expect($message->to()[0]->email())->toBe('jane@example.com');
+    expect((string) $message)->toBe($content);
 });
 
 test('it handles empty content', function () {
@@ -47,5 +51,5 @@ test('it handles empty content', function () {
 
     // Don't call methods that would trigger parse() on an empty message
     expect($message->uid())->toBe(1);
-    expect($message->__toString())->toBe('');
+    expect((string) $message)->toBe('');
 });
