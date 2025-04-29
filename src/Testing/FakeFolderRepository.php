@@ -7,6 +7,7 @@ use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\Support\Str;
+use Illuminate\Support\ItemNotFoundException;
 
 class FakeFolderRepository implements FolderRepositoryInterface
 {
@@ -24,9 +25,11 @@ class FakeFolderRepository implements FolderRepositoryInterface
      */
     public function find(string $path): ?FolderInterface
     {
-        return $this->get()->first(
-            fn (FolderInterface $folder) => $folder->path() === $path
-        );
+        try {
+            return $this->findOrFail($path);
+        } catch (ItemNotFoundException) {
+            return null;
+        }
     }
 
     /**
@@ -35,7 +38,7 @@ class FakeFolderRepository implements FolderRepositoryInterface
     public function findOrFail(string $path): FolderInterface
     {
         return $this->get()->firstOrFail(
-            fn (FolderInterface $folder) => $folder->path() === $path
+            fn (FolderInterface $folder) => strtolower($folder->path()) === strtolower($path)
         );
     }
 
