@@ -14,6 +14,8 @@ use JsonSerializable;
 
 class Folder implements Arrayable, FolderInterface, JsonSerializable
 {
+    use ComparesFolders;
+
     /**
      * Constructor.
      */
@@ -73,9 +75,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function is(FolderInterface $folder): bool
     {
-        return $this->path === $folder->path()
-            && $this->mailbox->config('host') === $folder->mailbox()->config('host')
-            && $this->mailbox->config('username') === $folder->mailbox()->config('username');
+        return $this->isSameFolder($this, $folder);
     }
 
     /**

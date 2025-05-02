@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
@@ -10,6 +11,8 @@ use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
 {
+    use ComparesFolders;
+
     /**
      * Constructor.
      */
@@ -69,9 +72,7 @@ class FakeFolder implements FolderInterface
      */
     public function is(FolderInterface $folder): bool
     {
-        return $this->path === $folder->path()
-            && $this->mailbox->config('host') === $folder->mailbox()->config('host')
-            && $this->mailbox->config('username') === $folder->mailbox()->config('username');
+        return $this->isSameFolder($this, $folder);
     }
 
     /**
@@ -173,12 +174,32 @@ class FakeFolder implements FolderInterface
 
     /**
      * Set the folder's messages.
+     *
+     * @param  FakeMessage[]  $messages
      */
     public function setMessages(array $messages): FakeFolder
     {
         $this->messages = $messages;
 
         return $this;
+    }
+
+    /**
+     * Get the folder's messages.
+     *
+     * @return FakeMessage[]
+     */
+    public function getMessages(): array
+    {
+        return $this->messages;
+    }
+
+    /**
+     * Add a message to the folder.
+     */
+    public function addMessage(FakeMessage $message): void
+    {
+        $this->messages[] = $message;
     }
 
     /**
