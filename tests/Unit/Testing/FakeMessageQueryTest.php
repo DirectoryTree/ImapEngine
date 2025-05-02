@@ -7,19 +7,23 @@ use DirectoryTree\ImapEngine\Testing\FakeMessageQuery;
 use Illuminate\Support\ItemNotFoundException;
 
 test('it can be created with basic properties', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     expect($query)->toBeInstanceOf(FakeMessageQuery::class);
 });
 
 test('it returns message collection', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
     $collection = $query->get();
 
     expect($collection)->toBeInstanceOf(MessageCollection::class);
@@ -27,19 +31,24 @@ test('it returns message collection', function () {
 });
 
 test('it counts messages correctly', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2), new FakeMessage(3)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1),
+        new FakeMessage(2),
+        new FakeMessage(3),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     expect($query->count())->toBe(3);
 });
 
 test('it returns first message', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     $first = $query->first();
 
@@ -49,21 +58,21 @@ test('it returns first message', function () {
 
 test('it returns null when no messages exist for first()', function () {
     $folder = new FakeFolder('INBOX');
-    $query = new FakeMessageQuery($folder, []);
+    $query = new FakeMessageQuery($folder);
 
     expect($query->first())->toBeNull();
 });
 
 test('it throws exception when no messages exist for firstOrFail()', function () {
     $folder = new FakeFolder('INBOX');
-    $query = new FakeMessageQuery($folder, []);
+    $query = new FakeMessageQuery($folder);
 
     $query->firstOrFail();
 })->throws(ItemNotFoundException::class);
 
 test('it auto-increments uid when appending messages', function () {
     $folder = new FakeFolder('INBOX');
-    $query = new FakeMessageQuery($folder, []);
+    $query = new FakeMessageQuery($folder);
 
     $uid1 = $query->append('First message');
     expect($uid1)->toBe(1);
@@ -78,24 +87,24 @@ test('it auto-increments uid when appending messages', function () {
 });
 
 test('it continues auto-incrementing from last message uid', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(5)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(5),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     $uid = $query->append('New message');
     expect($uid)->toBe(6);
 });
 
 test('it can find message by uid', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [
+    $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
-    ];
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     $message = $query->find(2);
 
@@ -104,32 +113,35 @@ test('it can find message by uid', function () {
 });
 
 test('it returns null when message not found', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
+    $folder = new FakeFolder('INBOX', [
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     expect($query->find(999))->toBeNull();
 });
 
 test('it throws exception when message not found with findOrFail', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     $query->findOrFail(999);
 })->throws(ItemNotFoundException::class);
 
 test('it can destroy messages by uid', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [
+    $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
-    ];
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     expect($query->count())->toBe(3);
 
@@ -142,15 +154,14 @@ test('it can destroy messages by uid', function () {
 });
 
 test('it can destroy multiple messages', function () {
-    $folder = new FakeFolder('INBOX');
-    $messages = [
+    $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
         new FakeMessage(4),
-    ];
+    ]);
 
-    $query = new FakeMessageQuery($folder, $messages);
+    $query = new FakeMessageQuery($folder);
 
     expect($query->count())->toBe(4);
 
