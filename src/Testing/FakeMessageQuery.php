@@ -4,7 +4,6 @@ namespace DirectoryTree\ImapEngine\Testing;
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -18,9 +17,7 @@ class FakeMessageQuery implements MessageQueryInterface
      * Constructor.
      */
     public function __construct(
-        protected FolderInterface $folder,
-        /** @var FakeMessage[] */
-        protected array $messages = [],
+        protected FakeFolder $folder
     ) {}
 
     /**
@@ -28,7 +25,9 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return new MessageCollection($this->messages);
+        return new MessageCollection(
+            $this->folder->getMessages()
+        );
     }
 
     /**
@@ -36,7 +35,9 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function count(): int
     {
-        return count($this->messages);
+        return count(
+            $this->folder->getMessages()
+        );
     }
 
     /**
@@ -66,7 +67,9 @@ class FakeMessageQuery implements MessageQueryInterface
             $uid = $lastMessage->uid() + 1;
         }
 
-        $this->messages[] = new FakeMessage($uid, $flags === null ? [] : $flags, $message);
+        $this->folder->addMessage(
+            new FakeMessage($uid, $flags === null ? [] : $flags, $message)
+        );
 
         return $uid;
     }
@@ -124,6 +127,8 @@ class FakeMessageQuery implements MessageQueryInterface
             $messages->pull($uid);
         }
 
-        $this->messages = $messages->values()->all();
+        $this->folder->setMessages(
+            $messages->values()->all()
+        );
     }
 }
