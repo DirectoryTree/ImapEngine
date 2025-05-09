@@ -83,7 +83,7 @@ class FakeFolder implements FolderInterface
         // Ensure the folder is selected.
         $this->select(true);
 
-        return new FakeMessageQuery($this, $this->messages);
+        return new FakeMessageQuery($this);
     }
 
     /**
@@ -91,7 +91,9 @@ class FakeFolder implements FolderInterface
      */
     public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
-        throw new Exception('Unsupported');
+        foreach ($this->messages as $message) {
+            $callback($message);
+        }
     }
 
     /**

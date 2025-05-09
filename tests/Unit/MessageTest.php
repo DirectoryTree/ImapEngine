@@ -107,3 +107,41 @@ test('it can mark and unmark a message as flagged', function () {
     expect($message->flags())->not->toContain('\\Flagged');
     expect($message->hasFlag(ImapFlag::Flagged))->toBeFalse();
 });
+
+test('it can determine if two messages are the same', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+    ]));
+
+    $folder1 = new Folder($mailbox, 'INBOX', [], '/');
+    $folder2 = new Folder($mailbox, 'INBOX.Sent', [], '/');
+
+    // Create messages with different properties
+    $message1 = new Message($folder1, 1, [], 'header1', 'body1');
+    $message2 = new Message($folder1, 1, [], 'header1', 'body1'); // Same as message1
+    $message3 = new Message($folder1, 2, [], 'header1', 'body1'); // Different UID
+    $message4 = new Message($folder2, 1, [], 'header1', 'body1'); // Different folder
+    $message5 = new Message($folder1, 1, [], 'header2', 'body1'); // Different header
+    $message6 = new Message($folder1, 1, [], 'header1', 'body2'); // Different body
+
+    // Same message
+    expect($message1->is($message2))->toBeTrue();
+
+    // Different UID
+    expect($message1->is($message3))->toBeFalse();
+
+    // Different folder
+    expect($message1->is($message4))->toBeFalse();
+
+    // Different header
+    expect($message1->is($message5))->toBeFalse();
+
+    // Different body
+    expect($message1->is($message6))->toBeFalse();
+});

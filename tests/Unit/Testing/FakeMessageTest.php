@@ -53,3 +53,23 @@ test('it handles empty content', function () {
     expect($message->uid())->toBe(1);
     expect((string) $message)->toBe('');
 });
+
+test('it can determine if two messages are the same', function () {
+    $message1 = new FakeMessage(1, ['\\Seen'], 'Test content');
+    $message2 = new FakeMessage(1, ['\\Seen'], 'Test content');
+    $message3 = new FakeMessage(2, ['\\Seen'], 'Test content');
+    $message4 = new FakeMessage(1, ['\\Draft'], 'Test content');
+    $message5 = new FakeMessage(1, ['\\Seen'], 'Different content');
+
+    // Same messages
+    expect($message1->is($message2))->toBeTrue();
+
+    // Different UID
+    expect($message1->is($message3))->toBeFalse();
+
+    // Different flags
+    expect($message1->is($message4))->toBeFalse();
+
+    // Different content
+    expect($message1->is($message5))->toBeFalse();
+});

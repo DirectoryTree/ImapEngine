@@ -120,6 +120,11 @@ interface MessageInterface extends Stringable
     public function parse(): MailMimeMessage;
 
     /**
+     * Determine if the message is the same as another message.
+     */
+    public function is(MessageInterface $message): bool;
+
+    /**
      * Get the string representation of the message.
      */
     public function __toString(): string;
