@@ -97,6 +97,8 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         return $message instanceof self
             && $this->uid === $message->uid
+            && $this->head === $message->head
+            && $this->body === $message->body
             && $this->folder->is($message->folder);
     }
 
