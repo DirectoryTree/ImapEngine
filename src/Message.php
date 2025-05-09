@@ -91,6 +91,16 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function is(MessageInterface $message): bool
+    {
+        return $message instanceof self
+            && $this->uid === $message->uid
+            && $this->folder->is($message->folder);
+    }
+
+    /**
      * Determine if the message is marked as seen.
      */
     public function isSeen(): bool

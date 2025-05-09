@@ -29,6 +29,17 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
+    public function is(MessageInterface $message): bool
+    {
+        return $message instanceof self
+            && $this->uid === $message->uid
+            && $this->flags === $message->flags
+            && $this->contents === $message->contents;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     protected function isEmpty(): bool
     {
         return empty($this->contents);

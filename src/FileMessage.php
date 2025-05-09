@@ -32,6 +32,15 @@ class FileMessage implements MessageInterface
     }
 
     /**
+     * Determine if this message is equal to another.
+     */
+    public function is(MessageInterface $message): bool
+    {
+        return $message instanceof self
+            && $this->contents === $message->contents;
+    }
+
+    /**
      * Determine if the message is empty.
      */
     protected function isEmpty(): bool
