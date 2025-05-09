@@ -91,7 +91,9 @@ class FakeFolder implements FolderInterface
      */
     public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
     {
-        throw new Exception('Unsupported');
+        foreach ($this->messages as $message) {
+            $callback($message);
+        }
     }
 
     /**
