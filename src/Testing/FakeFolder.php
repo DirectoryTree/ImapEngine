@@ -83,7 +83,7 @@ class FakeFolder implements FolderInterface
         // Ensure the folder is selected.
         $this->select(true);
 
-        return new FakeMessageQuery($this, $this->messages);
+        return new FakeMessageQuery($this);
     }
 
     /**
