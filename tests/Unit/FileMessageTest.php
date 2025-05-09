@@ -19,7 +19,7 @@ test('it can parse a standard EML message and read basic headers', function () {
     Message-ID: <unique-message-id@server.example.com>
     MIME-Version: 1.0
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Hello World
     EOT;
 
@@ -47,15 +47,15 @@ test('it can parse HTML content in a multipart message', function () {
     MIME-Version: 1.0
     Content-Type: multipart/alternative;
      boundary="----BOUNDARY-ID----"
-    
+
     ------BOUNDARY-ID----
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Hello Plain
-    
+
     ------BOUNDARY-ID----
     Content-Type: text/html; charset="UTF-8"
-    
+
     <html><body><p>Hello <strong>HTML</strong></p></body></html>
     ------BOUNDARY-ID------
     EOT;
@@ -77,17 +77,17 @@ test('it can parse attachments', function () {
     MIME-Version: 1.0
     Content-Type: multipart/mixed;
      boundary="----BOUNDARY-ID----"
-    
+
     ------BOUNDARY-ID----
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Hello with Attachment
-    
+
     ------BOUNDARY-ID----
     Content-Type: application/pdf; name="file.pdf"
     Content-Disposition: attachment; filename="file.pdf"
     Content-Transfer-Encoding: base64
-    
+
     JVBERi0xLjUKJeLjz9MKMyAwIG9iago8PC9MZW5ndGggNCAgIC9GaWx0ZXIvQXNjaWlIYXgg
     ICAgPj5zdHJlYW0Kc3R1ZmYKZW5kc3RyZWFtCmVuZG9iajAK
     ------BOUNDARY-ID------
@@ -114,7 +114,7 @@ test('it recognizes when there are no attachments', function () {
     Subject: No Attachments
     Date: Wed, 19 Feb 2025 12:34:56 -0500
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Just a plain text email without attachments.
     EOT;
 
@@ -132,7 +132,7 @@ test('it can parse other header fields like IN-REPLY-TO', function () {
     Subject: In-Reply-To Check
     Date: Wed, 19 Feb 2025 12:34:56 -0500
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Check the in-reply-to header
     EOT;
 
@@ -149,7 +149,7 @@ test('it can be cast to a string via __toString()', function () {
     Subject: Stringable Test
     Date: Wed, 19 Feb 2025 12:34:56 -0500
     Content-Type: text/plain; charset="UTF-8"
-    
+
     Testing __toString
     EOT;
 
@@ -165,26 +165,26 @@ test('it can read inline attachment', function () {
     Subject: Test Email With Inline Image
     MIME-Version: 1.0
     Content-Type: multipart/related; boundary="BOUNDARY_STRING"
-    
+
     --BOUNDARY_STRING
     Content-Type: text/html; charset=UTF-8
-    
+
     <html>
     <body>
     <p>This is a test email with an inline image:</p>
     <img src="cid:inline-image-id" alt="Inline Image" />
     </body>
     </html>
-    
+
     --BOUNDARY_STRING
     Content-Type: image/png; name="inline_image.png"
     Content-Transfer-Encoding: base64
     Content-ID: <inline-image-id>
     Content-Disposition: inline; filename="inline_image.png"
-    
+
     iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8
     z8BQDwABAgEA0xzY2QAAAABJRU5ErkJggg==
-    
+
     --BOUNDARY_STRING--
     EOT;
 
@@ -196,4 +196,43 @@ test('it can read inline attachment', function () {
     expect($attachments[0]->contentType())->toBe('image/png');
     expect($attachments[0]->contentId())->toBe('inline-image-id');
     expect($attachments[0]->filename())->toBe('inline_image.png');
+});
+
+test('it can determine if two messages are the same', function () {
+    $contents1 = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    Subject: Test Subject
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    Test content
+    EOT;
+
+    $contents2 = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    Subject: Test Subject
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    Test content
+    EOT;
+
+    $contents3 = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    Subject: Different Subject
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    Different content
+    EOT;
+
+    $message1 = new FileMessage($contents1);
+    $message2 = new FileMessage($contents2);
+    $message3 = new FileMessage($contents3);
+
+    // Same content
+    expect($message1->is($message2))->toBeTrue();
+
+    // Different content
+    expect($message1->is($message3))->toBeFalse();
 });
