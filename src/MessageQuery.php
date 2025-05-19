@@ -35,106 +35,11 @@ class MessageQuery implements MessageQueryInterface
     ) {}
 
     /**
-     * Execute an IMAP search request.
-     */
-    protected function search(): Collection
-    {
-        // If the query is empty, default to fetching all.
-        if ($this->query->isEmpty()) {
-            $this->query->all();
-        }
-
-        $response = $this->connection()->search([
-            $this->query->toImap(),
-        ]);
-
-        return new Collection(array_map(
-            fn (Atom $token) => $token->value,
-            $response->tokensAfter(2)
-        ));
-    }
-
-    /**
      * Count all available messages matching the current search criteria.
      */
     public function count(): int
     {
         return $this->search()->count();
-    }
-
-    /**
-     * Fetch a given id collection.
-     */
-    protected function fetch(Collection $messages): array
-    {
-        if ($this->fetchOrder === 'desc') {
-            $messages = $messages->reverse();
-        }
-
-        $uids = $messages->forPage($this->page, $this->limit)->toArray();
-
-        $flags = $this->fetchFlags ? $this->connection()
-            ->flags($uids)
-            ->mapWithKeys(MessageResponseParser::getFlags(...))->all() : [];
-
-        $headers = $this->fetchHeaders ? $this->connection()
-            ->bodyHeader($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))->all() : [];
-
-        $contents = $this->fetchBody ? $this->connection()
-            ->bodyText($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyText(...))->all() : [];
-
-        return [
-            'uids' => $uids,
-            'flags' => $flags,
-            'headers' => $headers,
-            'contents' => $contents,
-        ];
-    }
-
-    /**
-     * Make a new message from given raw components.
-     */
-    protected function newMessage(int $uid, array $flags, string $headers, string $contents): Message
-    {
-        return new Message($this->folder, $uid, $flags, $headers, $contents);
-    }
-
-    /**
-     * Process the collection of messages.
-     */
-    protected function process(Collection $messages): MessageCollection
-    {
-        if ($messages->isNotEmpty()) {
-            return $this->populate($messages);
-        }
-
-        return MessageCollection::make();
-    }
-
-    /**
-     * Populate a given id collection and receive a fully fetched message collection.
-     */
-    protected function populate(Collection $uids): MessageCollection
-    {
-        $messages = MessageCollection::make();
-
-        $messages->total($uids->count());
-
-        $rawMessages = $this->fetch($uids);
-
-        foreach ($rawMessages['uids'] as $uid) {
-            $flags = $rawMessages['flags'][$uid] ?? [];
-            $headers = $rawMessages['headers'][$uid] ?? '';
-            $contents = $rawMessages['contents'][$uid] ?? '';
-
-            $messages->push(
-                $this->newMessage($uid, $flags, $headers, $contents)
-            );
-        }
-
-        return $messages;
     }
 
     /**
@@ -257,7 +162,7 @@ class MessageQuery implements MessageQueryInterface
     public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
     {
         /** @var UntaggedResponse $response */
-        $response = $this->uid($id, $identifier)->firstOrFail();
+        $response = $this->id($id, $identifier)->firstOrFail();
 
         $uid = $response->tokenAt(3) // ListData
             ->tokenAt(1) // Atom
@@ -272,7 +177,7 @@ class MessageQuery implements MessageQueryInterface
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {
         /** @var UntaggedResponse $response */
-        if (! $response = $this->uid($id, $identifier)->first()) {
+        if (! $response = $this->id($id, $identifier)->first()) {
             return null;
         }
 
@@ -300,9 +205,96 @@ class MessageQuery implements MessageQueryInterface
     }
 
     /**
+     * Process the collection of messages.
+     */
+    protected function process(Collection $messages): MessageCollection
+    {
+        if ($messages->isNotEmpty()) {
+            return $this->populate($messages);
+        }
+
+        return MessageCollection::make();
+    }
+
+    /**
+     * Populate a given id collection and receive a fully fetched message collection.
+     */
+    protected function populate(Collection $uids): MessageCollection
+    {
+        $messages = MessageCollection::make();
+
+        $messages->total($uids->count());
+
+        $rawMessages = $this->fetch($uids);
+
+        foreach ($rawMessages['uids'] as $uid) {
+            $flags = $rawMessages['flags'][$uid] ?? [];
+            $headers = $rawMessages['headers'][$uid] ?? '';
+            $contents = $rawMessages['contents'][$uid] ?? '';
+
+            $messages->push(
+                $this->newMessage($uid, $flags, $headers, $contents)
+            );
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Fetch a given id collection.
+     */
+    protected function fetch(Collection $messages): array
+    {
+        if ($this->fetchOrder === 'desc') {
+            $messages = $messages->reverse();
+        }
+
+        $uids = $messages->forPage($this->page, $this->limit)->toArray();
+
+        $flags = $this->fetchFlags ? $this->connection()
+            ->flags($uids)
+            ->mapWithKeys(MessageResponseParser::getFlags(...))->all() : [];
+
+        $headers = $this->fetchHeaders ? $this->connection()
+            ->bodyHeader($uids, $this->fetchAsUnread)
+            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))->all() : [];
+
+        $contents = $this->fetchBody ? $this->connection()
+            ->bodyText($uids, $this->fetchAsUnread)
+            ->mapWithKeys(MessageResponseParser::getBodyText(...))->all() : [];
+
+        return [
+            'uids' => $uids,
+            'flags' => $flags,
+            'headers' => $headers,
+            'contents' => $contents,
+        ];
+    }
+
+    /**
+     * Execute an IMAP search request.
+     */
+    protected function search(): Collection
+    {
+        // If the query is empty, default to fetching all.
+        if ($this->query->isEmpty()) {
+            $this->query->all();
+        }
+
+        $response = $this->connection()->search([
+            $this->query->toImap(),
+        ]);
+
+        return new Collection(array_map(
+            fn (Atom $token) => $token->value,
+            $response->tokensAfter(2)
+        ));
+    }
+
+    /**
      * Get the UID for the given identifier.
      */
-    protected function uid(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
     {
         try {
             return $this->connection()->uid([$id], $identifier);
@@ -321,6 +313,14 @@ class MessageQuery implements MessageQueryInterface
             // Otherwise, re-throw the exception.
             throw $e;
         }
+    }
+
+    /**
+     * Make a new message from given raw components.
+     */
+    protected function newMessage(int $uid, array $flags, string $headers, string $contents): Message
+    {
+        return new Message($this->folder, $uid, $flags, $headers, $contents);
     }
 
     /**
