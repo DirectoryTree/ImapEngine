@@ -5,7 +5,6 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 interface MessageQueryInterface
 {
