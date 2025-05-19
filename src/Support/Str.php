@@ -134,7 +134,7 @@ class Str
     /**
      * Decode a modified UTF-7 string (IMAP specific) to UTF-8.
      */
-    public static function decodeUtf7Imap(string $string): string
+    public static function fromImapUtf7(string $string): string
     {
         // If the string doesn't contain any '&' character, it's not UTF-7 encoded.
         if (! str_contains($string, '&')) {
@@ -198,6 +198,62 @@ class Str
 
             return $result;
         }, $string);
+    }
+
+    /**
+     * Encode a UTF-8 string to modified UTF-7 (IMAP specific).
+     */
+    public static function toImapUtf7(string $string): string
+    {
+        $result = '';
+        $buffer = '';
+
+        // Iterate over each character in the UTF-8 string.
+        for ($i = 0; $i < mb_strlen($string, 'UTF-8'); $i++) {
+            $char = mb_substr($string, $i, 1, 'UTF-8');
+
+            // Convert character to its UTF-16BE code unit (for deciding if ASCII).
+            $ord = unpack('n', mb_convert_encoding($char, 'UTF-16BE', 'UTF-8'))[1];
+
+            // Handle printable ASCII characters (0x20 - 0x7E) except '&'
+            if ($ord >= 0x20 && $ord <= 0x7E && $char !== '&') {
+                // If there is any buffered non-ASCII content, flush it as a base64 section.
+                if ($buffer !== '') {
+                    // Encode the buffer to UTF-16BE, then to base64, swap '/' for ',', trim '=' padding, and wrap with '&' and '-'.
+                    $result .= '&'.rtrim(strtr(base64_encode(mb_convert_encoding($buffer, 'UTF-16BE', 'UTF-8')), '/', ','), '=').'-';
+                    $buffer = '';
+                }
+
+                // Append the ASCII character as-is.
+                $result .= $char;
+
+                continue;
+            }
+
+            // Special handling for literal '&' which becomes '&-'
+            if ($char === '&') {
+                // Flush any buffered non-ASCII content first.
+                if ($buffer !== '') {
+                    $result .= '&'.rtrim(strtr(base64_encode(mb_convert_encoding($buffer, 'UTF-16BE', 'UTF-8')), '/', ','), '=').'-';
+                    $buffer = '';
+                }
+
+                // '&' is encoded as '&-'
+                $result .= '&-';
+
+                continue;
+            }
+
+            // Buffer non-ASCII characters for later base64 encoding.
+            $buffer .= $char;
+        }
+
+        // After the loop, flush any remaining buffered non-ASCII content.
+        if ($buffer !== '') {
+            $result .= '&'.rtrim(strtr(base64_encode(mb_convert_encoding($buffer, 'UTF-16BE', 'UTF-8')), '/', ','), '=').'-';
+        }
+
+        return $result;
     }
 
     /**

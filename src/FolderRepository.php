@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Support\Str;
 
 class FolderRepository implements FolderRepositoryInterface
 {
@@ -19,7 +20,7 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function find(string $path): ?FolderInterface
     {
-        return $this->get($path)->first();
+        return $this->get(Str::toImapUtf7($path))->first();
     }
 
     /**
@@ -27,7 +28,7 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function findOrFail(string $path): FolderInterface
     {
-        return $this->get($path)->firstOrFail();
+        return $this->get(Str::toImapUtf7($path))->firstOrFail();
     }
 
     /**
@@ -35,7 +36,9 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function create(string $path): FolderInterface
     {
-        $this->mailbox->connection()->create($path);
+        $this->mailbox->connection()->create(
+            Str::toImapUtf7($path)
+        );
 
         return $this->find($path);
     }
@@ -53,7 +56,7 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        return $this->mailbox->connection()->list($reference, $match)->map(
+        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match))->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,
