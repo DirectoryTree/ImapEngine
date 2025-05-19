@@ -65,7 +65,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function name(): string
     {
-        return Str::decodeUtf7Imap(
+        return Str::fromImapUtf7(
             last(explode($this->delimiter, $this->path))
         );
     }

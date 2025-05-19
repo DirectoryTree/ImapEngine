@@ -102,44 +102,72 @@ test('enums handles nested arrays containing backed enums and strings', function
     expect($result)->toEqual($expected);
 });
 
-test('decodeUtf7Imap decodes UTF-7 encoded folder names', function () {
+test('fromImapUtf7 decodes UTF-7 encoded folder names', function () {
     // Russian Cyrillic example from the bug report.
     $encoded = '&BBoEPgRABDcEOAQ9BDA-';
     $decoded = 'Корзина';
 
-    expect(Str::decodeUtf7Imap($encoded))->toBe($decoded);
+    expect(Str::fromImapUtf7($encoded))->toBe($decoded);
 });
 
-test('decodeUtf7Imap handles non-encoded strings', function () {
+test('fromImapUtf7 handles non-encoded strings', function () {
     $plainString = 'INBOX';
 
-    expect(Str::decodeUtf7Imap($plainString))->toBe($plainString);
+    expect(Str::fromImapUtf7($plainString))->toBe($plainString);
 });
 
-test('decodeUtf7Imap handles special characters', function () {
+test('fromImapUtf7 handles special characters', function () {
     // Ampersand is represented as &- in UTF-7.
     $encoded = '&-';
     $decoded = '&';
 
-    expect(Str::decodeUtf7Imap($encoded))->toBe($decoded);
+    expect(Str::fromImapUtf7($encoded))->toBe($decoded);
 });
 
-test('decodeUtf7Imap handles mixed content', function () {
+test('fromImapUtf7 handles mixed content', function () {
     // Test that the function doesn't modify the non-encoded part.
     $encoded = 'Hello &-';
     $decoded = 'Hello &';
 
-    expect(Str::decodeUtf7Imap($encoded))->toBe($decoded);
+    expect(Str::fromImapUtf7($encoded))->toBe($decoded);
 });
 
-test('decodeUtf7Imap preserves existing UTF-8 characters', function () {
+test('fromImapUtf7 preserves existing UTF-8 characters', function () {
     // Test with various UTF-8 characters that should remain unchanged.
     $utf8String = 'Привет мир 你好 こんにちは ñáéíóú';
 
     // The function should return the string unchanged since it's already UTF-8.
-    expect(Str::decodeUtf7Imap($utf8String))->toBe($utf8String);
+    expect(Str::fromImapUtf7($utf8String))->toBe($utf8String);
 
     // Test with a mix of UTF-8 and regular ASCII.
     $mixedString = 'Hello Привет 123';
-    expect(Str::decodeUtf7Imap($mixedString))->toBe($mixedString);
+    expect(Str::fromImapUtf7($mixedString))->toBe($mixedString);
+});
+
+test('toImapUtf7 encodes plain ASCII as-is', function () {
+    $input = 'Inbox';
+    $expected = 'Inbox';
+
+    expect(Str::toImapUtf7($input))->toBe($expected);
+});
+
+test('toImapUtf7 encodes ampersand correctly', function () {
+    $input = 'Inbox & Archive';
+    $expected = 'Inbox &- Archive';
+
+    expect(Str::toImapUtf7($input))->toBe($expected);
+});
+
+test('toImapUtf7 encodes non-ASCII characters', function () {
+    $input = 'Корзина'; // Russian for "Trash"
+    $expected = '&BBoEPgRABDcEOAQ9BDA-';
+
+    expect(Str::toImapUtf7($input))->toBe($expected);
+});
+
+test('toImapUtf7 encodes mixed content correctly', function () {
+    $input = 'Work Корзина & Stuff';
+    $expected = 'Work &BBoEPgRABDcEOAQ9BDA- &- Stuff';
+
+    expect(Str::toImapUtf7($input))->toBe($expected);
 });
