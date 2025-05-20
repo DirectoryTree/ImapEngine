@@ -20,7 +20,7 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function find(string $path): ?FolderInterface
     {
-        return $this->get(Str::toImapUtf7($path))->first();
+        return $this->get($path)->first();
     }
 
     /**
@@ -28,7 +28,7 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function findOrFail(string $path): FolderInterface
     {
-        return $this->get(Str::toImapUtf7($path))->firstOrFail();
+        return $this->get($path)->firstOrFail();
     }
 
     /**
