@@ -440,7 +440,7 @@ class ImapQueryBuilder
         if ($where['value'] instanceof RawQueryValue) {
             $part .= ' '.$where['value']->value;
         } elseif ($where['value']) {
-            $part .= ' "'.$where['value'].'"';
+            $part .= ' "'.Str::toImapUtf7($where['value']).'"';
         }
 
         if ($where['not']) {
