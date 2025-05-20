@@ -220,3 +220,11 @@ test('compiles raw value', function () {
 
     expect($builder->toImap())->toBe('FOO bar');
 });
+
+test('converts values from utf-8 to utf-7', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->where('foo', 'Joué');
+
+    expect($builder->toImap())->toBe('FOO "Jou&AOk-"');
+});
