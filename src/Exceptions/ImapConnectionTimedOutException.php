@@ -2,4 +2,4 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-class ImapConnectionTimedOutException extends Exception {}
+class ImapConnectionTimedOutException extends ImapConnectionException {}

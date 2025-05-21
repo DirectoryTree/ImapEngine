@@ -2,4 +2,4 @@
 
 namespace DirectoryTree\ImapEngine\Exceptions;
 
-class ImapConnectionFailedException extends Exception {}
+class ImapConnectionFailedException extends ImapConnectionException {}
