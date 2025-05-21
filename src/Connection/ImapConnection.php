@@ -17,7 +17,6 @@ use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
@@ -749,7 +748,7 @@ class ImapConnection implements ConnectionInterface
             throw match (true) {
                 $meta['timed_out'] ?? false => new ImapConnectionTimedOutException('Stream timed out, no response'),
                 $meta['eof'] ?? false => new ImapConnectionClosedException('Server closed the connection (EOF)'),
-                default => new ImapConnectionException('Unknown stream error. Metadata: '.json_encode($meta)),
+                default => new ImapConnectionFailedException('Unknown stream error. Metadata: '.json_encode($meta)),
             };
         }
 
