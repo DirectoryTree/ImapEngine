@@ -198,6 +198,160 @@ test('it can read inline attachment', function () {
     expect($attachments[0]->filename())->toBe('inline_image.png');
 });
 
+test('it can extract attachments from forwarded messages', function () {
+    // Create a forwarded message that contains an attachment
+    $forwardedMessage = <<<'EOT'
+    From: "Original Sender" <original@example.com>
+    To: "Original Recipient" <original-recipient@example.com>
+    Subject: Original Message with Attachment
+    Date: Tue, 18 Feb 2025 10:00:00 -0500
+    Message-ID: <original-message@example.com>
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="ORIGINAL_BOUNDARY"
+
+    --ORIGINAL_BOUNDARY
+    Content-Type: text/plain; charset="UTF-8"
+
+    This is the original message with an attachment.
+
+    --ORIGINAL_BOUNDARY
+    Content-Type: application/pdf; name="original-document.pdf"
+    Content-Disposition: attachment; filename="original-document.pdf"
+    Content-Transfer-Encoding: base64
+
+    JVBERi0xLjUKJeLjz9MKMyAwIG9iago8PC9MZW5ndGggNCAgIC9GaWx0ZXIvQXNjaWlIYXgg
+    ICAgPj5zdHJlYW0Kc3R1ZmYKZW5kc3RyZWFtCmVuZG9iajAK
+    --ORIGINAL_BOUNDARY--
+    EOT;
+
+    // Create the main message that forwards the above message
+    $contents = <<<EOT
+    From: "Forwarder" <forwarder@example.com>
+    To: "Final Recipient" <final@example.com>
+    Subject: Fwd: Original Message with Attachment
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Message-ID: <forwarded-message@example.com>
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="FORWARD_BOUNDARY"
+
+    --FORWARD_BOUNDARY
+    Content-Type: text/plain; charset="UTF-8"
+
+    Here is the forwarded message with its attachment.
+
+    --FORWARD_BOUNDARY
+    Content-Type: message/rfc822; name="forwarded-message.eml"
+    Content-Disposition: attachment; filename="forwarded-message.eml"
+
+    $forwardedMessage
+    --FORWARD_BOUNDARY
+    Content-Type: application/zip; name="additional-file.zip"
+    Content-Disposition: attachment; filename="additional-file.zip"
+    Content-Transfer-Encoding: base64
+
+    UEsDBAoAAAAAAKxVVVMAAAAAAAAAAAAAAAAJAAAAdGVzdC50eHRQSwECFAAKAAAAAACs
+    VVVTAAAAAAAAAAAAAAAACQAAAAAAAAAAAAAAAAAAAHRlc3QudHh0UEsFBgAAAAABAAEA
+    NwAAAB8AAAAAAA==
+    --FORWARD_BOUNDARY--
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    // Should find attachments from both the main message and the forwarded message
+    $attachments = $message->attachments();
+
+    expect($attachments)->toHaveCount(2);
+
+    // First attachment should be from the forwarded message
+    expect($attachments[0]->filename())->toBe('original-document.pdf');
+    expect($attachments[0]->contentType())->toBe('application/pdf');
+
+    // Second attachment should be from the main message
+    expect($attachments[1]->filename())->toBe('additional-file.zip');
+    expect($attachments[1]->contentType())->toBe('application/zip');
+});
+
+test('it can handle multiple levels of forwarded messages with attachments', function () {
+    // Create the deepest nested message with an attachment
+    $deepestMessage = <<<'EOT'
+    From: "Deep Sender" <deep@example.com>
+    To: "Deep Recipient" <deep-recipient@example.com>
+    Subject: Deep Message
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="DEEP_BOUNDARY"
+
+    --DEEP_BOUNDARY
+    Content-Type: text/plain; charset="UTF-8"
+
+    This is the deepest message.
+
+    --DEEP_BOUNDARY
+    Content-Type: text/plain; name="deep-file.txt"
+    Content-Disposition: attachment; filename="deep-file.txt"
+
+    Deep file content
+    --DEEP_BOUNDARY--
+    EOT;
+
+    // Create a middle forwarded message that forwards the deep message
+    $middleMessage = <<<EOT
+    From: "Middle Sender" <middle@example.com>
+    To: "Middle Recipient" <middle-recipient@example.com>
+    Subject: Fwd: Deep Message
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="MIDDLE_BOUNDARY"
+
+    --MIDDLE_BOUNDARY
+    Content-Type: text/plain; charset="UTF-8"
+
+    Forwarding the deep message.
+
+    --MIDDLE_BOUNDARY
+    Content-Type: message/rfc822
+
+    $deepestMessage
+    --MIDDLE_BOUNDARY
+    Content-Type: image/jpeg; name="middle-image.jpg"
+    Content-Disposition: attachment; filename="middle-image.jpg"
+    Content-Transfer-Encoding: base64
+
+    /9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB
+    --MIDDLE_BOUNDARY--
+    EOT;
+
+    // Create the top-level message
+    $contents = <<<EOT
+    From: "Top Sender" <top@example.com>
+    To: "Top Recipient" <top-recipient@example.com>
+    Subject: Fwd: Fwd: Deep Message
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="TOP_BOUNDARY"
+
+    --TOP_BOUNDARY
+    Content-Type: text/plain; charset="UTF-8"
+
+    Multiple levels of forwarding.
+
+    --TOP_BOUNDARY
+    Content-Type: message/rfc822
+
+    $middleMessage
+    --TOP_BOUNDARY--
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    $attachments = $message->attachments();
+
+    // Should find attachments from all levels: deep-file.txt and middle-image.jpg
+    expect($attachments)->toHaveCount(2);
+
+    // Verify we get attachments from nested messages
+    $filenames = array_map(fn ($attachment) => $attachment->filename(), $attachments);
+    expect($filenames)->toContain('deep-file.txt');
+    expect($filenames)->toContain('middle-image.jpg');
+});
+
 test('it can determine if two messages are the same', function () {
     $contents1 = <<<'EOT'
     From: "John Doe" <john@example.com>
