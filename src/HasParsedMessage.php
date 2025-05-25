@@ -13,7 +13,6 @@ use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
-use ZBateson\MailMimeParser\Message\MimePart;
 
 trait HasParsedMessage
 {
@@ -119,14 +118,27 @@ trait HasParsedMessage
      */
     public function attachments(): array
     {
-        return array_map(function (MimePart $part) {
-            return new Attachment(
-                $part->getFilename(),
-                $part->getContentId(),
-                $part->getContentType(),
-                $part->getContentStream() ?? Utils::streamFor(''),
-            );
-        }, $this->parse()->getAllAttachmentParts());
+        $attachments = [];
+
+        foreach ($this->parse()->getAllAttachmentParts() as $part) {
+            // If the attachment's content type is message/rfc822, we're
+            // working with a forwarded message. We will parse the
+            // forwarded message and merge in its attachments.
+            if (strtolower($part->getContentType()) === 'message/rfc822') {
+                $message = new FileMessage($part->getContent());
+
+                $attachments = array_merge($attachments, $message->attachments());
+            } else {
+                $attachments[] = new Attachment(
+                    $part->getFilename(),
+                    $part->getContentId(),
+                    $part->getContentType(),
+                    $part->getContentStream() ?? Utils::streamFor(''),
+                );
+            }
+        }
+
+        return $attachments;
     }
 
     /**
