@@ -133,7 +133,7 @@ trait HasParsedMessage
                     $part->getFilename(),
                     $part->getContentId(),
                     $part->getContentType(),
-                    $part->getContentStream() ?? Utils::streamFor(''),
+                    $part->getBinaryContentStream() ?? Utils::streamFor(''),
                 );
             }
         }
