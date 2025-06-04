@@ -313,6 +313,8 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
     /**
      * Move the message to the given folder.
+     *
+     * @throws ImapCapabilityException
      */
     public function move(string $folder, bool $expunge = false): ?int
     {
