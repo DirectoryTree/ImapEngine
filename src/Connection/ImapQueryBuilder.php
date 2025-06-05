@@ -232,10 +232,9 @@ class ImapQueryBuilder
      */
     public function uid(int|string|array $uid): static
     {
-        return $this->where(
-            ImapSearchKey::Uid,
-            new RawQueryValue(implode(',', (array) $uid))
-        );
+        return $this->where(ImapSearchKey::Uid, new RawQueryValue(
+            Str::set(array_map('intval', (array) $uid))
+        ));
     }
 
     /**

@@ -240,7 +240,7 @@ test('compiles UID condition without quotes', function () {
 test('compiles multiple UID values without quotes', function () {
     $builder = new ImapQueryBuilder;
 
-    $builder->uid([2, 3]);
+    $builder->uid([2, 3, 5]);
 
     expect($builder->toImap())->toBe('UID 2,3');
 });
