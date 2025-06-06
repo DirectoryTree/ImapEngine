@@ -112,6 +112,16 @@ interface MessageQueryInterface
     public function setFetchOrderDesc(): MessageQueryInterface;
 
     /**
+     * Set the fetch order to show oldest messages first (ascending).
+     */
+    public function oldest(): MessageQueryInterface;
+
+    /**
+     * Set the fetch order to show newest messages first (descending).
+     */
+    public function newest(): MessageQueryInterface;
+
+    /**
      * Count all available messages matching the current search criteria.
      */
     public function count(): int;

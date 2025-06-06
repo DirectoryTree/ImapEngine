@@ -272,4 +272,20 @@ trait QueriesMessages
     {
         return $this->setFetchOrder('desc');
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function oldest(): MessageQueryInterface
+    {
+        return $this->setFetchOrder('asc');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function newest(): MessageQueryInterface
+    {
+        return $this->setFetchOrder('desc');
+    }
 }
