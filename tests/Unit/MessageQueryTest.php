@@ -67,3 +67,26 @@ test('destroy with multiple messages', function () {
 
     $stream->assertWritten('TAG2 UID STORE 1,2,3 +FLAGS.SILENT (\Deleted)');
 });
+
+test('oldest sets fetch order to asc', function () {
+    $query = query();
+
+    $query->oldest();
+
+    expect($query->getFetchOrder())->toBe('asc');
+});
+
+test('newest sets fetch order to desc', function () {
+    $query = query();
+
+    $query->newest();
+
+    expect($query->getFetchOrder())->toBe('desc');
+});
+
+test('oldest and newest return query instance for chaining', function () {
+    $query = query();
+
+    expect($query->oldest())->toBe($query);
+    expect($query->newest())->toBe($query);
+});
