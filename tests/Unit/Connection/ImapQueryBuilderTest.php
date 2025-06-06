@@ -228,3 +228,19 @@ test('converts values from utf-8 to utf-7', function () {
 
     expect($builder->toImap())->toBe('FOO "Jou&AOk-"');
 });
+
+test('compiles UID condition without quotes', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid(2);
+
+    expect($builder->toImap())->toBe('UID 2');
+});
+
+test('compiles multiple UID values without quotes', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid([2, 3, 5]);
+
+    expect($builder->toImap())->toBe('UID 2,3,5');
+});
