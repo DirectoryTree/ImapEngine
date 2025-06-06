@@ -307,3 +307,43 @@ test('retrieves messages by flag', function (string $flag, string $criteria) {
     ['\\Flagged', 'FLAGGED'],
     ['\\Answered', 'ANSWERED'],
 ]);
+
+test('marks messages as read when fetching', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    $folder->messages()
+        ->markAsRead()
+        ->withHeaders()
+        ->get();
+
+    $message = $folder->messages()->withFlags()->find($uid);
+
+    expect($message->isSeen())->toBeTrue();
+});
+
+test('leaves messages unread when fetching', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    $folder->messages()
+        ->leaveUnread()
+        ->withHeaders()
+        ->get();
+
+    $message = $folder->messages()->withFlags()->find($uid);
+
+    expect($message->isSeen())->toBeFalse();
+});
