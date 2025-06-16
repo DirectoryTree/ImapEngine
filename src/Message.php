@@ -2,9 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use BackedEnum;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
-use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
@@ -12,7 +10,7 @@ use JsonSerializable;
 
 class Message implements Arrayable, JsonSerializable, MessageInterface
 {
-    use HasParsedMessage;
+    use HasFlags, HasParsedMessage;
 
     /**
      * Constructor.
@@ -100,174 +98,6 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             && $this->head === $message->head
             && $this->body === $message->body
             && $this->folder->is($message->folder);
-    }
-
-    /**
-     * Determine if the message is marked as seen.
-     */
-    public function isSeen(): bool
-    {
-        return $this->hasFlag(ImapFlag::Seen);
-    }
-
-    /**
-     * Determine if the message is marked as answered.
-     */
-    public function isAnswered(): bool
-    {
-        return $this->hasFlag(ImapFlag::Answered);
-    }
-
-    /**
-     * Determine if the message is flagged.
-     */
-    public function isFlagged(): bool
-    {
-        return $this->hasFlag(ImapFlag::Flagged);
-    }
-
-    /**
-     * Determine if the message is marked as deleted.
-     */
-    public function isDeleted(): bool
-    {
-        return $this->hasFlag(ImapFlag::Deleted);
-    }
-
-    /**
-     * Determine if the message is marked as a draft.
-     */
-    public function isDraft(): bool
-    {
-        return $this->hasFlag(ImapFlag::Draft);
-    }
-
-    /**
-     * Determine if the message is marked as recent.
-     */
-    public function isRecent(): bool
-    {
-        return $this->hasFlag(ImapFlag::Recent);
-    }
-
-    /**
-     * Determine if the message has the given flag.
-     */
-    public function hasFlag(BackedEnum|string $flag): bool
-    {
-        return in_array(Str::enum($flag), $this->flags);
-    }
-
-    /**
-     * Mark the message as read. Alias for markSeen.
-     */
-    public function markRead(): void
-    {
-        $this->markSeen();
-    }
-
-    /**
-     * Mark the message as unread. Alias for unmarkSeen.
-     */
-    public function markUnread(): void
-    {
-        $this->unmarkSeen();
-    }
-
-    /**
-     * Mark the message as seen.
-     */
-    public function markSeen(): void
-    {
-        $this->flag(ImapFlag::Seen, '+');
-    }
-
-    /**
-     * Unmark the seen flag.
-     */
-    public function unmarkSeen(): void
-    {
-        $this->flag(ImapFlag::Seen, '-');
-    }
-
-    /**
-     * Mark the message as answered.
-     */
-    public function markAnswered(): void
-    {
-        $this->flag(ImapFlag::Answered, '+');
-    }
-
-    /**
-     * Unmark the answered flag.
-     */
-    public function unmarkAnswered(): void
-    {
-        $this->flag(ImapFlag::Answered, '-');
-    }
-
-    /**
-     * Mark the message as flagged.
-     */
-    public function markFlagged(): void
-    {
-        $this->flag(ImapFlag::Flagged, '+');
-    }
-
-    /**
-     * Unmark the flagged flag.
-     */
-    public function unmarkFlagged(): void
-    {
-        $this->flag(ImapFlag::Flagged, '-');
-    }
-
-    /**
-     * Mark the message as deleted.
-     */
-    public function markDeleted(bool $expunge = false): void
-    {
-        $this->flag(ImapFlag::Deleted, '+', $expunge);
-    }
-
-    /**
-     * Unmark the deleted flag.
-     */
-    public function unmarkDeleted(): void
-    {
-        $this->flag(ImapFlag::Deleted, '-');
-    }
-
-    /**
-     * Mark the message as a draft.
-     */
-    public function markDraft(): void
-    {
-        $this->flag(ImapFlag::Draft, '+');
-    }
-
-    /**
-     * Unmark the draft flag.
-     */
-    public function unmarkDraft(): void
-    {
-        $this->flag(ImapFlag::Draft, '-');
-    }
-
-    /**
-     * Mark the message as recent.
-     */
-    public function markRecent(): void
-    {
-        $this->flag(ImapFlag::Recent, '+');
-    }
-
-    /**
-     * Unmark the recent flag.
-     */
-    public function unmarkRecent(): void
-    {
-        $this->flag(ImapFlag::Recent, '-');
     }
 
     /**

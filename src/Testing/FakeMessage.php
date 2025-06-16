@@ -2,12 +2,14 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\HasFlags;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
+use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeMessage implements MessageInterface
 {
-    use HasParsedMessage;
+    use HasFlags, HasParsedMessage;
 
     /**
      * Constructor.
@@ -35,6 +37,28 @@ class FakeMessage implements MessageInterface
             && $this->uid === $message->uid
             && $this->flags === $message->flags
             && $this->contents === $message->contents;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flag(mixed $flag, string $operation, bool $expunge = false): void
+    {
+        $flag = Str::enum($flag);
+
+        if ($operation === '+') {
+            $this->flags = array_unique([...$this->flags, $flag]);
+        } else {
+            $this->flags = array_filter($this->flags, fn (string $value) => $value !== $flag);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flags(): array
+    {
+        return $this->flags;
     }
 
     /**

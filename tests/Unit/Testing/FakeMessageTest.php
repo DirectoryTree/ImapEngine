@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Testing\FakeMessage;
 
 test('it can be created with basic properties', function () {
@@ -72,4 +73,48 @@ test('it can determine if two messages are the same', function () {
 
     // Different content
     expect($message1->is($message5))->toBeFalse();
+});
+
+test('it can add flags using flag method', function () {
+    $message = new FakeMessage(1, [], 'Test content');
+
+    expect($message->flags())->toBe([]);
+    expect($message->isSeen())->toBeFalse();
+    expect($message->isFlagged())->toBeFalse();
+
+    // Add Seen flag
+    $message->flag('\\Seen', '+');
+    expect($message->flags())->toContain('\\Seen');
+    expect($message->hasFlag(ImapFlag::Seen))->toBeTrue();
+    expect($message->isSeen())->toBeTrue();
+
+    // Add Flagged flag
+    $message->flag('\\Flagged', '+');
+    expect($message->flags())->toContain('\\Flagged');
+    expect($message->hasFlag(ImapFlag::Flagged))->toBeTrue();
+    expect($message->isFlagged())->toBeTrue();
+    expect($message->flags())->toHaveCount(2);
+});
+
+test('it can remove flags using flag method', function () {
+    $message = new FakeMessage(1, ['\\Seen', '\\Flagged'], 'Test content');
+
+    expect($message->flags())->toContain('\\Seen');
+    expect($message->flags())->toContain('\\Flagged');
+    expect($message->hasFlag(ImapFlag::Seen))->toBeTrue();
+    expect($message->hasFlag(ImapFlag::Flagged))->toBeTrue();
+    expect($message->isSeen())->toBeTrue();
+    expect($message->isFlagged())->toBeTrue();
+
+    // Remove Seen flag
+    $message->flag('\\Seen', '-');
+    expect($message->flags())->not->toContain('\\Seen');
+    expect($message->isSeen())->toBeFalse();
+    expect($message->isFlagged())->toBeTrue();
+
+    // Remove Flagged flag
+    $message->flag('\\Flagged', '-');
+    expect($message->flags())->not->toContain('\\Flagged');
+    expect($message->isFlagged())->toBeFalse();
+    expect($message->flags())->toBeEmpty();
 });
