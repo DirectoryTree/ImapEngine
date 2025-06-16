@@ -7,7 +7,7 @@ use Stringable;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
 
-interface MessageInterface extends Stringable
+interface MessageInterface extends FlaggableInterface, Stringable
 {
     /**
      * Get the message's identifier.

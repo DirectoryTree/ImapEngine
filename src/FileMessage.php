@@ -6,7 +6,7 @@ use BadMethodCallException;
 
 class FileMessage implements MessageInterface
 {
-    use HasParsedMessage;
+    use HasFlags, HasParsedMessage;
 
     /**
      * Constructor.
@@ -24,6 +24,14 @@ class FileMessage implements MessageInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function flag(mixed $flag, string $operation, bool $expunge = false): void
+    {
+        throw new BadMethodCallException('FileMessage does not support flagging');
+    }
+
+    /**
      * Get the string representation of the message.
      */
     public function __toString(): string
@@ -38,6 +46,14 @@ class FileMessage implements MessageInterface
     {
         return $message instanceof self
             && $this->contents === $message->contents;
+    }
+
+    /**
+     * Get the message flags.
+     */
+    public function flags(): array
+    {
+        return [];
     }
 
     /**
