@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\Attachment;
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\FileMessage;
 
@@ -9,6 +10,24 @@ test('it throws an exception if the message is empty', function () {
 
     $message->parse();
 })->throws(RuntimeException::class);
+
+test('it throws exception when uid is called', function () {
+    $message = new FileMessage('test');
+
+    $message->uid();
+})->throws(BadMethodCallException::class);
+
+test('it throws exception when flag is called', function () {
+    $message = new FileMessage('test');
+
+    $message->flag(ImapFlag::Seen, '+');
+})->throws(BadMethodCallException::class);
+
+test('it returns empty flags', function () {
+    $message = new FileMessage('test');
+
+    expect($message->flags())->toBe([]);
+});
 
 test('it can parse a standard EML message and read basic headers', function () {
     $contents = <<<'EOT'
