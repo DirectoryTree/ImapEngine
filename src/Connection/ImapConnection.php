@@ -14,7 +14,6 @@ use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
@@ -22,6 +21,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Support\Str;
+use Exception;
 use Generator;
 use LogicException;
 
@@ -69,8 +69,14 @@ class ImapConnection implements ConnectionInterface
      */
     public function __destruct()
     {
-        if ($this->connected()) {
-            $this->logout();
+        if (! $this->connected()) {
+            return;
+        }
+
+        try {
+            @$this->logout();
+        } catch (Exception $e) {
+            // Do nothing.
         }
     }
 
@@ -182,14 +188,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function logout(): void
     {
-        try {
-            // It's generally acceptable to send a logout command to an IMAP server
-            // and not wait for a response. If the server encounters an error
-            // processing the request, we will have to reconnect anyway.
-            $this->send('LOGOUT', tag: $tag);
-        } catch (Exception) {
-            // Do nothing.
-        }
+        $this->send('LOGOUT', tag: $tag);
     }
 
     /**

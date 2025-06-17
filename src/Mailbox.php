@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Connection\Loggers\EchoLogger;
 use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use Exception;
 
 class Mailbox implements MailboxInterface
 {
@@ -167,12 +168,14 @@ class Mailbox implements MailboxInterface
      */
     public function disconnect(): void
     {
-        if ($this->connected()) {
-            $this->connection->logout();
-            $this->connection->disconnect();
+        try {
+            $this->connection?->logout();
+            $this->connection?->disconnect();
+        } catch (Exception) {
+            // Do nothing.
+        } finally {
+            $this->connection = null;
         }
-
-        $this->connection = null;
     }
 
     /**
