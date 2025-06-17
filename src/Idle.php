@@ -81,7 +81,7 @@ class Idle
     /**
      * Get the folder to idle.
      */
-    protected function folder(): Folder
+    protected function folder(): FolderInterface
     {
         return $this->mailbox->folders()->findOrFail($this->folder);
     }
