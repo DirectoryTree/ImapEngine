@@ -53,7 +53,7 @@ class Idle
     /**
      * Start listening for new messages using the idle() generator.
      */
-    protected function listen(callable $callback, Carbon $ttl): void
+    protected function listen(callable $callback, CarbonInterface $ttl): void
     {
         // Iterate over responses yielded by the idle generator.
         foreach ($this->idle() as $response) {
