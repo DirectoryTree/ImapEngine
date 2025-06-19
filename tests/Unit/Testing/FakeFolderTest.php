@@ -94,3 +94,16 @@ test('it can set delimiter', function () {
 
     expect($folder->delimiter())->toBe('.');
 });
+
+it('can query messages from a fake mailbox folder', function () {
+    $message1 = new FakeMessage(1, [''], 'Message 1');
+    $message2 = new FakeMessage(2, [''], 'Message 2');
+    $message3 = new FakeMessage(3, ['\\Seen'], 'Message 3');
+
+    $folder = new FakeFolder('inbox', ['\\HasNoChildren'], [$message1, $message2, $message3]);
+
+    expect($folder->messages()->count())->toBe(3);
+
+    expect($folder->messages()->where('Unseen')->count())->toBe(2);
+    expect($folder->messages()->where('Seen')->count())->toBe(1);
+});
