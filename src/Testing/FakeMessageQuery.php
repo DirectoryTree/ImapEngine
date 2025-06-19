@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine\Testing;
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
@@ -17,7 +18,8 @@ class FakeMessageQuery implements MessageQueryInterface
      * Constructor.
      */
     public function __construct(
-        protected FakeFolder $folder
+        protected FakeFolder $folder,
+        protected ImapQueryBuilder $query = new ImapQueryBuilder
     ) {}
 
     /**

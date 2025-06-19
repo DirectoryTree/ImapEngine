@@ -3,9 +3,13 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Support\ForwardsCalls;
+use Illuminate\Support\Traits\Conditionable;
 
 trait QueriesMessages
 {
+    use Conditionable, ForwardsCalls;
+
     /**
      * The query builder instance.
      */
