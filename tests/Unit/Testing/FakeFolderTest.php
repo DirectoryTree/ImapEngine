@@ -71,6 +71,7 @@ test('it can set flags', function () {
 
 test('it can set mailbox', function () {
     $folder = new FakeFolder('INBOX');
+
     $mailbox = new FakeMailbox(['host' => 'imap.example.com']);
 
     $folder->setMailbox($mailbox);
@@ -80,9 +81,11 @@ test('it can set mailbox', function () {
 
 test('it can set messages', function () {
     $folder = new FakeFolder('INBOX');
-    $messages = [new FakeMessage(1), new FakeMessage(2)];
 
-    $folder->setMessages($messages);
+    $folder->setMessages([
+        new FakeMessage(1),
+        new FakeMessage(2),
+    ]);
 
     expect($folder->messages()->count())->toBe(2);
 });
@@ -95,15 +98,16 @@ test('it can set delimiter', function () {
     expect($folder->delimiter())->toBe('.');
 });
 
-it('can query messages from a fake mailbox folder', function () {
-    $message1 = new FakeMessage(1, [''], 'Message 1');
-    $message2 = new FakeMessage(2, [''], 'Message 2');
-    $message3 = new FakeMessage(3, ['\\Seen'], 'Message 3');
+test('it can query messages from a fake mailbox folder', function () {
+    $folder = new FakeFolder('inbox', ['\\HasNoChildren'], [
+        new FakeMessage(1, [''], 'Message 1'),
+        new FakeMessage(2, [''], 'Message 2'),
+        new FakeMessage(3, ['\\Seen'], 'Message 3'),
+    ]);
 
-    $folder = new FakeFolder('inbox', ['\\HasNoChildren'], [$message1, $message2, $message3]);
-
+    // These should all have the same count because
+    // no filtering should actually take place
     expect($folder->messages()->count())->toBe(3);
-
-    expect($folder->messages()->where('Unseen')->count())->toBe(2);
-    expect($folder->messages()->where('Seen')->count())->toBe(1);
+    expect($folder->messages()->where('Unseen')->count())->toBe(3);
+    expect($folder->messages()->where('Seen')->count())->toBe(3);
 });
