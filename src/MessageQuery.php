@@ -13,18 +13,16 @@ use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
-use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
-use Illuminate\Support\Traits\Conditionable;
 
 /**
  * @mixin \DirectoryTree\ImapEngine\Connection\ImapQueryBuilder
  */
 class MessageQuery implements MessageQueryInterface
 {
-    use Conditionable, ForwardsCalls, QueriesMessages;
+    use QueriesMessages;
 
     /**
      * Constructor.
