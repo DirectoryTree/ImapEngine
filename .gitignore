@@ -1,6 +1,17 @@
-vendor
+# Composer Related
 composer.lock
-psalm.phar
-.php_cs.cache
+/vendor
+
+# Caches
+.phpunit.cache
 .phpunit.result.cache
-.php-cs-fixer.cache
+
+# IDE Helper
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
+
+# Editors
+/.idea
+/.fleet
+/.vscode
