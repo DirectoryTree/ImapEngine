@@ -347,3 +347,20 @@ test('leaves messages unread when fetching', function () {
 
     expect($message->isSeen())->toBeFalse();
 });
+
+test('querying for unseen messages', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    expect($folder->messages()->unseen()->count())->toBe(1);
+
+    $folder->messages()->withFlags()->find($uid)->markSeen();
+
+    expect($folder->messages()->unseen()->count())->toBe(0);
+});
