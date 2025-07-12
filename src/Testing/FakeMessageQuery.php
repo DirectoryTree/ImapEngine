@@ -81,7 +81,13 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function each(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
-        $this->get()->each($callback);
+        $this->chunk(function (MessageCollection $messages) use ($callback) {
+            foreach ($messages as $key => $message) {
+                if ($callback($message, $key) === false) {
+                    return false;
+                }
+            }
+        }, $chunkSize, $startChunk);
     }
 
     /**
@@ -89,7 +95,26 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
-        $this->get()->chunk($chunkSize)->each($callback);
+        $page = $startChunk;
+
+        $messages = $this->get();
+
+        $chunks = $messages->chunk($chunkSize);
+
+        foreach ($chunks as $chunk) {
+            if ($page < $startChunk) {
+                $page++;
+
+                continue;
+            }
+
+            // If the callback returns false, break out.
+            if ($callback($chunk, $page) === false) {
+                break;
+            }
+
+            $page++;
+        }
     }
 
     /**
