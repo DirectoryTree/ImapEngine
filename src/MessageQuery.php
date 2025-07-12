@@ -95,7 +95,7 @@ class MessageQuery implements MessageQueryInterface
         $this->chunk(function (MessageCollection $messages) use ($callback) {
             foreach ($messages as $key => $message) {
                 if ($callback($message, $key) === false) {
-                    break;
+                    return false;
                 }
             }
         }, $chunkSize, $startChunk);
