@@ -90,3 +90,94 @@ test('oldest and newest return query instance for chaining', function () {
     expect($query->oldest())->toBe($query);
     expect($query->newest())->toBe($query);
 });
+
+test('each breaks when callback returns false', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3 4 5',
+        'TAG2 OK SEARCH completed',
+        '* 5 FETCH (UID 5 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        '* 4 FETCH (UID 4 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        'TAG3 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $processedUids = [];
+
+    query($mailbox)->each(function ($message) use (&$processedUids) {
+        $processedUids[] = $message->uid();
+
+        // Break after processing the first message (which will be UID 5 due to desc order)
+        if ($message->uid() === 5) {
+            return false;
+        }
+    }, 2); // Use chunk size of 2
+
+    // Should only process the first message (UID 5 due to desc order)
+    expect($processedUids)->toBe([5]);
+});
+
+test('chunk breaks when callback returns false', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3 4 5',
+        'TAG2 OK SEARCH completed',
+        '* 5 FETCH (UID 5 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        '* 4 FETCH (UID 4 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        'TAG3 OK FETCH completed',
+        '* 3 FETCH (UID 3 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        '* 2 FETCH (UID 2 FLAGS () BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        'TAG4 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $processedChunks = [];
+
+    query($mailbox)->chunk(function ($messages, $page) use (&$processedChunks) {
+        $processedChunks[] = $page;
+
+        // Break after processing the first chunk
+        if ($page === 1) {
+            return false;
+        }
+    }, 2); // Use chunk size of 2
+
+    // Should only process the first chunk (page 1)
+    expect($processedChunks)->toBe([1]);
+});

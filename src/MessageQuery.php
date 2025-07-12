@@ -92,9 +92,13 @@ class MessageQuery implements MessageQueryInterface
      */
     public function each(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
-        $this->chunk(fn (MessageCollection $messages) => (
-            $messages->each($callback)
-        ), $chunkSize, $startChunk);
+        $this->chunk(function (MessageCollection $messages) use ($callback) {
+            foreach ($messages as $key => $message) {
+                if ($callback($message, $key) === false) {
+                    return false;
+                }
+            }
+        }, $chunkSize, $startChunk);
     }
 
     /**
@@ -134,7 +138,10 @@ class MessageQuery implements MessageQueryInterface
                 break;
             }
 
-            $callback($hydrated, $page);
+            // If the callback returns false, break out.
+            if ($callback($hydrated, $page) === false) {
+                break;
+            }
         }
 
         // Restore the original state.
