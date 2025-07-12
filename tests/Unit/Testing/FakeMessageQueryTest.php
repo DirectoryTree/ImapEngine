@@ -173,3 +173,93 @@ test('it can destroy multiple messages', function () {
     expect($query->find(2))->not->toBeNull();
     expect($query->find(4))->not->toBeNull();
 });
+
+test('each breaks when callback returns false', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1, [], 'Message 1'),
+        new FakeMessage(2, [], 'Message 2'),
+        new FakeMessage(3, [], 'Message 3'),
+        new FakeMessage(4, [], 'Message 4'),
+        new FakeMessage(5, [], 'Message 5'),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+    $processedUids = [];
+
+    $query->each(function ($message) use (&$processedUids) {
+        $processedUids[] = $message->uid();
+
+        // Break after processing the third message
+        if ($message->uid() === 3) {
+            return false;
+        }
+    }, 2); // Use chunk size of 2
+
+    // Should process messages 1, 2, and 3, then break
+    expect($processedUids)->toBe([1, 2, 3]);
+});
+
+test('chunk breaks when callback returns false', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1, [], 'Message 1'),
+        new FakeMessage(2, [], 'Message 2'),
+        new FakeMessage(3, [], 'Message 3'),
+        new FakeMessage(4, [], 'Message 4'),
+        new FakeMessage(5, [], 'Message 5'),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+    $processedChunks = [];
+
+    $query->chunk(function ($messages, $page) use (&$processedChunks) {
+        $processedChunks[] = $page;
+
+        // Break after processing the second chunk
+        if ($page === 2) {
+            return false;
+        }
+    }, 2); // Use chunk size of 2
+
+    // Should process chunks 1 and 2, then break (chunk 3 should not be processed)
+    expect($processedChunks)->toBe([1, 2]);
+});
+
+test('each processes all messages when callback never returns false', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1, [], 'Message 1'),
+        new FakeMessage(2, [], 'Message 2'),
+        new FakeMessage(3, [], 'Message 3'),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+    $processedUids = [];
+
+    $query->each(function ($message) use (&$processedUids) {
+        $processedUids[] = $message->uid();
+        // Never return false
+    });
+
+    // Should process all messages
+    expect($processedUids)->toBe([1, 2, 3]);
+});
+
+test('chunk processes all chunks when callback never returns false', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1, [], 'Message 1'),
+        new FakeMessage(2, [], 'Message 2'),
+        new FakeMessage(3, [], 'Message 3'),
+        new FakeMessage(4, [], 'Message 4'),
+        new FakeMessage(5, [], 'Message 5'),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+    $processedChunks = [];
+
+    $query->chunk(function ($messages, $page) use (&$processedChunks) {
+        $processedChunks[] = $page;
+        // Never return false
+    }, 2); // Use chunk size of 2
+
+    // Should process all chunks (1, 2, 3)
+    expect($processedChunks)->toBe([1, 2, 3]);
+});
