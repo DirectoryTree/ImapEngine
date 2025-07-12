@@ -97,11 +97,7 @@ class FakeMessageQuery implements MessageQueryInterface
     {
         $page = $startChunk;
 
-        $messages = $this->get();
-
-        $chunks = $messages->chunk($chunkSize);
-
-        foreach ($chunks as $chunk) {
+        foreach ($this->get()->chunk($chunkSize) as $chunk) {
             if ($page < $startChunk) {
                 $page++;
 
