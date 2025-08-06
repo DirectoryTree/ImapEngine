@@ -121,5 +121,5 @@ interface FlaggableInterface
     /**
      * Add or remove a flag from the message.
      */
-    public function flag(mixed $flag, string $operation, bool $expunge = false): void;
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void;
 }

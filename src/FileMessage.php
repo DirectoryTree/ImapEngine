@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use BackedEnum;
 use BadMethodCallException;
 
 class FileMessage implements MessageInterface
@@ -26,7 +27,7 @@ class FileMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function flag(mixed $flag, string $operation, bool $expunge = false): void
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
         throw new BadMethodCallException('FileMessage does not support flagging');
     }
