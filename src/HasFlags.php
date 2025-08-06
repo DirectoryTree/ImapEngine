@@ -184,5 +184,5 @@ trait HasFlags
     /**
      * {@inheritDoc}
      */
-    abstract public function flag(mixed $flag, string $operation, bool $expunge = false): void;
+    abstract public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void;
 }

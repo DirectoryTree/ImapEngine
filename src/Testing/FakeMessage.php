@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use BackedEnum;
 use DirectoryTree\ImapEngine\HasFlags;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
@@ -42,7 +43,7 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function flag(mixed $flag, string $operation, bool $expunge = false): void
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
         $flag = Str::enum($flag);
 

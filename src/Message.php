@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use BackedEnum;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -103,7 +104,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Add or remove a flag from the message.
      */
-    public function flag(mixed $flag, string $operation, bool $expunge = false): void
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
         $flag = Str::enum($flag);
 
