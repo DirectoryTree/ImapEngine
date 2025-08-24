@@ -258,9 +258,10 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        if ($this->fetchOrder === 'desc') {
-            $messages = $messages->reverse();
-        }
+        $messages = match ($this->fetchOrder) {
+            'asc' => $messages->sort(SORT_NUMERIC),
+            'desc' => $messages->sortDesc(SORT_NUMERIC),
+        };
 
         $uids = $messages->forPage($this->page, $this->limit)->toArray();
 
