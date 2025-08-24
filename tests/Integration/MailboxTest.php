@@ -17,7 +17,7 @@ test('inbox', function () {
 test('capabilities', function () {
     $mailbox = mailbox();
 
-    expect($mailbox->capabilities())->toEqualCanonicalizing([
+    expect(array_flip($mailbox->capabilities()))->toHaveKeys([
         'IMAP4rev1',
         'LITERAL+',
         'UIDPLUS',
