@@ -258,23 +258,29 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        if ($this->fetchOrder === 'desc') {
-            $messages = $messages->reverse();
-        }
+        $messages = match ($this->fetchOrder) {
+            'asc' => $messages->sort(SORT_NUMERIC),
+            'desc' => $messages->sortDesc(SORT_NUMERIC),
+        };
 
-        $uids = $messages->forPage($this->page, $this->limit)->toArray();
+        $uids = $messages->forPage($this->page, $this->limit)
+            ->values()
+            ->all();
 
         $flags = $this->fetchFlags ? $this->connection()
             ->flags($uids)
-            ->mapWithKeys(MessageResponseParser::getFlags(...))->all() : [];
+            ->mapWithKeys(MessageResponseParser::getFlags(...))
+            ->all() : [];
 
         $headers = $this->fetchHeaders ? $this->connection()
             ->bodyHeader($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))->all() : [];
+            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))
+            ->all() : [];
 
         $contents = $this->fetchBody ? $this->connection()
             ->bodyText($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyText(...))->all() : [];
+            ->mapWithKeys(MessageResponseParser::getBodyText(...))
+            ->all() : [];
 
         return [
             'uids' => $uids,
