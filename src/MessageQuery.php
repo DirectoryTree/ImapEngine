@@ -263,7 +263,7 @@ class MessageQuery implements MessageQueryInterface
             'desc' => $messages->sortDesc(SORT_NUMERIC),
         };
 
-        $uids = $messages->forPage($this->page, $this->limit)->toArray();
+        $uids = $messages->forPage($this->page, $this->limit)->values();
 
         $flags = $this->fetchFlags ? $this->connection()
             ->flags($uids)
