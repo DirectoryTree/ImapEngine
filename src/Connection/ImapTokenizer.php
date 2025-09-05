@@ -9,6 +9,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
@@ -118,6 +119,11 @@ class ImapTokenizer
         // Check for literal block open.
         if ($char === '{') {
             return $this->readLiteral();
+        }
+
+        // Check for number.
+        if (ctype_digit($char)) {
+            return $this->readNumber();
         }
 
         // Otherwise, parse an atom.
@@ -298,6 +304,36 @@ class ImapTokenizer
         }
 
         return new Literal($literal);
+    }
+
+    /**
+     * Reads a number token.
+     *
+     * Numbers are sequences of digits.
+     */
+    protected function readNumber(): Number
+    {
+        $value = '';
+
+        while (true) {
+            $this->ensureBuffer(1);
+
+            $char = $this->currentChar();
+
+            if ($char === null) {
+                break;
+            }
+
+            if (! ctype_digit($char)) {
+                break;
+            }
+
+            $value .= $char;
+
+            $this->advance();
+        }
+
+        return new Number($value);
     }
 
     /**
