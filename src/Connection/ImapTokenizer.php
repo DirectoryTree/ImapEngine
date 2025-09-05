@@ -321,7 +321,6 @@ class ImapTokenizer
                 break;
             }
 
-            // Append the character to the value.
             $value .= $char;
 
             $this->advance();
