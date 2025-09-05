@@ -1,7 +1,7 @@
 {
     "name": "directorytree/imapengine",
     "type": "library",
-    "description": "A PHP IMAP client",
+    "description": "A fully-featured IMAP library -- without the PHP extension",
     "keywords": [
         "imap",
         "mail",
