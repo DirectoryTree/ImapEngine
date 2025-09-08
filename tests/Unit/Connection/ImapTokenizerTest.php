@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
@@ -257,7 +258,7 @@ test('tokenizer parses tagged response with response codes', function () {
     expect($token->value)->toBe('UIDNEXT');
 
     $token = $tokenizer->nextToken();
-    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token)->toBeInstanceOf(Number::class);
     expect($token->value)->toBe('1000');
 
     $token = $tokenizer->nextToken();
