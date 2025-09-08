@@ -3,13 +3,14 @@
 namespace DirectoryTree\ImapEngine\Connection\Responses;
 
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 
 class UntaggedResponse extends Response
 {
     /**
      * Get the response type token.
      */
-    public function type(): Atom
+    public function type(): Atom|Number
     {
         return $this->tokens[1];
     }

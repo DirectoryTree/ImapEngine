@@ -13,6 +13,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Crlf;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
@@ -54,8 +55,8 @@ class ImapParser
             return $this->parseList();
         }
 
-        // If the token is an ATOM, check its value for special markers.
-        if ($this->currentToken instanceof Atom) {
+        // If the token is an Atom or Number, check its value for special markers.
+        if ($this->currentToken instanceof Atom || $this->currentToken instanceof Number) {
             // '*' marks an untagged response.
             if ($this->currentToken->value === '*') {
                 return $this->parseUntaggedResponse();
