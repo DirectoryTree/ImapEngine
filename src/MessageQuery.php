@@ -8,7 +8,7 @@ use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
@@ -305,7 +305,7 @@ class MessageQuery implements MessageQueryInterface
         ]);
 
         return new Collection(array_map(
-            fn (Atom $token) => $token->value,
+            fn (Token $token) => $token->value,
             $response->tokensAfter(2)
         ));
     }
