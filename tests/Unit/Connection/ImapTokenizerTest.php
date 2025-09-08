@@ -335,6 +335,28 @@ test('tokenizer parsers properly', function (array|string $feed, array $tokens) 
     ],
 ]);
 
+test('tokenizer handles edge cases', function (string $feed, Token ...$expectedTokens) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed($feed);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    foreach ($expectedTokens as $expectedToken) {
+        $actualToken = $tokenizer->nextToken();
+
+        expect($actualToken)->toBeInstanceOf(get_class($expectedToken));
+        expect($actualToken->value)->toBe($expectedToken->value);
+    }
+})->with([
+    ['UID 48273)', new Atom('UID'), new Number('48273'), new ListClose(')')],
+    ['* 23 EXISTS', new Atom('*'), new Number('23'), new Atom('EXISTS')],
+    ['OK (0.002 secs)', new Atom('OK'), new ListOpen('('), new Atom('0.002'), new Atom('secs'), new ListClose(')')],
+    ['OK 404NotFound', new Atom('OK'), new Atom('404NotFound')],
+    ['A1 OK [UIDNEXT 1000]', new Atom('A1'), new Atom('OK'), new ResponseCodeOpen('['), new Atom('UIDNEXT'), new Number('1000'), new ResponseCodeClose(']')],
+]);
+
 test('all tokens implement the token interface', function (string $data) {
     $stream = new FakeStream;
     $stream->open();
