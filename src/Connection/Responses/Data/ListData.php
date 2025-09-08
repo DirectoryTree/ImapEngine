@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 class ListData extends Data
 {
     /**
-     * Lookup the value of the given field in the list.
+     * Find the immediate successor token of the given field in the list.
      */
     public function lookup(string $field): Data|Token|null
     {
