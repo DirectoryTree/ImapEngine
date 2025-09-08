@@ -39,7 +39,7 @@ class TaggedResponse extends Response
      */
     public function successful(): bool
     {
-        return $this->status()->value === 'OK';
+        return strtoupper($this->status()->value) === 'OK';
     }
 
     /**
@@ -47,6 +47,6 @@ class TaggedResponse extends Response
      */
     public function failed(): bool
     {
-        return in_array($this->status()->value, ['NO', 'BAD']);
+        return in_array(strtoupper($this->status()->value), ['NO', 'BAD']);
     }
 }
