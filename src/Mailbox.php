@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Loggers\EchoLogger;
 use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
-use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Exception;
 
 class Mailbox implements MailboxInterface
@@ -205,7 +205,7 @@ class Mailbox implements MailboxInterface
     public function capabilities(): array
     {
         return $this->capabilities ??= array_map(
-            fn (Atom $token) => $token->value,
+            fn (Token $token) => $token->value,
             $this->connection()->capability()->tokensAfter(2)
         );
     }
