@@ -121,13 +121,8 @@ class ImapTokenizer
             return $this->readLiteral();
         }
 
-        // Check for number.
-        if (ctype_digit($char)) {
-            return $this->readNumber();
-        }
-
-        // Otherwise, parse an atom.
-        return $this->readAtom();
+        // Otherwise, parse a number or atom.
+        return $this->readNumberOrAtom();
     }
 
     /**
@@ -307,13 +302,43 @@ class ImapTokenizer
     }
 
     /**
+     * Reads a number or atom token.
+     */
+    protected function readNumberOrAtom(): Token
+    {
+        $position = $this->position;
+
+        // First char must be a digit to even consider a number.
+        if (! ctype_digit($this->buffer[$position] ?? '')) {
+            return $this->readAtom();
+        }
+
+        // Walk forward to find the end of the digit run.
+        while (ctype_digit($this->buffer[$position] ?? '')) {
+            $position++;
+
+            $this->ensureBuffer($position - $this->position + 1);
+        }
+
+        $next = $this->buffer[$position] ?? null;
+
+        // If next is EOF or a delimiter, it's a Number.
+        if ($next === null || $this->isDelimiter($next)) {
+            return $this->readNumber();
+        }
+
+        // Otherwise it's an Atom.
+        return $this->readAtom();
+    }
+
+    /**
      * Reads a number token.
      *
-     * Numbers are sequences of digits.
+     * A number consists of one or more digit characters and represents a numeric value.
      */
     protected function readNumber(): Number
     {
-        $value = '';
+        $start = $this->position;
 
         while (true) {
             $this->ensureBuffer(1);
@@ -328,12 +353,10 @@ class ImapTokenizer
                 break;
             }
 
-            $value .= $char;
-
             $this->advance();
         }
 
-        return new Number($value);
+        return new Number(substr($this->buffer, $start, $this->position - $start));
     }
 
     /**
@@ -347,6 +370,7 @@ class ImapTokenizer
 
         while (true) {
             $this->ensureBuffer(1);
+
             $char = $this->currentChar();
 
             if ($char === null) {
