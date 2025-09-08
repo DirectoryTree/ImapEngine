@@ -2,14 +2,14 @@
 
 namespace DirectoryTree\ImapEngine\Connection\Responses;
 
-use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
 class ContinuationResponse extends Response
 {
     /**
      * Get the data tokens.
      *
-     * @return Atom[]
+     * @return Token[]
      */
     public function data(): array
     {
