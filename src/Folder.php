@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -92,10 +93,15 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
     {
         if (! in_array('IDLE', $this->mailbox->capabilities())) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
+        }
+
+        // Normalize timeout into a closure.
+        if (is_callable($timeout) && ! $timeout instanceof Closure) {
+            $timeout = $timeout(...);
         }
 
         // The message query to use when fetching messages.

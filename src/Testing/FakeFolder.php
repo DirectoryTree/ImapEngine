@@ -89,7 +89,7 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
     {
         foreach ($this->messages as $message) {
             $callback($message);
