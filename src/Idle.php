@@ -160,7 +160,7 @@ class Idle
     protected function getNextTimeout(): CarbonInterface|false
     {
         if (is_numeric($seconds = value($this->timeout))) {
-            return Carbon::now()->addSeconds($seconds);
+            return Carbon::now()->addSeconds(abs($seconds));
         }
 
         return false;
