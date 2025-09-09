@@ -150,7 +150,7 @@ class Idle
     protected function idle(CarbonInterface $ttl): Generator
     {
         yield from $this->mailbox->connection()->idle(
-            (int) Carbon::now()->diffInSeconds($ttl)
+            (int) Carbon::now()->diffInSeconds($ttl, true)
         );
     }
 
