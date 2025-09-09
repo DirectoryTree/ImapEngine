@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Closure;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
@@ -18,7 +19,7 @@ class Idle
     public function __construct(
         protected Mailbox $mailbox,
         protected string $folder,
-        protected int $timeout,
+        protected Closure|int $timeout,
     ) {}
 
     /**
@@ -36,10 +37,7 @@ class Idle
     {
         $this->connect();
 
-        // Loop indefinitely, restarting IDLE sessions as needed.
-        while (true) {
-            $ttl = $this->getNextTimeout();
-
+        while ($ttl = $this->getNextTimeout()) {
             try {
                 $this->listen($callback, $ttl);
             } catch (ImapConnectionTimedOutException) {
@@ -56,7 +54,7 @@ class Idle
     protected function listen(callable $callback, CarbonInterface $ttl): void
     {
         // Iterate over responses yielded by the idle generator.
-        foreach ($this->idle() as $response) {
+        foreach ($this->idle($ttl) as $response) {
             if (! $response instanceof UntaggedResponse) {
                 continue;
             }
@@ -67,6 +65,10 @@ class Idle
                 $callback($msgn);
 
                 $ttl = $this->getNextTimeout();
+            }
+
+            if ($ttl === false) {
+                break;
             }
 
             // If we've been idle too long, break out to restart the session.
@@ -145,16 +147,22 @@ class Idle
     /**
      * Begin a new IDLE session as a generator.
      */
-    protected function idle(): Generator
+    protected function idle(CarbonInterface $ttl): Generator
     {
-        yield from $this->mailbox->connection()->idle($this->timeout);
+        yield from $this->mailbox->connection()->idle(
+            (int) Carbon::now()->diffInSeconds($ttl, true)
+        );
     }
 
     /**
      * Get the next timeout as a Carbon instance.
      */
-    protected function getNextTimeout(): CarbonInterface
+    protected function getNextTimeout(): CarbonInterface|false
     {
-        return Carbon::now()->addSeconds($this->timeout);
+        if (is_numeric($seconds = value($this->timeout))) {
+            return Carbon::now()->addSeconds(abs($seconds));
+        }
+
+        return false;
     }
 }

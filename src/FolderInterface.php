@@ -44,7 +44,7 @@ interface FolderInterface
     /**
      * Begin idling on the current folder.
      */
-    public function idle(callable $callback, ?callable $query = null, int $timeout = 300): void;
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void;
 
     /**
      * Move or rename the current folder.
