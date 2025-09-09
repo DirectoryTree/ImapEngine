@@ -54,7 +54,7 @@ class Idle
     protected function listen(callable $callback, CarbonInterface $ttl): void
     {
         // Iterate over responses yielded by the idle generator.
-        foreach ($this->idle() as $response) {
+        foreach ($this->idle($ttl) as $response) {
             if (! $response instanceof UntaggedResponse) {
                 continue;
             }
@@ -65,6 +65,10 @@ class Idle
                 $callback($msgn);
 
                 $ttl = $this->getNextTimeout();
+            }
+
+            if ($ttl === false) {
+                break;
             }
 
             // If we've been idle too long, break out to restart the session.
@@ -143,9 +147,11 @@ class Idle
     /**
      * Begin a new IDLE session as a generator.
      */
-    protected function idle(): Generator
+    protected function idle(CarbonInterface $ttl): Generator
     {
-        yield from $this->mailbox->connection()->idle($this->timeout);
+        yield from $this->mailbox->connection()->idle(
+            (int) Carbon::now()->diffInSeconds($ttl)
+        );
     }
 
     /**
