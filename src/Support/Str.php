@@ -77,7 +77,7 @@ class Str
     /**
      * Make a range set for use in a search command.
      */
-    public static function set(array|int $from, int|float|null $to = null): string
+    public static function set(int|string|array $from, int|float|string|null $to = null): string
     {
         // If $from is an array with multiple elements, return them as a comma-separated list.
         if (is_array($from) && count($from) > 1) {

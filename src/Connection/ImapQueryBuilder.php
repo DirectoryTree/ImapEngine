@@ -230,11 +230,9 @@ class ImapQueryBuilder
     /**
      * Add a where "UID" clause to the query.
      */
-    public function uid(int|string|array $uid): static
+    public function uid(int|string|array $from, int|float|null $to = null): static
     {
-        return $this->where(ImapSearchKey::Uid, new RawQueryValue(
-            Str::set(array_map('intval', (array) $uid))
-        ));
+        return $this->where(ImapSearchKey::Uid, new RawQueryValue(Str::set($from, $to)));
     }
 
     /**
