@@ -244,3 +244,43 @@ test('compiles multiple UID values without quotes', function () {
 
     expect($builder->toImap())->toBe('UID 2,3,5');
 });
+
+test('compiles UID range to infinity with from and to', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid(2, INF);
+
+    expect($builder->toImap())->toBe('UID 2:*');
+});
+
+test('compiles UID range with upper bound with array', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid([2, 5]);
+
+    expect($builder->toImap())->toBe('UID 2,5');
+});
+
+test('compiles UID range with upper bound with from and to', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid(2, 5);
+
+    expect($builder->toImap())->toBe('UID 2:5');
+});
+
+test('compiles UID range with single value', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid(2);
+
+    expect($builder->toImap())->toBe('UID 2');
+});
+
+test('compiles UID range with single value array', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->uid([2]);
+
+    expect($builder->toImap())->toBe('UID 2');
+});

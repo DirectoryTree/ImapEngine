@@ -5,8 +5,10 @@ use DirectoryTree\ImapEngine\Support\Str;
 
 test('set', function () {
     expect(Str::set(5, 10))->toBe('5:10');
+    expect(Str::set('5', '10'))->toBe('5:10');
     expect(Str::set(5, INF))->toBe('5:*');
     expect(Str::set([5, 10]))->toBe('5,10');
+    expect(Str::set(['5', '10']))->toBe('5,10');
     expect(Str::set([5]))->toBe('5');
     expect(Str::set(5))->toBe('5');
 });
