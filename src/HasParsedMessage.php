@@ -13,6 +13,7 @@ use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
+use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasParsedMessage
 {
@@ -121,10 +122,7 @@ trait HasParsedMessage
         $attachments = [];
 
         foreach ($this->parse()->getAllAttachmentParts() as $part) {
-            // If the attachment's content type is message/rfc822, we're
-            // working with a forwarded message. We will parse the
-            // forwarded message and merge in its attachments.
-            if (strtolower($part->getContentType()) === 'message/rfc822') {
+            if ($this->isForwardedMessage($part)) {
                 $message = new FileMessage($part->getContent());
 
                 $attachments = array_merge($attachments, $message->attachments());
@@ -155,6 +153,16 @@ trait HasParsedMessage
     public function attachmentCount(): int
     {
         return $this->parse()->getAttachmentCount();
+    }
+
+    /**
+     * Determine if the attachment should be treated as an embedded forwarded message.
+     */
+    protected function isForwardedMessage(IMessagePart $part): bool
+    {
+        return empty($part->getFilename())
+            && strtolower((string) $part->getContentType()) === 'message/rfc822'
+            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 
     /**
