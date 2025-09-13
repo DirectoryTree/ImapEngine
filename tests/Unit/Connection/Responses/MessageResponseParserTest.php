@@ -5,7 +5,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 
-it('parses UID from tagged COPYUID response', function () {
+test('it parses UID from tagged COPYUID response', function () {
     $response = new TaggedResponse([
         new Atom('TAG1'),             // Tag
         new Atom('OK'),               // Status
@@ -23,7 +23,7 @@ it('parses UID from tagged COPYUID response', function () {
     expect($parsedUid)->toBe(5678);
 });
 
-it('returns null for non-COPYUID tagged response', function () {
+test('it returns null for non-COPYUID tagged response', function () {
     $response = new TaggedResponse([
         new Atom('TAG1'),
         new Atom('OK'),
