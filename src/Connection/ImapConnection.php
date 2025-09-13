@@ -602,13 +602,14 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch one or more items for one or more messages.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, array|string $modifiers = []): ResponseCollection
     {
         $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
 
         $this->send(trim($prefix.' FETCH'), [
             Str::set($from, $to),
             Str::list((array) $items),
+            Str::list((array) $modifiers),
         ], $tag);
 
         $this->assertTaggedResponse($tag);

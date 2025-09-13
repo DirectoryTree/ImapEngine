@@ -13,12 +13,18 @@ class Str
     {
         $values = [];
 
-        foreach ($list as $value) {
+        foreach ($list as $key => $value) {
             if (is_array($value)) {
-                $values[] = static::list($value);
+                $token = static::list($value);
             } else {
-                $values[] = $value;
+                $token = $value;
             }
+
+            if (is_string($key)) {
+                $token = $key.' '.$token;
+            }
+
+            $values[] = $token;
         }
 
         return sprintf('(%s)', implode(' ', $values));

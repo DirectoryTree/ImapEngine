@@ -65,6 +65,11 @@ test('list returns empty parentheses for an empty array', function () {
     expect(Str::list([]))->toBe('()');
 });
 
+test('list returns a properly formatted parenthesized list for an array with string keys', function () {
+    expect(Str::list(['a' => '"b"', 'c' => '"d"']))->toBe('(a "b" c "d")');
+    expect(Str::list(['a' => ['"b"', '"c"'], 'd' => '"e"']))->toBe('(a ("b" "c") d "e")');
+});
+
 test('enums returns value for a single backed enum', function () {
     $result = Str::enums(ImapFlag::Seen);
 
