@@ -6,7 +6,6 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -238,15 +237,14 @@ class MessageQuery implements MessageQueryInterface
 
         $messages->total($uids->count());
 
-        $rawMessages = $this->fetch($uids);
-
-        foreach ($rawMessages['uids'] as $uid) {
-            $flags = $rawMessages['flags'][$uid] ?? [];
-            $headers = $rawMessages['headers'][$uid] ?? '';
-            $contents = $rawMessages['contents'][$uid] ?? '';
-
+        foreach ($this->fetch($uids) as $uid => $response) {
             $messages->push(
-                $this->newMessage($uid, $flags, $headers, $contents)
+                $this->newMessage(
+                    $uid,
+                    $response['flags'] ?? [],
+                    $response['headers'] ?? '',
+                    $response['contents'] ?? '',
+                )
             );
         }
 
@@ -267,27 +265,29 @@ class MessageQuery implements MessageQueryInterface
             ->values()
             ->all();
 
-        $flags = $this->fetchFlags ? $this->connection()
-            ->flags($uids)
-            ->mapWithKeys(MessageResponseParser::getFlags(...))
-            ->all() : [];
+        $response = $this->connection()->fetch(array_filter([
+            $this->fetchFlags ? 'FLAGS' : null,
+            $this->fetchBody ? $this->fetchAsUnread
+                ? 'BODY.PEEK[TEXT]'
+                : 'BODY[TEXT]' : null,
+            $this->fetchHeaders ? $this->fetchAsUnread
+                ? 'BODY.PEEK[HEADER]'
+                : 'BODY[HEADER]' : null,
+        ]), $uids);
 
-        $headers = $this->fetchHeaders ? $this->connection()
-            ->bodyHeader($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyHeader(...))
-            ->all() : [];
+        return $response->mapWithKeys(function (UntaggedResponse $response) {
+            $data = $response->tokenAt(3);
 
-        $contents = $this->fetchBody ? $this->connection()
-            ->bodyText($uids, $this->fetchAsUnread)
-            ->mapWithKeys(MessageResponseParser::getBodyText(...))
-            ->all() : [];
+            $uid = $data->lookup('UID')->value;
 
-        return [
-            'uids' => $uids,
-            'flags' => $flags,
-            'headers' => $headers,
-            'contents' => $contents,
-        ];
+            return [
+                $uid => [
+                    'flags' => $data->lookup('FLAGS')?->values() ?? [],
+                    'headers' => $data->lookup('[HEADER]')?->value ?? '',
+                    'contents' => $data->lookup('[TEXT]')?->value ?? '',
+                ],
+            ];
+        })->all();
     }
 
     /**
