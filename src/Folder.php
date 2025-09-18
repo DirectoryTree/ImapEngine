@@ -160,6 +160,10 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
+        if (! in_array('QUOTA', $this->mailbox->capabilities())) {
+            throw new ImapCapabilityException('Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.');
+        }
+
         $responses = $this->mailbox->connection()->quotaRoot($this->path);
 
         $values = [];
