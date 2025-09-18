@@ -142,7 +142,7 @@ class FakeFolder implements FolderInterface
     public function quota(): array
     {
         return [
-            'MESSAGES' => [
+            'MESSAGE' => [
                 'usage' => 0,
                 'limit' => 0,
             ],

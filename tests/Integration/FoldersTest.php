@@ -109,4 +109,5 @@ test('quota', function () {
     expect($folder->quota())
         ->toBeArray()
         ->toHaveKeys(['STORAGE', 'MESSAGE', 'usage', 'limit']);
-});
+})
+->skip(true, 'Greenamil does not properly support IMAP quotas currently.');
