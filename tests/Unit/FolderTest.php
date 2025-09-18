@@ -1,5 +1,7 @@
 <?php
 
+use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
@@ -50,3 +52,59 @@ test('it preserves existing UTF-8 characters in folder names', function () {
     // The name should remain unchanged.
     expect($mixedFolder->name())->toBe($mixedUtf8FolderName);
 });
+
+test('it returns quota data for the mailbox', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE QUOTA',
+        'TAG3 OK CAPABILITY completed',
+        '* QUOTA "INBOX" (STORAGE 54 512)',
+        '* QUOTA "INBOX" (MESSAGE 12 1024)',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    expect($mailbox->inbox()->quota())
+        ->toBeArray()
+        ->toHaveKeys(['STORAGE', 'MESSAGE', 'usage', 'limit'])
+        ->toMatchArray([
+            'STORAGE' => [
+                'usage' => 54,
+                'limit' => 512,
+            ],
+            'MESSAGE' => [
+                'usage' => 12,
+                'limit' => 1024,
+            ],
+            'usage' => 54,
+            'limit' => 512,
+        ]);
+});
+
+test('it throws an imap capability exception when inspecting quotas when the imap server does not support quotas', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE',
+        'TAG3 OK CAPABILITY completed',
+        '* QUOTA "INBOX" (STORAGE 54 512)',
+        '* QUOTA "INBOX" (MESSAGE 12 1024)',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    $mailbox->inbox()->quota();
+})->throws(ImapCapabilityException::class);

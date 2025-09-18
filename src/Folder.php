@@ -155,6 +155,38 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
         $this->mailbox->select($this, $force);
     }
 
+    /** 
+     * {@inheritDoc}
+     */
+    public function quota(): array
+    {
+        if (! in_array('QUOTA', $this->mailbox->capabilities())) {
+            throw new ImapCapabilityException('Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.');
+        }
+
+        $responses = $this->mailbox->connection()->quotaRoot($this->path);
+
+        $values = [];
+
+        foreach ($responses as $response) {
+            $tokens = $response->tokenAt(3)->tokens();
+
+            $type = $tokens[0]->value;
+            $usage = (int) $tokens[1]->value;
+            $limit = (int) $tokens[2]->value;
+
+            if ($type === 'STORAGE') {
+                $values['usage'] = $usage;
+                $values['limit'] = $limit;
+            }
+
+            $values[$type]['usage'] = $usage;
+            $values[$type]['limit'] = $limit;
+        }
+       
+        return $values;
+    }
+
     /**
      * {@inheritDoc}
      */
