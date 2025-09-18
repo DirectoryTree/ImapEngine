@@ -59,7 +59,7 @@ interface FolderInterface
     /**
      * Get the folder's quotas
      * 
-     * @return array{STORAGE?: array{usage: int|null, limit: int|null}, MESSAGES?: array{usage: int|null, limit: int|null}, usage?: int|null, limit?: int|null}
+     * @return array{STORAGE: array{usage: int|null, limit: int|null}, MESSAGES: array{usage: int|null, limit: int|null}, usage: int|null, limit: int|null}
      */
     public function quota(): array;
 
