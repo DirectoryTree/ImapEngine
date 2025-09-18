@@ -167,21 +167,17 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
         foreach ($responses as $response) {
             $tokens = $response->tokenAt(3)->tokens();
 
-            // Tokens are expected to alternate between keys and values.
-            for ($i = 0; $i < count($tokens); $i += 3) {
-                $type = $tokens[$i]->value;
+            $type = $tokens[0]->value;
+            $usage = (int) $tokens[1]->value;
+            $limit = (int) $tokens[2]->value;
 
-                $usage = (int) $tokens[$i + 1]->value;
-                $limit = (int) $tokens[$i + 2]->value;
-                
-                if ($type === 'STORAGE') {
-                    $values['usage'] = $usage;
-                    $values['limit'] = $limit;
-                }
-
-                $values[$type]['usage'] = $usage;
-                $values[$type]['limit'] = $limit;
+            if ($type === 'STORAGE') {
+                $values['usage'] = $usage;
+                $values['limit'] = $limit;
             }
+
+            $values[$type]['usage'] = $usage;
+            $values[$type]['limit'] = $limit;
         }
        
         return $values;
