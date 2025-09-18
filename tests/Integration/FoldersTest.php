@@ -102,3 +102,11 @@ test('delete', function () {
 
     expect($mailbox->folders()->find('foo'))->toBeNull();
 });
+
+test('quota', function () {
+    $folder = mailbox()->inbox();
+
+    expect($folder->quota())
+        ->toBeArray()
+        ->toHaveKeys(['STORAGE', 'MESSAGE']);
+});

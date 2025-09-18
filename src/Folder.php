@@ -155,6 +155,35 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
         $this->mailbox->select($this, $force);
     }
 
+    /** 
+     * {@inheritDoc}
+     */
+    public function quota(): array
+    {
+        $response = $this->mailbox->connection()->quotaRoot($this->path);
+
+        $values = [
+            'STORAGE' => [
+                'usage' => null,
+                'limit' => null,
+            ],
+            'MESSAGE' => [
+                'usage' => null,
+                'limit' => null,
+            ],
+        ];
+
+        $tokens = $response->tokenAt(3)->tokens();
+
+        // Tokens are expected to alternate between keys and values.
+        for ($i = 0; $i < count($tokens); $i += 3) {
+            $values[$tokens[$i]->value]['usage'] = (int) $tokens[$i + 1]->value;
+            $values[$tokens[$i]->value]['limit'] = (int) $tokens[$i + 2]->value;
+        }
+
+        return $values;
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -57,6 +57,13 @@ interface FolderInterface
     public function select(bool $force = false): void;
 
     /**
+     * Get the folder's quotas
+     * 
+     * @return array{STORAGE: array{usage: int|null, limit: int|null}, MESSAGES: array{usage: int|null, limit: int|null}}
+     */
+    public function quota(): array;
+
+    /**
      * Get the folder's status.
      */
     public function status(): array;
