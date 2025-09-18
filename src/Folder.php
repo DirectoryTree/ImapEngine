@@ -160,27 +160,30 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
-        $response = $this->mailbox->connection()->quotaRoot($this->path);
+        $responses = $this->mailbox->connection()->quotaRoot($this->path);
 
-        $values = [
-            'STORAGE' => [
-                'usage' => null,
-                'limit' => null,
-            ],
-            'MESSAGE' => [
-                'usage' => null,
-                'limit' => null,
-            ],
-        ];
+        $values = [];
 
-        $tokens = $response->tokenAt(3)->tokens();
+        foreach ($responses as $response) {
+            $tokens = $response->tokenAt(3)->tokens();
 
-        // Tokens are expected to alternate between keys and values.
-        for ($i = 0; $i < count($tokens); $i += 3) {
-            $values[$tokens[$i]->value]['usage'] = (int) $tokens[$i + 1]->value;
-            $values[$tokens[$i]->value]['limit'] = (int) $tokens[$i + 2]->value;
+            // Tokens are expected to alternate between keys and values.
+            for ($i = 0; $i < count($tokens); $i += 3) {
+                $type = $tokens[$i]->value;
+
+                $usage = (int) $tokens[$i + 1]->value;
+                $limit = (int) $tokens[$i + 2]->value;
+                
+                if ($type === 'STORAGE') {
+                    $values['usage'] = $usage;
+                    $values['limit'] = $limit;
+                }
+
+                $values[$type]['usage'] = $usage;
+                $values[$type]['limit'] = $limit;
+            }
         }
-
+       
         return $values;
     }
 

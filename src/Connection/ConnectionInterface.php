@@ -330,5 +330,5 @@ interface ConnectionInterface
      * 
      * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquota
      */
-    public function quotaRoot(string $mailbox): UntaggedResponse;
+    public function quotaRoot(string $mailbox): ResponseCollection;
 }

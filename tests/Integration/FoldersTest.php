@@ -108,5 +108,5 @@ test('quota', function () {
 
     expect($folder->quota())
         ->toBeArray()
-        ->toHaveKeys(['STORAGE', 'MESSAGE']);
+        ->toHaveKeys(['STORAGE', 'MESSAGE', 'usage', 'limit']);
 });

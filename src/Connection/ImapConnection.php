@@ -331,13 +331,13 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function quotaRoot(string $mailbox): UntaggedResponse
+    public function quotaRoot(string $mailbox): ResponseCollection
     {
         $this->send('GETQUOTAROOT', [Str::literal($mailbox)], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
-        return $this->result->responses()->untagged()->firstOrFail(
+        return $this->result->responses()->untagged()->filter(
             fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
         );
     }
