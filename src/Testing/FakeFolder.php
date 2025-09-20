@@ -142,16 +142,16 @@ class FakeFolder implements FolderInterface
     public function quota(): array
     {
         return [
-            'MESSAGE' => [
-                'usage' => 0,
-                'limit' => 0,
+            $this->path => [
+                'STORAGE' => [
+                    'usage' => 0,
+                    'limit' => 0,
+                ],
+                'MESSAGE' => [
+                    'usage' => 0,
+                    'limit' => 0,
+                ],
             ],
-            'STORAGE' => [
-                'usage' => 0,
-                'limit' => 0,
-            ],
-            'usage' => 0,
-            'limit' => 0,
         ];
     }
 

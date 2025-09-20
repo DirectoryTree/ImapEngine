@@ -111,3 +111,20 @@ test('it can query messages from a fake mailbox folder', function () {
     expect($folder->messages()->where('Unseen')->count())->toBe(3);
     expect($folder->messages()->where('Seen')->count())->toBe(3);
 });
+
+test('it returns stub quota values', function () {
+    $folder = new FakeFolder('INBOX');
+
+    expect($folder->quota())->toBe([
+        'INBOX' => [
+            'STORAGE' => [
+                'usage' => 0,
+                'limit' => 0,
+            ],
+            'MESSAGE' => [
+                'usage' => 0,
+                'limit' => 0,
+            ],
+        ],
+    ]);
+});
