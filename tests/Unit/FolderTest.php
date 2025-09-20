@@ -1,5 +1,7 @@
 <?php
 
+use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
@@ -50,3 +52,164 @@ test('it preserves existing UTF-8 characters in folder names', function () {
     // The name should remain unchanged.
     expect($mixedFolder->name())->toBe($mixedUtf8FolderName);
 });
+
+test('it returns quota data for the mailbox', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE QUOTA',
+        'TAG3 OK CAPABILITY completed',
+        '* QUOTA "INBOX" (STORAGE 54 512)',
+        '* QUOTA "INBOX" (MESSAGE 12 1024)',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    expect($mailbox->inbox()->quota())
+        ->toBeArray()
+        ->toMatchArray([
+            'INBOX' => [
+                'STORAGE' => [
+                    'usage' => 54,
+                    'limit' => 512,
+                ],
+                'MESSAGE' => [
+                    'usage' => 12,
+                    'limit' => 1024,
+                ],
+            ],
+        ]);
+});
+
+test('it returns quota data for the mailbox when there are no quotas', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE QUOTA',
+        'TAG3 OK CAPABILITY completed',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    expect($mailbox->inbox()->quota())->toBe([]);
+});
+
+test('it returns quota data for the mailbox when there are multiple resources', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE QUOTA',
+        'TAG3 OK CAPABILITY completed',
+        '* QUOTA "FOO" (STORAGE 54 512)',
+        '* QUOTA "FOO" (MESSAGE 12 1024)',
+        '* QUOTA "BAR" (STORAGE 10 1024)',
+        '* QUOTA "BAR" (MESSAGE 5 1024)',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    expect($mailbox->inbox()->quota())
+        ->toBeArray()
+        ->toMatchArray([
+            'FOO' => [
+                'STORAGE' => [
+                    'usage' => 54,
+                    'limit' => 512,
+                ],
+                'MESSAGE' => [
+                    'usage' => 12,
+                    'limit' => 1024,
+                ],
+            ],
+            'BAR' => [
+                'STORAGE' => [
+                    'usage' => 10,
+                    'limit' => 1024,
+                ],
+                'MESSAGE' => [
+                    'usage' => 5,
+                    'limit' => 1024,
+                ],
+            ],
+        ]);
+});
+
+test('it returns quota data for the mailbox when there are multiple resources in the same list data', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE QUOTA',
+        'TAG3 OK CAPABILITY completed',
+        '* QUOTA "FOO" (STORAGE 54 512 MESSAGE 12 1024)',
+        '* QUOTA "BAR" (STORAGE 10 1024 MESSAGE 5 1024)',
+        'TAG4 OK GETQUOTAROOT completed',
+    ]));
+
+    expect($mailbox->inbox()->quota())
+        ->toBeArray()
+        ->toMatchArray([
+            'FOO' => [
+                'STORAGE' => [
+                    'usage' => 54,
+                    'limit' => 512,
+                ],
+                'MESSAGE' => [
+                    'usage' => 12,
+                    'limit' => 1024,
+                ],
+            ],
+            'BAR' => [
+                'STORAGE' => [
+                    'usage' => 10,
+                    'limit' => 1024,
+                ],
+                'MESSAGE' => [
+                    'usage' => 5,
+                    'limit' => 1024,
+                ],
+            ],
+        ]);
+});
+
+test('it throws an imap capability exception when inspecting quotas when the imap server does not support quotas', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* LIST (\\HasNoChildren) "/" "INBOX"',
+        'TAG2 OK LIST completed',
+        '* CAPABILITY IMAP4rev1 LITERAL+ UIDPLUS SORT IDLE MOVE',
+        'TAG3 OK CAPABILITY completed',
+    ]));
+
+    $mailbox->inbox()->quota();
+})->throws(ImapCapabilityException::class);

@@ -317,6 +317,34 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
+    public function quota(string $root): UntaggedResponse
+    {
+        $this->send('GETQUOTA', [Str::literal($root)], tag: $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        return $this->result->responses()->untagged()->firstOrFail(
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function quotaRoot(string $mailbox): ResponseCollection
+    {
+        $this->send('GETQUOTAROOT', [Str::literal($mailbox)], tag: $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        return $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function list(string $reference = '', string $folder = '*'): ResponseCollection
     {
         $this->send('LIST', Str::literal([$reference, $folder]), $tag);

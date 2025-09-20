@@ -139,6 +139,25 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
+    public function quota(): array
+    {
+        return [
+            $this->path => [
+                'STORAGE' => [
+                    'usage' => 0,
+                    'limit' => 0,
+                ],
+                'MESSAGE' => [
+                    'usage' => 0,
+                    'limit' => 0,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function delete(): void
     {
         // Do nothing.
