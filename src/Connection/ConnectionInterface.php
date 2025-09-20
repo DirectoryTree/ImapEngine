@@ -316,19 +316,19 @@ interface ConnectionInterface
 
     /**
      * Send a "GETQUOTA" command.
-     * 
+     *
      * Retrieve quota information about a specific quota root.
-     * 
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquota
      */
     public function quota(string $root): UntaggedResponse;
 
     /**
      * Send a "GETQUOTAROOT" command.
-     * 
+     *
      * Retrieve quota root information about a mailbox.
-     * 
-     * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquota
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquotaroot
      */
     public function quotaRoot(string $mailbox): ResponseCollection;
 }
