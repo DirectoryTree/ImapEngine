@@ -106,8 +106,5 @@ test('delete', function () {
 test('quota', function () {
     $folder = mailbox()->inbox();
 
-    expect($folder->quota())
-        ->toBeArray()
-        ->toHaveKeys(['STORAGE', 'MESSAGE', 'usage', 'limit']);
-})
-->skip(true, 'Greenamil does not properly support IMAP quotas currently.');
+    expect($folder->quota())->toBeArray();
+});
