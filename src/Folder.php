@@ -155,7 +155,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
         $this->mailbox->select($this, $force);
     }
 
-    /** 
+    /**
      * {@inheritDoc}
      */
     public function quota(): array
@@ -169,21 +169,18 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
         $values = [];
 
         foreach ($responses as $response) {
+            $resource = $response->tokenAt(2);
+
             $tokens = $response->tokenAt(3)->tokens();
 
-            $type = $tokens[0]->value;
-            $usage = (int) $tokens[1]->value;
-            $limit = (int) $tokens[2]->value;
-
-            if ($type === 'STORAGE') {
-                $values['usage'] = $usage;
-                $values['limit'] = $limit;
+            for ($i = 0; $i + 2 < count($tokens); $i += 3) {
+                $values[$resource->value][$tokens[$i]->value] = [
+                    'usage' => (int) $tokens[$i + 1]->value,
+                    'limit' => (int) $tokens[$i + 2]->value,
+                ];
             }
-
-            $values[$type]['usage'] = $usage;
-            $values[$type]['limit'] = $limit;
         }
-       
+
         return $values;
     }
 
