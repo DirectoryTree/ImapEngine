@@ -6,11 +6,13 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
@@ -189,7 +191,8 @@ class MessageQuery implements MessageQueryInterface
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {
         /** @var UntaggedResponse $response */
-        if (! $response = $this->id($id, $identifier)->first()) {
+        $response = $this->id($id, $identifier)->first();
+        if (! $response) {
             return null;
         }
 
@@ -293,6 +296,10 @@ class MessageQuery implements MessageQueryInterface
 
         return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
             $data = $response->tokenAt(3);
+
+            if (!$data instanceof ListData) {
+                throw new RuntimeException("Invalid data type at index 3");
+            }
 
             $uid = $data->lookup('UID')->value;
 
