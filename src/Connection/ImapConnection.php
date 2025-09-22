@@ -719,7 +719,7 @@ class ImapConnection implements ConnectionInterface
      *
      * @template T of Response
      *
-     * @param  callable(Response): bool  $filter
+     * @param  callable(T): bool  $filter
      * @return T
      */
     protected function assertNextResponse(callable $filter, callable $assertion, callable $exception): Response
@@ -740,7 +740,7 @@ class ImapConnection implements ConnectionInterface
      *
      * @template T of Response
      *
-     * @param  callable(Response): bool  $filter
+     * @param  callable(T): bool  $filter
      * @return T
      */
     protected function nextResponse(callable $filter): Response
