@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
+use DirectoryTree\ImapEngine\MessageQuery;
 use Illuminate\Support\ItemNotFoundException;
 
 function folder(): Folder
@@ -98,6 +99,42 @@ test('find or fail', function () {
         $folder->messages()->findOrFail(999);
     })->toThrow(ItemNotFoundException::class);
 });
+
+test('get without fetches', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    $messages = $folder->messages()->get();
+
+    expect($messages->count())->toBe(1);
+    expect($messages->first()->uid())->toBe($uid);
+});
+
+test('get with fetches', function (callable $callback) {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            text: 'hello world',
+        ),
+    );
+
+    $messages = $callback($folder->messages())->get();
+
+    expect($messages->count())->toBe(1);
+    expect($messages->first()->uid())->toBe($uid);
+})->with([
+    fn (MessageQuery $query) => $query->withBody(),
+    fn (MessageQuery $query) => $query->withFlags(),
+    fn (MessageQuery $query) => $query->withHeaders(),
+]);
 
 test('append', function () {
     $folder = folder();
