@@ -7,3 +7,4 @@ readme.md export-ignore
 license.md export-ignore
 phpunit.xml export-ignore
 docker-compose.yml export-ignore
+phpstan.neon export-ignore
