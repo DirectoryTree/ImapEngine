@@ -261,21 +261,37 @@ class MessageQuery implements MessageQueryInterface
             'desc' => $messages->sortDesc(SORT_NUMERIC),
         };
 
-        $uids = $messages->forPage($this->page, $this->limit)
-            ->values()
-            ->all();
+        $uids = $messages->forPage($this->page, $this->limit)->values();
 
-        $response = $this->connection()->fetch(array_filter([
-            $this->fetchFlags ? 'FLAGS' : null,
-            $this->fetchBody ? $this->fetchAsUnread
+        $fetch = [];
+
+        if ($this->fetchFlags) {
+            $fetch[] = 'FLAGS';
+        }
+
+        if ($this->fetchBody) {
+            $fetch[] = $this->fetchAsUnread
                 ? 'BODY.PEEK[TEXT]'
-                : 'BODY[TEXT]' : null,
-            $this->fetchHeaders ? $this->fetchAsUnread
-                ? 'BODY.PEEK[HEADER]'
-                : 'BODY[HEADER]' : null,
-        ]), $uids);
+                : 'BODY[TEXT]';
+        }
 
-        return $response->mapWithKeys(function (UntaggedResponse $response) {
+        if ($this->fetchHeaders) {
+            $fetch[] = $this->fetchAsUnread
+                ? 'BODY.PEEK[HEADER]'
+                : 'BODY[HEADER]';
+        }
+
+        if (empty($fetch)) {
+            return $uids->mapWithKeys(fn (string|int $uid) => [
+                $uid => [
+                    'flags' => [],
+                    'headers' => '',
+                    'contents' => '',
+                ],
+            ])->all();
+        }
+
+        return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
             $data = $response->tokenAt(3);
 
             $uid = $data->lookup('UID')->value;
