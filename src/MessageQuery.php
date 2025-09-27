@@ -190,9 +190,9 @@ class MessageQuery implements MessageQueryInterface
      */
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {
-        /** @var UntaggedResponse $response */
         $response = $this->id($id, $identifier)->first();
-        if (! $response) {
+
+        if (! $response instanceof UntaggedResponse) {
             return null;
         }
 
@@ -298,7 +298,11 @@ class MessageQuery implements MessageQueryInterface
             $data = $response->tokenAt(3);
 
             if (! $data instanceof ListData) {
-                throw new RuntimeException('Invalid data type at index 3');
+                throw new RuntimeException(sprintf(
+                    'Expected instance of %s at index 3 in FETCH response, got %s',
+                    ListData::class,
+                    get_debug_type($data)
+                ));
             }
 
             $uid = $data->lookup('UID')->value;
