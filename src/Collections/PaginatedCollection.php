@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 /**
  * @template TKey of array-key
  *
- * @template-covariant TValue
+ * @template TValue
  *
  * @template-extends Collection<TKey, TValue>
  */

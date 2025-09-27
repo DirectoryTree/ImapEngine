@@ -10,7 +10,7 @@ use JsonSerializable;
 /**
  * @template TKey of array-key
  *
- * @template-covariant TValue
+ * @template TValue
  *
  * @template-implements Arrayable<TKey, TValue>
  */
