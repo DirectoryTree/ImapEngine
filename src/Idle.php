@@ -60,9 +60,11 @@ class Idle
                 continue;
             }
 
-            $possibleExistsToken = $response->tokenAt(2);
+            if (! $token = $response->tokenAt(2)) {
+                continue;
+            }
 
-            if ($possibleExistsToken instanceof Atom && $possibleExistsToken->is('EXISTS')) {
+            if ($token instanceof Atom && $token->is('EXISTS')) {
                 $msgn = (int) $response->tokenAt(1)->value;
 
                 $callback($msgn);
