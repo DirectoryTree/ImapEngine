@@ -297,8 +297,8 @@ class MessageQuery implements MessageQueryInterface
         return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
             $data = $response->tokenAt(3);
 
-            if (!$data instanceof ListData) {
-                throw new RuntimeException("Invalid data type at index 3");
+            if (! $data instanceof ListData) {
+                throw new RuntimeException('Invalid data type at index 3');
             }
 
             $uid = $data->lookup('UID')->value;

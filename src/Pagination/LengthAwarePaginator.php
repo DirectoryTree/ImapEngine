@@ -9,7 +9,6 @@ use JsonSerializable;
 
 /**
  * @template TKey of array-key
- *
  * @template TValue
  *
  * @template-implements Arrayable<TKey, TValue>
