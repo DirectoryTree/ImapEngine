@@ -28,9 +28,12 @@ trait HasParsedMessage
      */
     public function date(): ?CarbonInterface
     {
-        $dateHeader = $this->header(HeaderConsts::DATE);
-        if ($dateHeader instanceof DateHeader) {
-            return Carbon::instance($dateHeader->getDateTime());
+        if (! $header = $this->header(HeaderConsts::DATE)) {
+            return null;
+        }
+
+        if ($header instanceof DateHeader) {
+            return Carbon::instance($header->getDateTime());
         }
 
         return null;
