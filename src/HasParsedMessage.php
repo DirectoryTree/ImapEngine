@@ -14,7 +14,6 @@ use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
 use ZBateson\MailMimeParser\IMessage;
-use ZBateson\MailMimeParser\Message as MailMimeMessage;
 use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasParsedMessage
