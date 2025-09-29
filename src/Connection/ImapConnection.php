@@ -702,7 +702,7 @@ class ImapConnection implements ConnectionInterface
     protected function assertTaggedResponse(string $tag, ?callable $exception = null): TaggedResponse
     {
         /** @var TaggedResponse $response */
-        $response =  $this->assertNextResponse(
+        $response = $this->assertNextResponse(
             fn (Response $response) => (
                 $response instanceof TaggedResponse && $response->tag()->is($tag)
             ),
@@ -713,6 +713,7 @@ class ImapConnection implements ConnectionInterface
                 ImapCommandException::make($this->result->command(), $response)
             ),
         );
+
         return $response;
     }
 
