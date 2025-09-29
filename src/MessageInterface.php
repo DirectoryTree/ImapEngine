@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use Carbon\CarbonInterface;
 use Stringable;
 use ZBateson\MailMimeParser\Header\IHeader;
+use ZBateson\MailMimeParser\IMessage;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
 
 interface MessageInterface extends FlaggableInterface, Stringable
@@ -117,7 +118,7 @@ interface MessageInterface extends FlaggableInterface, Stringable
     /**
      * Parse the message into a MailMimeMessage instance.
      */
-    public function parse(): MailMimeMessage;
+    public function parse(): IMessage;
 
     /**
      * Determine if the message is the same as another message.

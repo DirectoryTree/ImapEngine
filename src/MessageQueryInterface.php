@@ -129,14 +129,14 @@ interface MessageQueryInterface
     /**
      * Get the first message in the resulting collection.
      *
-     * @return \DirectoryTree\ImapEngine\Message|null
+     * @return MessageInterface|null
      */
     public function first(): ?MessageInterface;
 
     /**
      * Get the first message in the resulting collection or throw an exception.
      *
-     * @return \DirectoryTree\ImapEngine\Message
+     * @return MessageInterface
      */
     public function firstOrFail(): MessageInterface;
 
@@ -168,14 +168,14 @@ interface MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      *
-     * @return \DirectoryTree\ImapEngine\Message
+     * @return MessageInterface
      */
     public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface;
 
     /**
      * Find a message by the given identifier type.
      *
-     * @return \DirectoryTree\ImapEngine\Message|null
+     * @return MessageInterface|null
      */
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface;
 
