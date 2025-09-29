@@ -136,6 +136,7 @@ trait HasParsedMessage
                     $part->getFilename(),
                     $part->getContentId(),
                     $part->getContentType(),
+                    $part->getContentDisposition(),
                     $part->getBinaryContentStream() ?? Utils::streamFor(''),
                 );
             }
