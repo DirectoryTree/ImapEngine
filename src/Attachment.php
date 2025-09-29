@@ -16,6 +16,7 @@ class Attachment implements Arrayable, JsonSerializable
         protected ?string $filename,
         protected ?string $contentId,
         protected string $contentType,
+        protected ?string $contentDisposition,
         protected StreamInterface $contentStream,
     ) {}
 
@@ -41,6 +42,14 @@ class Attachment implements Arrayable, JsonSerializable
     public function contentType(): string
     {
         return $this->contentType;
+    }
+
+    /**
+     * Get the attachment's content disposition.
+     */
+    public function contentDisposition(): string
+    {
+        return $this->contentDisposition;
     }
 
     /**
