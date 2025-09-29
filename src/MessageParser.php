@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use ZBateson\MailMimeParser\IMessage;
 use ZBateson\MailMimeParser\MailMimeParser;
 use ZBateson\MailMimeParser\Message as MailMimeMessage;
 
@@ -15,7 +16,7 @@ class MessageParser
     /**
      * Parse the given message contents.
      */
-    public static function parse(string $contents): MailMimeMessage
+    public static function parse(string $contents): IMessage
     {
         return static::parser()->parse($contents, true);
     }

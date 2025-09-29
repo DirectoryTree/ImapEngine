@@ -13,7 +13,7 @@ use ZBateson\MailMimeParser\Header\IHeaderPart;
 use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
-use ZBateson\MailMimeParser\Message as MailMimeMessage;
+use ZBateson\MailMimeParser\IMessage;
 use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasParsedMessage
@@ -21,7 +21,7 @@ trait HasParsedMessage
     /**
      * The parsed message.
      */
-    protected ?MailMimeMessage $parsed = null;
+    protected ?IMessage $parsed = null;
 
     /**
      * Get the message date and time.
@@ -224,7 +224,7 @@ trait HasParsedMessage
     /**
      * Parse the message into a MailMimeMessage instance.
      */
-    public function parse(): MailMimeMessage
+    public function parse(): IMessage
     {
         if ($this->isEmpty()) {
             throw new RuntimeException('Cannot parse an empty message');
