@@ -43,8 +43,6 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Get the first message in the resulting collection.
-     *
-     * @return MessageInterface|null
      */
     public function first(): ?MessageInterface
     {
@@ -57,8 +55,6 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Get the first message in the resulting collection or throw an exception.
-     *
-     * @return MessageInterface
      */
     public function firstOrFail(): MessageInterface
     {
@@ -168,8 +164,6 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Find a message by the given identifier type or throw an exception.
-     *
-     * @return MessageInterface
      */
     public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
     {
@@ -185,8 +179,6 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Find a message by the given identifier type.
-     *
-     * @return MessageInterface|null
      */
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {

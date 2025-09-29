@@ -4,7 +4,6 @@ namespace DirectoryTree\ImapEngine;
 
 use ZBateson\MailMimeParser\IMessage;
 use ZBateson\MailMimeParser\MailMimeParser;
-use ZBateson\MailMimeParser\Message as MailMimeMessage;
 
 class MessageParser
 {

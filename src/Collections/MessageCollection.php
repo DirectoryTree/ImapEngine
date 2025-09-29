@@ -12,8 +12,6 @@ class MessageCollection extends PaginatedCollection
 {
     /**
      * Find a message by its UID.
-     *
-     * @return MessageInterface|null
      */
     public function find(int $uid): ?MessageInterface
     {
@@ -24,8 +22,6 @@ class MessageCollection extends PaginatedCollection
 
     /**
      * Find a message by its UID or throw an exception.
-     *
-     * @return MessageInterface
      */
     public function findOrFail(int $uid): MessageInterface
     {
