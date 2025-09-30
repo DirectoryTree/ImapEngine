@@ -42,6 +42,7 @@ trait QueriesMessages
 
     /**
      * The fetch order.
+     * @var 'asc'|'desc' $fetchOrder
      */
     protected string $fetchOrder = 'desc';
 

@@ -122,6 +122,7 @@ class ImapConnection implements ConnectionInterface
 
     /**
      * Get the default socket options for the given transport.
+     * @param 'ssl'|'tls'|'starttls'|'tcp' $transport
      */
     protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true): array
     {
@@ -595,6 +596,7 @@ class ImapConnection implements ConnectionInterface
 
     /**
      * Send an IMAP command.
+     * @param-out string $tag
      */
     public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
@@ -744,9 +746,9 @@ class ImapConnection implements ConnectionInterface
      * @template T of Response
      *
      * @param  callable(T): bool  $filter
-     * @return T
+     * @return null|T
      */
-    protected function nextResponse(callable $filter): Response
+    protected function nextResponse(callable $filter): ?Response
     {
         if (! $this->parser) {
             throw new LogicException('No parser instance set');

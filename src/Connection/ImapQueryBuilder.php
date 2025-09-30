@@ -373,6 +373,7 @@ class ImapQueryBuilder
 
     /**
      * Build a single expression node from a basic or nested where.
+     * @param array{type: 'basic'|'nested', boolean: 'AND'|'OR', query: ImapQueryBuilder} $where
      */
     protected function makeExpressionNode(array $where): array
     {
@@ -391,6 +392,7 @@ class ImapQueryBuilder
 
     /**
      * Merge the existing expression with the next expression, respecting the boolean operator.
+     * @param 'AND'|'OR' $boolean
      */
     protected function mergeExpressions(string $existing, string $next, string $boolean): string
     {

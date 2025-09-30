@@ -148,6 +148,7 @@ class Str
 
         // Direct implementation of IMAP's modified UTF-7 decoding.
         return preg_replace_callback('/&([^-]*)-?/', function ($matches) {
+            /** @var array{0: string, 1: string, 2?: string} $matches */
             // If it's just an ampersand.
             if ($matches[1] === '') {
                 return '&';
