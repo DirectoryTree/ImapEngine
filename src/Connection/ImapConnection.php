@@ -748,7 +748,7 @@ class ImapConnection implements ConnectionInterface
      * @template T of Response
      *
      * @param  callable(T): bool  $filter
-     * @return null|T
+     * @return T|null
      */
     protected function nextResponse(callable $filter): ?Response
     {
