@@ -24,6 +24,7 @@ use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
 use LogicException;
+use Throwable;
 
 class ImapConnection implements ConnectionInterface
 {
@@ -726,8 +727,12 @@ class ImapConnection implements ConnectionInterface
      *
      * @template T of Response
      *
-     * @param  callable(T): bool  $filter
+     * @param  callable(Response): bool  $filter
+     * @param  callable(T): bool  $assertion
+     * @param  callable(T): Throwable  $exception
      * @return T
+     *
+     * @throws ImapResponseException
      */
     protected function assertNextResponse(callable $filter, callable $assertion, callable $exception): Response
     {
@@ -768,7 +773,7 @@ class ImapConnection implements ConnectionInterface
             }
         }
 
-        throw new ImapResponseException('No matching response found');
+        return null;
     }
 
     /**
