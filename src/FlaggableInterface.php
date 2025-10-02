@@ -120,6 +120,8 @@ interface FlaggableInterface
 
     /**
      * Add or remove a flag from the message.
+     *
+     * @param  '+'|'-'  $operation
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void;
 }

@@ -302,8 +302,8 @@ class MessageQuery implements MessageQueryInterface
             return [
                 $uid => [
                     'flags' => $data->lookup('FLAGS')?->values() ?? [],
-                    'headers' => $data->lookup('[HEADER]')?->value ?? '',
-                    'contents' => $data->lookup('[TEXT]')?->value ?? '',
+                    'headers' => $data->lookup('[HEADER]')->value ?? '',
+                    'contents' => $data->lookup('[TEXT]')->value ?? '',
                 ],
             ];
         })->all();
