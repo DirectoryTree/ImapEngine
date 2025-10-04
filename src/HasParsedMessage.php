@@ -80,11 +80,19 @@ trait HasParsedMessage
     }
 
     /**
-     * Get the IN-REPLY-TO address.
+     * Get the IN-REPLY-TO message identifier(s).
+     *
+     * @return string[]
      */
-    public function inReplyTo(): ?Address
+    public function inReplyTo(): array
     {
-        return head($this->addresses(HeaderConsts::IN_REPLY_TO)) ?: null;
+        $parts = $this->header(HeaderConsts::IN_REPLY_TO)?->getParts() ?? [];
+
+        $values = array_map(function (IHeaderPart $part) {
+            return $part->getValue();
+        }, $parts);
+
+        return array_values(array_filter($values));
     }
 
     /**

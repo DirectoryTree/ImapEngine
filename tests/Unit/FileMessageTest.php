@@ -144,10 +144,10 @@ test('it recognizes when there are no attachments', function () {
     expect($message->attachments())->toBe([]);
 });
 
-test('it can parse other header fields like IN-REPLY-TO', function () {
+test('it can parse In-Reply-To header', function () {
     $contents = <<<'EOT'
     From: "John Doe" <john@example.com>
-    In-Reply-To: <some-other-message@server.example.com>, <another-message@server.example.com>
+    In-Reply-To: <some-other-message@server.example.com>
     Subject: In-Reply-To Check
     Date: Wed, 19 Feb 2025 12:34:56 -0500
     Content-Type: text/plain; charset="UTF-8"
@@ -157,9 +157,42 @@ test('it can parse other header fields like IN-REPLY-TO', function () {
 
     $message = new FileMessage($contents);
 
-    $address = $message->inReplyTo();
-    expect($address)->not->toBeNull();
-    expect($address->email())->toBe('some-other-message@server.example.com');
+    expect($message->inReplyTo())->toBe(['some-other-message@server.example.com']);
+});
+
+test('it can parse In-Reply-To header with multiple values', function () {
+    $contents = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    In-Reply-To: <first-message@server.example.com> <second-message@server.example.com> <third-message@server.example.com>
+    Subject: In-Reply-To Check
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    Check the in-reply-to header
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    expect($message->inReplyTo())->toBe([
+        'first-message@server.example.com',
+        'second-message@server.example.com',
+        'third-message@server.example.com',
+    ]);
+});
+
+test('it returns empty array when In-Reply-To header is missing', function () {
+    $contents = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    Subject: No In-Reply-To
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    No in-reply-to header
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    expect($message->inReplyTo())->toBe([]);
 });
 
 test('it can be cast to a string via __toString()', function () {
