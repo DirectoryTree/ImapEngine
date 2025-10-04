@@ -19,6 +19,7 @@ class FakeMessage implements MessageInterface
         protected int $uid,
         protected array $flags = [],
         protected string $contents = '',
+        protected ?int $size = null,
     ) {}
 
     /**
@@ -27,6 +28,14 @@ class FakeMessage implements MessageInterface
     public function uid(): int
     {
         return $this->uid;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function size(): ?int
+    {
+        return $this->size;
     }
 
     /**

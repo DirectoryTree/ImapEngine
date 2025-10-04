@@ -22,6 +22,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         protected array $flags,
         protected string $head,
         protected string $body,
+        protected ?int $size = null,
     ) {}
 
     /**
@@ -30,7 +31,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function __sleep(): array
     {
         // We don't want to serialize the parsed message.
-        return ['folder', 'uid', 'flags', 'headers', 'contents'];
+        return ['folder', 'uid', 'flags', 'headers', 'contents', 'size'];
     }
 
     /**
@@ -47,6 +48,14 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function uid(): int
     {
         return $this->uid;
+    }
+
+    /**
+     * Get the message's size in bytes (RFC822.SIZE).
+     */
+    public function size(): ?int
+    {
+        return $this->size;
     }
 
     /**
@@ -203,6 +212,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             'flags' => $this->flags,
             'head' => $this->head,
             'body' => $this->body,
+            'size' => $this->size,
         ];
     }
 

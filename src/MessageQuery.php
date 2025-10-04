@@ -239,6 +239,7 @@ class MessageQuery implements MessageQueryInterface
                     $response['flags'] ?? [],
                     $response['headers'] ?? '',
                     $response['contents'] ?? '',
+                    $response['size'] ?? null,
                 )
             );
         }
@@ -264,6 +265,10 @@ class MessageQuery implements MessageQueryInterface
             $fetch[] = 'FLAGS';
         }
 
+        if ($this->fetchSize) {
+            $fetch[] = 'RFC822.SIZE';
+        }
+
         if ($this->fetchBody) {
             $fetch[] = $this->fetchAsUnread
                 ? 'BODY.PEEK[TEXT]'
@@ -279,6 +284,7 @@ class MessageQuery implements MessageQueryInterface
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
                 $uid => [
+                    'size' => null,
                     'flags' => [],
                     'headers' => '',
                     'contents' => '',
@@ -299,8 +305,11 @@ class MessageQuery implements MessageQueryInterface
 
             $uid = $data->lookup('UID')->value;
 
+            $size = $data->lookup('RFC822.SIZE')?->value;
+
             return [
                 $uid => [
+                    'size' => $size !== null ? (int) $size : null,
                     'flags' => $data->lookup('FLAGS')?->values() ?? [],
                     'headers' => $data->lookup('[HEADER]')->value ?? '',
                     'contents' => $data->lookup('[TEXT]')->value ?? '',
@@ -356,9 +365,9 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Make a new message from given raw components.
      */
-    protected function newMessage(int $uid, array $flags, string $headers, string $contents): Message
+    protected function newMessage(int $uid, array $flags, string $headers, string $contents, ?int $size = null): Message
     {
-        return new Message($this->folder, $uid, $flags, $headers, $contents);
+        return new Message($this->folder, $uid, $flags, $headers, $contents, $size);
     }
 
     /**
