@@ -481,3 +481,18 @@ test('it can determine if two messages are the same', function () {
     // Different content
     expect($message1->is($message3))->toBeFalse();
 });
+
+test('it can determine size from contents', function () {
+    $contents = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    Subject: Test Subject
+    Date: Wed, 19 Feb 2025 12:34:56 -0500
+    Content-Type: text/plain; charset="UTF-8"
+
+    Test content
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    expect($message->size())->toBe(strlen($contents));
+});

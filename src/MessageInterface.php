@@ -16,6 +16,11 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function uid(): int;
 
     /**
+     * Get the message's size in bytes (RFC822.SIZE).
+     */
+    public function size(): ?int;
+
+    /**
      * Get the message date and time.
      */
     public function date(): ?CarbonInterface;
