@@ -33,9 +33,9 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function size(): ?int
+    public function size(): int
     {
-        return $this->size;
+        return $this->size ?? strlen($this->contents);
     }
 
     /**
