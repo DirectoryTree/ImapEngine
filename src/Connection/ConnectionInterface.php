@@ -186,7 +186,7 @@ interface ConnectionInterface
     /**
      * Send a "RFC822.SIZE" command.
      *
-     * Fetch message sizes.
+     * Fetch message sizes for one or more messages.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
      */

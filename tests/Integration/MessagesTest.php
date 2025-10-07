@@ -134,7 +134,59 @@ test('get with fetches', function (callable $callback) {
     fn (MessageQuery $query) => $query->withBody(),
     fn (MessageQuery $query) => $query->withFlags(),
     fn (MessageQuery $query) => $query->withHeaders(),
+    fn (MessageQuery $query) => $query->withSize(),
 ]);
+
+test('get with size', function () {
+    $folder = folder();
+
+    $uid = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            to: 'bar@email.com',
+            subject: 'Test Subject',
+            text: 'hello world',
+        ),
+    );
+
+    // Fetch without size - should be null
+    $messagesWithoutSize = $folder->messages()->get();
+    expect($messagesWithoutSize->first()->size())->toBeNull();
+
+    // Fetch with size - should have a value
+    $messagesWithSize = $folder->messages()->withSize()->get();
+    $message = $messagesWithSize->first();
+
+    expect($message->size())->toBeInt();
+    expect($message->size())->toBeGreaterThan(0);
+    expect($message->uid())->toBe($uid);
+});
+
+test('size reflects actual message size', function () {
+    $folder = folder();
+
+    $shortMessage = new DraftMessage(
+        from: 'foo@email.com',
+        text: 'short',
+    );
+
+    $longMessage = new DraftMessage(
+        from: 'foo@email.com',
+        text: str_repeat('This is a longer message with more content. ', 100),
+    );
+
+    $uid1 = $folder->messages()->append($shortMessage);
+    $uid2 = $folder->messages()->append($longMessage);
+
+    $messages = $folder->messages()->withSize()->get();
+
+    $short = $messages->find($uid1);
+    $long = $messages->find($uid2);
+
+    expect($short->size())->toBeInt();
+    expect($long->size())->toBeInt();
+    expect($long->size())->toBeGreaterThan($short->size());
+});
 
 test('append', function () {
     $folder = folder();

@@ -118,3 +118,15 @@ test('it can remove flags using flag method', function () {
     expect($message->isFlagged())->toBeFalse();
     expect($message->flags())->toBeEmpty();
 });
+
+test('it can get size when set', function () {
+    $message = new FakeMessage(1, [], 'Test content', 1024);
+
+    expect($message->size())->toBe(1024);
+});
+
+test('it returns size from contents when size is not set', function () {
+    $message = new FakeMessage(1, [], 'Test content');
+
+    expect($message->size())->toBe(strlen('Test content'));
+});
