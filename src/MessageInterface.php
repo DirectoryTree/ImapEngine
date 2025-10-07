@@ -51,9 +51,11 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function replyTo(): ?Address;
 
     /**
-     * Get the 'In-Reply-To' address.
+     * Get the 'In-Reply-To' message identifier(s).
+     *
+     * @return string[]
      */
-    public function inReplyTo(): ?Address;
+    public function inReplyTo(): array;
 
     /**
      * Get the 'To' addresses.
