@@ -309,7 +309,7 @@ class MessageQuery implements MessageQueryInterface
 
             return [
                 $uid => [
-                    'size' => $size !== null ? (int) $size : null,
+                    'size' => $size ? (int) $size : null,
                     'flags' => $data->lookup('FLAGS')?->values() ?? [],
                     'headers' => $data->lookup('[HEADER]')->value ?? '',
                     'contents' => $data->lookup('[TEXT]')->value ?? '',
