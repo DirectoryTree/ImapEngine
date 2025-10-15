@@ -267,3 +267,116 @@ test('parses response tokens', function (array|string $feed, string $type, strin
         "* 1 FETCH (BODY {14}\r\nHello World!\r\n)",
     ],
 ]);
+
+test('parses fetch response with body text then header', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    // Simulating BODY[TEXT] before BODY[HEADER]
+    $stream->feed([
+        '* 1 FETCH (UID 123 FLAGS (\\Seen) BODY[TEXT] {0}',
+        '',
+        ' BODY[HEADER] {0}',
+        '',
+        ')',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf(UntaggedResponse::class);
+
+    // Get the ListData at index 3 (the FETCH data)
+    $data = $response->tokenAt(3);
+    expect($data)->toBeInstanceOf(ListData::class);
+
+    // Verify we can lookup UID
+    $uid = $data->lookup('UID');
+    expect($uid)->not->toBeNull();
+    expect($uid->value)->toBe('123');
+
+    // Verify we can lookup FLAGS
+    $flags = $data->lookup('FLAGS');
+    expect($flags)->not->toBeNull();
+
+    // Verify we can lookup both BODY sections
+    $text = $data->lookup('[TEXT]');
+    expect($text)->not->toBeNull();
+
+    $header = $data->lookup('[HEADER]');
+    expect($header)->not->toBeNull();
+})->issue(115);
+
+test('parses fetch response with body header then text', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    // Simulating BODY[HEADER] before BODY[TEXT]
+    $stream->feed([
+        '* 1 FETCH (UID 456 FLAGS (\\Seen) BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf(UntaggedResponse::class);
+
+    // Get the ListData at index 3 (the FETCH data)
+    $data = $response->tokenAt(3);
+    expect($data)->toBeInstanceOf(ListData::class);
+
+    // Verify we can lookup UID
+    $uid = $data->lookup('UID');
+    expect($uid)->not->toBeNull();
+    expect($uid->value)->toBe('456');
+
+    // Verify we can lookup FLAGS
+    $flags = $data->lookup('FLAGS');
+    expect($flags)->not->toBeNull();
+
+    // Verify we can lookup both BODY sections
+    $header = $data->lookup('[HEADER]');
+    expect($header)->not->toBeNull();
+
+    $text = $data->lookup('[TEXT]');
+    expect($text)->not->toBeNull();
+})->issue(115);
+
+test('parses fetch response with all metadata and body parts', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    // Full FETCH response with all common fields
+    $stream->feed([
+        '* 1 FETCH (UID 789 RFC822.SIZE 1024 FLAGS (\\Seen \\Flagged) BODY[TEXT] {0}',
+        '',
+        ' BODY[HEADER] {0}',
+        '',
+        ')',
+    ]);
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf(UntaggedResponse::class);
+
+    $data = $response->tokenAt(3);
+    expect($data)->toBeInstanceOf(ListData::class);
+
+    // Verify all lookups work correctly
+    expect($data->lookup('UID')?->value)->toBe('789');
+    expect($data->lookup('RFC822.SIZE')?->value)->toBe('1024');
+    expect($data->lookup('FLAGS'))->not->toBeNull();
+    expect($data->lookup('[TEXT]'))->not->toBeNull();
+    expect($data->lookup('[HEADER]'))->not->toBeNull();
+})->issue(115);
