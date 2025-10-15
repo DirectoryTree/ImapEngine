@@ -88,12 +88,12 @@ class ImapParser
         $this->advance();
 
         // Collect all tokens until the end-of-response marker.
-        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
+        while ($this->currentToken && ! $this->currentToken instanceof Crlf) {
             $elements[] = $this->parseElement();
         }
 
         // If the end-of-response marker (CRLF) is present, consume it.
-        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->currentToken instanceof Crlf) {
             $this->currentToken = null;
         } else {
             throw new ImapParserException('Unterminated untagged response');
@@ -116,12 +116,12 @@ class ImapParser
         $this->advance();
 
         // Collect all tokens until the CRLF marker.
-        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
+        while ($this->currentToken && ! $this->currentToken instanceof Crlf) {
             $elements[] = $this->parseElement();
         }
 
         // Consume the CRLF marker if present.
-        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->currentToken instanceof Crlf) {
             $this->currentToken = null;
         } else {
             throw new ImapParserException('Unterminated continuation response');
@@ -144,12 +144,12 @@ class ImapParser
         $this->advance();
 
         // Collect tokens until the end-of-response marker is reached.
-        while ($this->currentToken && ! $this->isEndOfResponseToken($this->currentToken)) {
+        while ($this->currentToken && ! $this->currentToken instanceof Crlf) {
             $tokens[] = $this->parseElement();
         }
 
         // Consume the CRLF marker if present.
-        if ($this->currentToken && $this->isEndOfResponseToken($this->currentToken)) {
+        if ($this->currentToken && $this->currentToken instanceof Crlf) {
             $this->currentToken = null;
         } else {
             throw new ImapParserException('Unterminated tagged response');
@@ -173,8 +173,14 @@ class ImapParser
         while (
             $this->currentToken
             && ! $this->currentToken instanceof ResponseCodeClose
-            && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
+            // Skip CRLF tokens that may appear inside bracket groups.
+            if ($this->currentToken instanceof Crlf) {
+                $this->advance();
+
+                continue;
+            }
+
             $elements[] = $this->parseElement();
         }
 
@@ -204,8 +210,14 @@ class ImapParser
         while (
             $this->currentToken
             && ! $this->currentToken instanceof ListClose
-            && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
+            // Skip CRLF tokens that appear inside lists (after literals).
+            if ($this->currentToken instanceof Crlf) {
+                $this->advance();
+
+                continue;
+            }
+
             $elements[] = $this->parseElement();
         }
 
@@ -254,13 +266,5 @@ class ImapParser
     protected function advance(): void
     {
         $this->currentToken = $this->tokenizer->nextToken();
-    }
-
-    /**
-     * Determine if the given token marks the end of a response.
-     */
-    protected function isEndOfResponseToken(Token $token): bool
-    {
-        return $token instanceof Crlf;
     }
 }
