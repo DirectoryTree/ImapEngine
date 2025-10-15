@@ -343,6 +343,8 @@ test('parses fetch response with body header then text', function () {
     // Verify we can lookup FLAGS
     $flags = $data->lookup('FLAGS');
     expect($flags)->not->toBeNull();
+    expect($flags->tokens())->toHaveCount(1);
+    expect($flags->tokenAt(0)->value)->toBe('\\Seen');
 
     // Verify we can lookup both BODY sections with correct content
     $header = $data->lookup('[HEADER]');
@@ -377,10 +379,13 @@ test('parses fetch response with all metadata and body parts', function () {
     $data = $response->tokenAt(3);
     expect($data)->toBeInstanceOf(ListData::class);
 
-    // Verify all lookups work correctly with actual content
+    $flags = $data->lookup('FLAGS')->tokens();
+
+    expect($flags)->toHaveCount(2);
+    expect($flags[0]->value)->toBe('\\Seen');
+    expect($flags[1]->value)->toBe('\\Flagged');
     expect($data->lookup('UID')?->value)->toBe('789');
     expect($data->lookup('RFC822.SIZE')?->value)->toBe('1024');
-    expect($data->lookup('FLAGS'))->not->toBeNull();
     expect($data->lookup('[TEXT]')->value)->toBe("This is the email body.\r\n");
     expect($data->lookup('[HEADER]')->value)->toBe("To: recipient@example.com\r\nSubject: Re: Test\r\n");
 });
