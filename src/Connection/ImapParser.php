@@ -173,8 +173,14 @@ class ImapParser
         while (
             $this->currentToken
             && ! $this->currentToken instanceof ResponseCodeClose
-            && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
+            // Skip CRLF tokens that may appear inside bracket groups.
+            if ($this->currentToken instanceof Crlf) {
+                $this->advance();
+
+                continue;
+            }
+
             $elements[] = $this->parseElement();
         }
 
@@ -204,8 +210,14 @@ class ImapParser
         while (
             $this->currentToken
             && ! $this->currentToken instanceof ListClose
-            && ! $this->isEndOfResponseToken($this->currentToken)
         ) {
+            // Skip CRLF tokens that appear inside lists (after literals).
+            if ($this->currentToken instanceof Crlf) {
+                $this->advance();
+
+                continue;
+            }
+
             $elements[] = $this->parseElement();
         }
 
