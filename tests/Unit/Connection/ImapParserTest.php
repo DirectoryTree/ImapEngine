@@ -273,12 +273,12 @@ test('parses fetch response with body text then header', function () {
     $stream->open();
 
     // Simulating BODY[TEXT] before BODY[HEADER]
-    $stream->feed([
-        '* 1 FETCH (UID 123 FLAGS (\\Seen) BODY[TEXT] {0}',
-        '',
-        ' BODY[HEADER] {0}',
-        '',
-        ')',
+    $stream->feedRaw([
+        "* 1 FETCH (UID 123 FLAGS (\\Seen) BODY[TEXT] {13}\r\n",
+        "Hello World\r\n",
+        " BODY[HEADER] {23}\r\n",
+        "Subject: Test Message\r\n",
+        ")\r\n",
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
@@ -301,25 +301,27 @@ test('parses fetch response with body text then header', function () {
     $flags = $data->lookup('FLAGS');
     expect($flags)->not->toBeNull();
 
-    // Verify we can lookup both BODY sections
+    // Verify we can lookup both BODY sections with correct content
     $text = $data->lookup('[TEXT]');
     expect($text)->not->toBeNull();
+    expect($text->value)->toBe("Hello World\r\n");
 
     $header = $data->lookup('[HEADER]');
     expect($header)->not->toBeNull();
-})->issue(115);
+    expect($header->value)->toBe("Subject: Test Message\r\n");
+});
 
 test('parses fetch response with body header then text', function () {
     $stream = new FakeStream;
     $stream->open();
 
     // Simulating BODY[HEADER] before BODY[TEXT]
-    $stream->feed([
-        '* 1 FETCH (UID 456 FLAGS (\\Seen) BODY[HEADER] {0}',
-        '',
-        ' BODY[TEXT] {0}',
-        '',
-        ')',
+    $stream->feedRaw([
+        "* 1 FETCH (UID 456 FLAGS (\\Seen) BODY[HEADER] {26}\r\n",
+        "From: sender@example.com\r\n",
+        " BODY[TEXT] {20}\r\n",
+        "Message body here.\r\n",
+        ")\r\n",
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
@@ -342,25 +344,27 @@ test('parses fetch response with body header then text', function () {
     $flags = $data->lookup('FLAGS');
     expect($flags)->not->toBeNull();
 
-    // Verify we can lookup both BODY sections
+    // Verify we can lookup both BODY sections with correct content
     $header = $data->lookup('[HEADER]');
     expect($header)->not->toBeNull();
+    expect($header->value)->toBe("From: sender@example.com\r\n");
 
     $text = $data->lookup('[TEXT]');
     expect($text)->not->toBeNull();
-})->issue(115);
+    expect($text->value)->toBe("Message body here.\r\n");
+});
 
 test('parses fetch response with all metadata and body parts', function () {
     $stream = new FakeStream;
     $stream->open();
 
     // Full FETCH response with all common fields
-    $stream->feed([
-        '* 1 FETCH (UID 789 RFC822.SIZE 1024 FLAGS (\\Seen \\Flagged) BODY[TEXT] {0}',
-        '',
-        ' BODY[HEADER] {0}',
-        '',
-        ')',
+    $stream->feedRaw([
+        "* 1 FETCH (UID 789 RFC822.SIZE 1024 FLAGS (\\Seen \\Flagged) BODY[TEXT] {25}\r\n",
+        "This is the email body.\r\n",
+        " BODY[HEADER] {46}\r\n",
+        "To: recipient@example.com\r\nSubject: Re: Test\r\n",
+        ")\r\n",
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
@@ -373,10 +377,10 @@ test('parses fetch response with all metadata and body parts', function () {
     $data = $response->tokenAt(3);
     expect($data)->toBeInstanceOf(ListData::class);
 
-    // Verify all lookups work correctly
+    // Verify all lookups work correctly with actual content
     expect($data->lookup('UID')?->value)->toBe('789');
     expect($data->lookup('RFC822.SIZE')?->value)->toBe('1024');
     expect($data->lookup('FLAGS'))->not->toBeNull();
-    expect($data->lookup('[TEXT]'))->not->toBeNull();
-    expect($data->lookup('[HEADER]'))->not->toBeNull();
-})->issue(115);
+    expect($data->lookup('[TEXT]')->value)->toBe("This is the email body.\r\n");
+    expect($data->lookup('[HEADER]')->value)->toBe("To: recipient@example.com\r\nSubject: Re: Test\r\n");
+});
