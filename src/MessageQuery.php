@@ -269,16 +269,16 @@ class MessageQuery implements MessageQueryInterface
             $fetch[] = 'RFC822.SIZE';
         }
 
-        if ($this->fetchBody) {
-            $fetch[] = $this->fetchAsUnread
-                ? 'BODY.PEEK[TEXT]'
-                : 'BODY[TEXT]';
-        }
-
         if ($this->fetchHeaders) {
             $fetch[] = $this->fetchAsUnread
                 ? 'BODY.PEEK[HEADER]'
                 : 'BODY[HEADER]';
+        }
+
+        if ($this->fetchBody) {
+            $fetch[] = $this->fetchAsUnread
+                ? 'BODY.PEEK[TEXT]'
+                : 'BODY[TEXT]';
         }
 
         if (empty($fetch)) {
