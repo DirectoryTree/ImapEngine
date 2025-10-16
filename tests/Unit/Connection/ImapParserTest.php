@@ -273,12 +273,12 @@ test('parses fetch response with body text then header', function () {
     $stream->open();
 
     // Simulating BODY[TEXT] before BODY[HEADER]
-    $stream->feedRaw([
-        "* 1 FETCH (UID 123 FLAGS (\\Seen) BODY[TEXT] {13}\r\n",
-        "Hello World\r\n",
-        " BODY[HEADER] {23}\r\n",
-        "Subject: Test Message\r\n",
-        ")\r\n",
+    $stream->feed([
+        '* 1 FETCH (UID 123 FLAGS (\\Seen) BODY[TEXT] {13}',
+        'Hello World',
+        ' BODY[HEADER] {23}',
+        'Subject: Test Message',
+        ')',
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
@@ -316,12 +316,12 @@ test('parses fetch response with body header then text', function () {
     $stream->open();
 
     // Simulating BODY[HEADER] before BODY[TEXT]
-    $stream->feedRaw([
-        "* 1 FETCH (UID 456 FLAGS (\\Seen) BODY[HEADER] {26}\r\n",
-        "From: sender@example.com\r\n",
-        " BODY[TEXT] {20}\r\n",
-        "Message body here.\r\n",
-        ")\r\n",
+    $stream->feed([
+        '* 1 FETCH (UID 456 FLAGS (\\Seen) BODY[HEADER] {26}',
+        'From: sender@example.com',
+        ' BODY[TEXT] {20}',
+        'Message body here.',
+        ')',
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
@@ -361,12 +361,13 @@ test('parses fetch response with all metadata and body parts', function () {
     $stream->open();
 
     // Full FETCH response with all common fields
-    $stream->feedRaw([
-        "* 1 FETCH (UID 789 RFC822.SIZE 1024 FLAGS (\\Seen \\Flagged) BODY[TEXT] {25}\r\n",
-        "This is the email body.\r\n",
-        " BODY[HEADER] {46}\r\n",
-        "To: recipient@example.com\r\nSubject: Re: Test\r\n",
-        ")\r\n",
+    $stream->feed([
+        '* 1 FETCH (UID 789 RFC822.SIZE 1024 FLAGS (\\Seen \\Flagged) BODY[TEXT] {25}',
+        'This is the email body.',
+        ' BODY[HEADER] {46}',
+        'To: recipient@example.com',
+        'Subject: Re: Test',
+        ')',
     ]);
 
     $tokenizer = new ImapTokenizer($stream);
