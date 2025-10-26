@@ -75,7 +75,7 @@ class MessageQuery implements MessageQueryInterface
     public function append(string $message, mixed $flags = null): int
     {
         $response = $this->connection()->append(
-            $this->folder->path(), $message, Str::enums($flags),
+            $this->folder->path(), $message, (array) Str::enums($flags),
         );
 
         return (int) $response // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
