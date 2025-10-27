@@ -3,6 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageQuery;
@@ -181,3 +182,25 @@ test('chunk breaks when callback returns false', function () {
     // Should only process the first chunk (page 1)
     expect($processedChunks)->toBe([1]);
 });
+
+test('append with single flag converts to array', function (mixed $flag) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK [APPENDUID 1234567890 1] APPEND completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $folder = new Folder($mailbox, 'INBOX');
+    $query = new MessageQuery($folder, new ImapQueryBuilder);
+
+    $uid = $query->append('Hello world', $flag);
+
+    expect($uid)->toBe(1);
+    $stream->assertWritten('TAG2 APPEND "INBOX" (\\Seen) "Hello world"');
+})->with([ImapFlag::Seen, '\\Seen']);
