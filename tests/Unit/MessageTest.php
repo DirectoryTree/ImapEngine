@@ -133,15 +133,15 @@ test('it can determine if two messages are the same', function () {
     // Same message
     expect($message1->is($message2))->toBeTrue();
 
+    // Different header
+    expect($message1->is($message5))->toBeTrue();
+
+    // Different body
+    expect($message1->is($message6))->toBeTrue();
+
     // Different UID
     expect($message1->is($message3))->toBeFalse();
 
     // Different folder
     expect($message1->is($message4))->toBeFalse();
-
-    // Different header
-    expect($message1->is($message5))->toBeFalse();
-
-    // Different body
-    expect($message1->is($message6))->toBeFalse();
 });
