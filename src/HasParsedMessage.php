@@ -32,11 +32,15 @@ trait HasParsedMessage
             return null;
         }
 
-        if ($header instanceof DateHeader) {
-            return Carbon::instance($header->getDateTime());
+        if (! $header instanceof DateHeader) {
+            return null;
         }
 
-        return null;
+        if (! $date = $header->getDateTime()) {
+            return null;
+        }
+
+        return Carbon::instance($date);
     }
 
     /**
