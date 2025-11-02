@@ -29,6 +29,24 @@ test('it returns empty flags', function () {
     expect($message->flags())->toBe([]);
 });
 
+test('it handles invalid date header that returns null from getDateTime', function () {
+    $contents = <<<'EOT'
+    From: "John Doe" <john@example.com>
+    To: "Jane Roe" <jane@example.com>
+    Subject: Test Subject
+    Date: Invalid Date String
+    Message-ID: <unique-message-id@server.example.com>
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset="UTF-8"
+
+    Hello World
+    EOT;
+
+    $message = new FileMessage($contents);
+
+    expect($message->date())->toBeNull();
+});
+
 test('it can parse a standard EML message and read basic headers', function () {
     $contents = <<<'EOT'
     From: "John Doe" <john@example.com>
