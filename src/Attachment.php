@@ -81,7 +81,11 @@ class Attachment implements Arrayable, JsonSerializable
      */
     public function extension(): ?string
     {
-        if ($ext = pathinfo($this->filename ?? '', PATHINFO_EXTENSION)) {
+        if (! $this->filename) {
+            return null;
+        }
+
+        if ($ext = pathinfo($this->filename, PATHINFO_EXTENSION)) {
             return $ext;
         }
 
