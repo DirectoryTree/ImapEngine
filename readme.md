@@ -4,7 +4,7 @@
 
 <p align="center">Working with IMAP doesn't need to be hard.</p>
 
-<p align="center">ImapEngine provides a simple API for managing mailboxes -- without the PHP extension.</p>
+<p align="center">ImapEngine provides a simple API for managing mailboxes -- without using the PHP extension.</p>
 
 <p align="center">
 <a href="https://github.com/directorytree/imapengine/actions"><img src="https://img.shields.io/github/actions/workflow/status/directorytree/imapengine/run-tests.yml?branch=master&style=flat-square"></a>
