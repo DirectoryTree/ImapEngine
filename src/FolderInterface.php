@@ -47,9 +47,9 @@ interface FolderInterface
     public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void;
 
     /**
-     * Poll for new messages at a given frequency.
+     * Begin polling for new messages at a given frequency.
      */
-    public function poll(int $frequency, callable $callback, ?callable $query = null): void;
+    public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void;
 
     /**
      * Move or rename the current folder.

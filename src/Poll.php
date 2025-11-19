@@ -33,13 +33,13 @@ class Poll
     /**
      * Poll for new messages at a given frequency.
      */
-    public function start(callable $callback): void
+    public function start(callable $callback, callable $query): void
     {
         $this->connect();
 
         while ($frequency = $this->getNextFrequency()) {
             try {
-                $this->check($callback);
+                $this->check($callback, $query);
             } catch (ImapConnectionClosedException) {
                 $this->reconnect();
             }
@@ -51,24 +51,25 @@ class Poll
     /**
      * Check for new messages since the last seen UID.
      */
-    protected function check(callable $callback): void
+    protected function check(callable $callback, callable $query): void
     {
         $folder = $this->folder();
 
-        $query = $folder->messages();
+        if (! $this->lastSeenUid) {
+            $this->lastSeenUid = $folder->messages()
+                ->first()
+                ?->uid() ?? 0;
 
-        // If we have a last seen UID, search for messages after it.
-        if ($this->lastSeenUid !== null) {
-            $query->uid($this->lastSeenUid + 1, INF);
+            return;
         }
 
-        $messages = $query->get();
+        $query($folder->messages())
+            ->uid($this->lastSeenUid + 1, INF)
+            ->each(function (MessageInterface $message) use ($callback) {
+                $callback($message);
 
-        foreach ($messages as $message) {
-            $callback($message);
-
-            $this->lastSeenUid = $message->uid();
-        }
+                $this->lastSeenUid = $message->uid();
+            });
     }
 
     /**

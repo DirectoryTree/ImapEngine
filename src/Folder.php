@@ -140,27 +140,22 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function poll(int $frequency, callable $callback, ?callable $query = null): void
+    public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
-        // The message query to use when fetching messages.
-        $query ??= fn (MessageQuery $query) => $query;
-
         (new Poll(clone $this->mailbox, $this->path, $frequency))->start(
-            function (MessageInterface $message) use ($callback, $query) {
+            function (MessageInterface $message) use ($callback) {
                 if (! $this->mailbox->connected()) {
                     $this->mailbox->connect();
                 }
 
                 try {
-                    // Apply the query to the message if needed.
-                    $query($this->messages());
-
                     $callback($message);
                 } catch (Exception) {
                     // Something happened. We will attempt reconnecting.
                     $this->mailbox->reconnect();
                 }
-            }
+            },
+            $query ?? fn (MessageQuery $query) => $query
         );
     }
 
