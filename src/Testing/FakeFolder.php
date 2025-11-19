@@ -99,6 +99,16 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
+    public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
+    {
+        foreach ($this->messages as $message) {
+            $callback($message);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function move(string $newPath): void
     {
         // Do nothing.

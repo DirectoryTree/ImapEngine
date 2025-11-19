@@ -42,9 +42,14 @@ interface FolderInterface
     public function messages(): MessageQueryInterface;
 
     /**
-     * Begin idling on the current folder.
+     * Begin idling on the current folder for the given timeout in seconds.
      */
     public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void;
+
+    /**
+     * Begin polling for new messages at the given frequency in seconds.
+     */
+    public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void;
 
     /**
      * Move or rename the current folder.

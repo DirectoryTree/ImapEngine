@@ -140,6 +140,29 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
+    public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
+    {
+        (new Poll(clone $this->mailbox, $this->path, $frequency))->start(
+            function (MessageInterface $message) use ($callback) {
+                if (! $this->mailbox->connected()) {
+                    $this->mailbox->connect();
+                }
+
+                try {
+                    $callback($message);
+                } catch (Exception) {
+                    // Something unexpected happened. We will attempt
+                    // reconnecting and continue polling for messages.
+                    $this->mailbox->reconnect();
+                }
+            },
+            $query ?? fn (MessageQuery $query) => $query
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function move(string $newPath): void
     {
         $this->mailbox->connection()->rename($this->path, $newPath);
