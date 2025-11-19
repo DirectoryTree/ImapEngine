@@ -14,6 +14,22 @@ abstract class Token implements Stringable
     ) {}
 
     /**
+     * Determine if the token is the given value.
+     */
+    public function is(string $value): bool
+    {
+        return $this->value === $value;
+    }
+
+    /**
+     * Determine if the token is not the given value.
+     */
+    public function isNot(string $value): bool
+    {
+        return ! $this->is($value);
+    }
+
+    /**
      * Get the token's value.
      */
     public function __toString(): string
