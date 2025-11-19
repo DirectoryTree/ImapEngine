@@ -55,6 +55,8 @@ class Poll
     {
         $folder = $this->folder();
 
+        // If we don't have a last seen UID, we will fetch
+        // the last one in the folder as a starting point.
         if (! $this->lastSeenUid) {
             $this->lastSeenUid = $folder->messages()
                 ->first()
