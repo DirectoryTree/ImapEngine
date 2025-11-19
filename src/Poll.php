@@ -66,6 +66,13 @@ class Poll
         $query($folder->messages())
             ->uid($this->lastSeenUid + 1, INF)
             ->each(function (MessageInterface $message) use ($callback) {
+                // Avoid processing the same message twice on subsequent polls.
+                // Some IMAP servers will always return the last seen UID in
+                // the search results regardless of UID search scope.
+                if ($this->lastSeenUid === $message->uid()) {
+                    return;
+                }
+
                 $callback($message);
 
                 $this->lastSeenUid = $message->uid();
