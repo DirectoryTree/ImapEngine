@@ -68,7 +68,7 @@ class Poll
             ->each(function (MessageInterface $message) use ($callback) {
                 // Avoid processing the same message twice on subsequent polls.
                 // Some IMAP servers will always return the last seen UID in
-                // the search results regardless of UID search scope.
+                // the search results regardless of given UID search range.
                 if ($this->lastSeenUid === $message->uid()) {
                     return;
                 }
