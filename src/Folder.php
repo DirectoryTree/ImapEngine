@@ -151,7 +151,8 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
                 try {
                     $callback($message);
                 } catch (Exception) {
-                    // Something happened. We will attempt reconnecting.
+                    // Something unexpected happened. We will attempt
+                    // reconnecting and continue polling for messages.
                     $this->mailbox->reconnect();
                 }
             },
