@@ -260,7 +260,7 @@ class Str
     /**
      * Determine if a given string matches a given pattern.
      */
-    public static function is(array|string $pattern, string $value, bool $ignoreCase = false)
+    public static function is(array|string $pattern, string $value, bool $ignoreCase = false): bool
     {
         if (! is_iterable($pattern)) {
             $pattern = [$pattern];
@@ -293,5 +293,21 @@ class Str
         }
 
         return false;
+    }
+
+    /**
+     * Decode MIME-encoded header values.
+     */
+    public static function decodeMimeHeader(string $value): string
+    {
+        if (! str_contains($value, '=?')) {
+            return $value;
+        }
+
+        if ($decoded = iconv_mime_decode($value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8')) {
+            return $decoded;
+        }
+
+        return $value;
     }
 }

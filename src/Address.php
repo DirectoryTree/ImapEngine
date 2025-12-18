@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 
@@ -13,7 +14,9 @@ class Address implements Arrayable, JsonSerializable
     public function __construct(
         protected string $email,
         protected string $name,
-    ) {}
+    ) {
+        $this->name = Str::decodeMimeHeader($this->name);
+    }
 
     /**
      * Get the address's email.
