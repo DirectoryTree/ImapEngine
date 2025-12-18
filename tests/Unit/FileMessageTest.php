@@ -547,3 +547,89 @@ test('it can determine size from contents', function () {
 
     expect($message->size())->toBe(strlen($contents));
 });
+
+test('it decodes base64 encoded from name', function () {
+    $contents = <<<'EOT'
+Return-Path: <from@example.com>
+Delivered-To: to@example.com
+Received: from mail.example.com
+	by mail.example.com with LMTP id kB9HBDDVNWiAaAAABEj0/g
+	for <to@example.com>; Tue, 27 May 2025 17:07:28 +0200
+Received: from exmaple.com (exmaple.com [1.1.1.1])
+	by mail.example.com (Postfix) with ESMTPS id E15722D749
+	for <to@example.com>; Tue, 27 May 2025 17:07:27 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; d=example.com;
+	s=default; h=Content-Transfer-Encoding:Content-Type:Subject:MIME-Version:
+	Message-Id:To:From:Date:Sender:Reply-To:Cc:Content-ID:Content-Description:
+	Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:
+	In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:
+	List-Post:List-Owner:List-Archive;
+	bh=v6FVS3RZyBFj+9PZnaE1NGLHzvCYTYn6axfEJnK9FUQ=; b=ab91Cc8m1EOAClyNW066JVKy7p
+	Kq6C6Kg84UvJ2CqW6He0BJY1SuK7s9HfzzQA+32N9YVn8HS9tNyynJ3MP0tUa/zf2YR4H7FRO/afz
+	hpxcpJYVJGaH2rCgWzubZsKPJQN5wzd5g5pRiT4LbNchTr1XfwlVX3ycRxun+hGXNSNVJC8cSQuul
+	tdZnKp69+ngVh0fFzzuywpj29Lmeh3hplsF3KlP23UMZq+5ZSp9WNEBPyB/dXG3XNuqqNQGqlHGoy
+	xVOEHWA6r11YJxw+6W2vU3qVg6iW/Uy8g+bdp/AkULoqlsiBGR9of+/zozaobt7EkR0A7JTMKRUKw
+	Xw5WUunA==;
+Received: from 1.1.1.1.example.com ([1.1.1.1]:65442 helo=SERVER1)
+	by exmaple.com with esmtpsa  (TLS1.2) tls TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+	(Exim 4.98.1)
+	(envelope-from <from@example.com>)
+	id 1uJvto-000000000fL-1qpV;
+	Tue, 27 May 2025 17:07:27 +0200
+Date: Tue, 27 May 2025 17:07:27 +0200
+From: "=?UTF-8?B?REFQIHwgU0VSVkVSMQ==?=" <from@example.com>
+To: <to@example.com>
+Message-Id: <6835d52f5e2e1.b6543809db00ba63b80c39bfcc81d88a@example.com>
+MIME-Version: 1.0
+Subject: =?UTF-8?B?W0RBUCB8IFNFUlZFUjFdICBDb250YWluZXIgdmF1bHR3YXJkZW4gaW4gQ29udGFpbmVyIE1hbmFnZXIgc3RvcHBlZCB1bmV4cGVjdGVkbHk=?=
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+X-AntiAbuse: This header was added to track abuse, please include it with any abuse report
+X-AntiAbuse: Primary Hostname - exmaple.com
+X-AntiAbuse: Original Domain - example.com
+X-AntiAbuse: Originator/Caller UID/GID - [47 12] / [47 12]
+X-AntiAbuse: Sender Address Domain - example.com
+X-Get-Message-Sender-Via: exmaple.com: authenticated_id: from@example.com
+X-Authenticated-Sender: exmaple.com: from@example.com
+X-Rspamd-Server: mail.example.com
+X-Spamd-Result: default: False [-0.91 / 6.00];
+	SUBJ_EXCESS_BASE64(1.50)[];
+	FROM_EXCESS_BASE64(1.50)[];
+	IP_REPUTATION_HAM(-1.32)[asn: 20857(-0.38), country: NL(-0.01), ip: 1.1.1.1(-0.93)];
+	GENERIC_REPUTATION(-0.95)[-0.94652652518558];
+	DKIM_REPUTATION(-0.92)[-0.91631218832379];
+	SPF_REPUTATION_HAM(-0.89)[-0.88873676028191];
+	R_DKIM_ALLOW(0.29)[example.com:s=default];
+	R_SPF_ALLOW(-0.20)[+mx];
+	MIME_HTML_ONLY(0.20)[];
+	BAYES_HAM(-0.12)[66.55%];
+	MX_GOOD(-0.01)[];
+	TO_MATCH_ENVRCPT_SOME(0.00)[];
+	FROM_HAS_DN(0.00)[];
+	NEURAL_HAM(-0.00)[-1.000];
+	HAS_X_GMSV(0.00)[from@example.com];
+	DMARC_NA(0.00)[example.com];
+	RCVD_VIA_SMTP_AUTH(0.00)[];
+	MIME_TRACE(0.00)[0:~];
+	MID_RHS_MATCH_FROM(0.00)[];
+	DKIM_TRACE(0.00)[example.com:+];
+	RCPT_COUNT_TWO(0.00)[2];
+	TO_DN_NONE(0.00)[];
+	HAS_X_AS(0.00)[from@example.com];
+	HAS_X_ANTIABUSE(0.00)[];
+	RCVD_COUNT_TWO(0.00)[2];
+	FROM_EQ_ENVFROM(0.00)[];
+	ASN(0.00)[asn:20857, ipnet:37.97.128.0/17, country:NL];
+	RCVD_TLS_ALL(0.00)[]
+X-Rspamd-Queue-Id: E15722D749
+X-EsetId: 37303A29E962D55F607264
+
+Container vaultwarden in Container Manager stopped unexpectedly. Please select vaultwarden on the <b>Container</b> page, click the <b>Details</b> button, and go to the <b>Log</b> tab for details.<BR><BR>From SERVER1<BR><BR><BR>
+EOT;
+
+    $message = new FileMessage($contents);
+
+    expect($message->from()->email())->toBe('from@example.com');
+    expect($message->from()->name())->toBe('DAP | SERVER1');
+    expect($message->subject())->toBe('[DAP | SERVER1]  Container vaultwarden in Container Manager stopped unexpectedly');
+});
