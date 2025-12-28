@@ -31,7 +31,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function __sleep(): array
     {
         // We don't want to serialize the parsed message.
-        return ['folder', 'uid', 'flags', 'headers', 'contents', 'size'];
+        return ['folder', 'uid', 'flags', 'head', 'body', 'size'];
     }
 
     /**
