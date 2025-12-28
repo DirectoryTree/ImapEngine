@@ -145,3 +145,35 @@ test('it can determine if two messages are the same', function () {
     // Different folder
     expect($message1->is($message4))->toBeFalse();
 });
+
+test('it serializes and unserializes the message correctly', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    $originalMessage = new Message(
+        $folder,
+        123,
+        ['\\Seen', '\\Flagged'],
+        'From: test@example.com',
+        'This is the message body content',
+        1024
+    );
+
+    $serialized = serialize($originalMessage);
+    $unserializedMessage = unserialize($serialized);
+
+    expect($unserializedMessage->uid())->toBe(123);
+    expect($unserializedMessage->flags())->toBe(['\\Seen', '\\Flagged']);
+    expect($unserializedMessage->head())->toBe('From: test@example.com');
+    expect($unserializedMessage->body())->toBe('This is the message body content');
+    expect($unserializedMessage->size())->toBe(1024);
+});
