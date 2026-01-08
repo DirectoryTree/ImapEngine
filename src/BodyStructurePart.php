@@ -43,28 +43,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     protected static function parse(array $tokens, string $partNumber): static
     {
-        $disposition = null;
-        $dispositionParameters = [];
-
-        for ($i = 8; $i < count($tokens); $i++) {
-            if (! $tokens[$i] instanceof ListData) {
-                continue;
-            }
-
-            $innerTokens = $tokens[$i]->tokens();
-
-            if (isset($innerTokens[0]) && $innerTokens[0] instanceof Token) {
-                $disposition = ContentDisposition::tryFrom(strtolower($innerTokens[0]->value));
-
-                if ($disposition !== null) {
-                    if (isset($innerTokens[1]) && $innerTokens[1] instanceof ListData) {
-                        $dispositionParameters = static::parseParameters($innerTokens[1]);
-                    }
-
-                    break;
-                }
-            }
-        }
+        [$disposition, $dispositionParameters] = static::parseDisposition($tokens);
 
         return new static(
             partNumber: $partNumber,
@@ -79,6 +58,39 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             disposition: $disposition,
             dispositionParameters: $dispositionParameters,
         );
+    }
+
+    /**
+     * Parse the disposition from tokens.
+     *
+     * @param  array<Token|ListData>  $tokens
+     * @return array{0: ContentDisposition|null, 1: array}
+     */
+    protected static function parseDisposition(array $tokens): array
+    {
+        for ($i = 8; $i < count($tokens); $i++) {
+            if (! $tokens[$i] instanceof ListData) {
+                continue;
+            }
+
+            $innerTokens = $tokens[$i]->tokens();
+
+            if (! isset($innerTokens[0]) || ! $innerTokens[0] instanceof Token) {
+                continue;
+            }
+
+            if (! $disposition = ContentDisposition::tryFrom(strtolower($innerTokens[0]->value))) {
+                continue;
+            }
+
+            $parameters = isset($innerTokens[1]) && $innerTokens[1] instanceof ListData
+                ? static::parseParameters($innerTokens[1])
+                : [];
+
+            return [$disposition, $parameters];
+        }
+
+        return [null, []];
     }
 
     /**
