@@ -128,6 +128,21 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function parse(): IMessage;
 
     /**
+     * Get the message's body structure.
+     */
+    public function bodyStructure(): ?BodyStructureCollection;
+
+    /**
+     * Determine if the message has body structure data.
+     */
+    public function hasBodyStructure(): bool;
+
+    /**
+     * Fetch a specific body part by part number.
+     */
+    public function bodyPart(string $partNumber, bool $peek = true): ?string;
+
+    /**
      * Determine if the message is the same as another message.
      */
     public function is(MessageInterface $message): bool;

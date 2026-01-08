@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
@@ -29,6 +30,35 @@ test('tokenizer returns an atom token', function () {
 
     expect($token)->toBeInstanceOf(Atom::class);
     expect($token->value)->toBe('ATOM1');
+});
+
+test('tokenizer returns a nil token for NIL', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed("NIL\r\n");
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    $token = $tokenizer->nextToken();
+
+    expect($token)->toBeInstanceOf(Nil::class);
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe('NIL');
+});
+
+test('tokenizer returns a nil token for lowercase nil', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed("nil\r\n");
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    $token = $tokenizer->nextToken();
+
+    expect($token)->toBeInstanceOf(Nil::class);
+    expect($token->value)->toBe('nil');
 });
 
 test('tokenizer returns a quoted string token', function () {
