@@ -43,45 +43,39 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     protected static function parse(array $tokens, string $partNumber): static
     {
-        $type = isset($tokens[0]) ? strtolower(static::tokenValue($tokens[0])) : 'text';
-        $subtype = isset($tokens[1]) ? strtolower(static::tokenValue($tokens[1])) : 'plain';
-        $parameters = isset($tokens[2]) && $tokens[2] instanceof ListData ? static::parseParameters($tokens[2]) : [];
-        $id = isset($tokens[3]) ? static::nullableTokenValue($tokens[3]) : null;
-        $description = isset($tokens[4]) ? static::nullableTokenValue($tokens[4]) : null;
-        $encoding = isset($tokens[5]) ? static::nullableTokenValue($tokens[5]) : null;
-        $size = isset($tokens[6]) ? static::intTokenValue($tokens[6]) : null;
-        $lines = isset($tokens[7]) ? static::intTokenValue($tokens[7]) : null;
-
-        // Disposition is typically at index 8 or 9
         $disposition = null;
         $dispositionParameters = [];
 
         for ($i = 8; $i < count($tokens); $i++) {
-            if ($tokens[$i] instanceof ListData) {
-                $innerTokens = $tokens[$i]->tokens();
-                if (isset($innerTokens[0]) && $innerTokens[0] instanceof Token) {
-                    $disposition = ContentDisposition::tryFrom(strtolower($innerTokens[0]->value));
+            if (! $tokens[$i] instanceof ListData) {
+                continue;
+            }
 
-                    if ($disposition !== null) {
-                        if (isset($innerTokens[1]) && $innerTokens[1] instanceof ListData) {
-                            $dispositionParameters = static::parseParameters($innerTokens[1]);
-                        }
-                        break;
+            $innerTokens = $tokens[$i]->tokens();
+
+            if (isset($innerTokens[0]) && $innerTokens[0] instanceof Token) {
+                $disposition = ContentDisposition::tryFrom(strtolower($innerTokens[0]->value));
+
+                if ($disposition !== null) {
+                    if (isset($innerTokens[1]) && $innerTokens[1] instanceof ListData) {
+                        $dispositionParameters = static::parseParameters($innerTokens[1]);
                     }
+
+                    break;
                 }
             }
         }
 
         return new static(
             partNumber: $partNumber,
-            type: $type,
-            subtype: $subtype,
-            parameters: $parameters,
-            id: $id,
-            description: $description,
-            encoding: $encoding,
-            size: $size,
-            lines: $lines,
+            type: isset($tokens[0]) ? strtolower(static::tokenValue($tokens[0])) : 'text',
+            subtype: isset($tokens[1]) ? strtolower(static::tokenValue($tokens[1])) : 'plain',
+            parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? static::parseParameters($tokens[2]) : [],
+            id: isset($tokens[3]) ? static::nullableTokenValue($tokens[3]) : null,
+            description: isset($tokens[4]) ? static::nullableTokenValue($tokens[4]) : null,
+            encoding: isset($tokens[5]) ? static::nullableTokenValue($tokens[5]) : null,
+            size: isset($tokens[6]) ? static::intTokenValue($tokens[6]) : null,
+            lines: isset($tokens[7]) ? static::intTokenValue($tokens[7]) : null,
             disposition: $disposition,
             dispositionParameters: $dispositionParameters,
         );
@@ -93,12 +87,13 @@ class BodyStructurePart implements Arrayable, JsonSerializable
     public static function parseParameters(ListData $data): array
     {
         $tokens = $data->tokens();
+
         $parameters = [];
 
         for ($i = 0; $i < count($tokens) - 1; $i += 2) {
             $key = strtolower(static::tokenValue($tokens[$i]));
-            $value = static::tokenValue($tokens[$i + 1]);
-            $parameters[$key] = $value;
+
+            $parameters[$key] = static::tokenValue($tokens[$i + 1]);
         }
 
         return $parameters;
