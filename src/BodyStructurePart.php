@@ -44,14 +44,14 @@ class BodyStructurePart implements Arrayable, JsonSerializable
     {
         return new static(
             partNumber: $partNumber,
-            type: isset($tokens[0]) ? strtolower(static::tokenValue($tokens[0])) : 'text',
-            subtype: isset($tokens[1]) ? strtolower(static::tokenValue($tokens[1])) : 'plain',
+            type: isset($tokens[0]) ? strtolower($tokens[0]->value) : 'text',
+            subtype: isset($tokens[1]) ? strtolower($tokens[1]->value) : 'plain',
             parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? $tokens[2]->toKeyValuePairs() : [],
-            id: isset($tokens[3]) ? static::nullableTokenValue($tokens[3]) : null,
-            description: isset($tokens[4]) ? static::nullableTokenValue($tokens[4]) : null,
-            encoding: isset($tokens[5]) ? static::nullableTokenValue($tokens[5]) : null,
-            size: isset($tokens[6]) ? static::intTokenValue($tokens[6]) : null,
-            lines: isset($tokens[7]) ? static::intTokenValue($tokens[7]) : null,
+            id: isset($tokens[3]) && ! $tokens[3] instanceof Nil ? $tokens[3]->value : null,
+            description: isset($tokens[4]) && ! $tokens[4] instanceof Nil ? $tokens[4]->value : null,
+            encoding: isset($tokens[5]) && ! $tokens[5] instanceof Nil ? $tokens[5]->value : null,
+            size: isset($tokens[6]) && ! $tokens[6] instanceof Nil ? (int) $tokens[6]->value : null,
+            lines: isset($tokens[7]) && ! $tokens[7] instanceof Nil ? (int) $tokens[7]->value : null,
             disposition: static::parseDisposition($tokens),
         );
     }
@@ -86,42 +86,6 @@ class BodyStructurePart implements Arrayable, JsonSerializable
         }
 
         return null;
-    }
-
-    /**
-     * Get the string value of a token.
-     */
-    protected static function tokenValue(Token|ListData $token): string
-    {
-        if ($token instanceof ListData) {
-            return '';
-        }
-
-        return trim($token->value, '"');
-    }
-
-    /**
-     * Get a nullable string value from a token.
-     */
-    protected static function nullableTokenValue(Token|ListData $token): ?string
-    {
-        if ($token instanceof ListData || $token instanceof Nil) {
-            return null;
-        }
-
-        return trim($token->value, '"');
-    }
-
-    /**
-     * Get an integer value from a token.
-     */
-    protected static function intTokenValue(Token|ListData $token): ?int
-    {
-        if ($token instanceof ListData || $token instanceof Nil) {
-            return null;
-        }
-
-        return (int) $token->value;
     }
 
     /**

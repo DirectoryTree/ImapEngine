@@ -28,9 +28,9 @@ class ListData extends Data
         $pairs = [];
 
         for ($i = 0; $i < count($this->tokens) - 1; $i += 2) {
-            $key = strtolower(trim($this->tokens[$i]->value, '"'));
+            $key = strtolower($this->tokens[$i]->value);
 
-            $pairs[$key] = trim($this->tokens[$i + 1]->value, '"');
+            $pairs[$key] = $this->tokens[$i + 1]->value;
         }
 
         return $pairs;
