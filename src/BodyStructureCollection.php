@@ -83,9 +83,7 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
      */
     protected static function isMultipart(ListData $data): bool
     {
-        $firstToken = $data->tokens()[0] ?? null;
-
-        return $firstToken instanceof ListData;
+        return head($data->tokens()) instanceof ListData;
     }
 
     /**
@@ -113,13 +111,13 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
      */
     protected static function isDispositionList(ListData $data): bool
     {
-        $innerTokens = $data->tokens();
+        $tokens = $data->tokens();
 
-        if (count($innerTokens) < 2 || ! isset($innerTokens[0]) || ! $innerTokens[0] instanceof Token) {
+        if (count($tokens) < 2 || ! isset($tokens[0]) || ! $tokens[0] instanceof Token) {
             return false;
         }
 
-        return in_array(strtoupper($innerTokens[0]->value), ['INLINE', 'ATTACHMENT']);
+        return in_array(strtoupper($tokens[0]->value), ['INLINE', 'ATTACHMENT']);
     }
 
     /**
