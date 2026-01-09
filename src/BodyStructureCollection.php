@@ -33,33 +33,15 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
     public static function fromListData(ListData $data, string $partNumber = ''): static
     {
         $tokens = $data->tokens();
-
-        [$parts, $subtypeIndex] = static::parseChildParts($tokens, $partNumber);
-
-        $subtype = $subtypeIndex !== null
-            ? strtolower($tokens[$subtypeIndex]->value)
-            : 'mixed';
-
-        $parameters = $subtypeIndex !== null
-            ? static::parseMultipartParameters(array_slice($tokens, $subtypeIndex + 1))
-            : [];
-
-        return new static($subtype, $parameters, $parts);
-    }
-
-    /**
-     * Parse child parts from tokens until the subtype string is found.
-     *
-     * @return array{0: array<BodyStructurePart|BodyStructureCollection>, 1: int|null}
-     */
-    protected static function parseChildParts(array $tokens, string $partNumber): array
-    {
         $parts = [];
         $childIndex = 1;
+        $subtypeIndex = null;
 
         foreach ($tokens as $index => $token) {
             if ($token instanceof Token && ! $token instanceof Nil) {
-                return [$parts, $index];
+                $subtypeIndex = $index;
+
+                break;
             }
 
             if (! $token instanceof ListData) {
@@ -75,7 +57,23 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
             $childIndex++;
         }
 
-        return [$parts, null];
+        $subtype = $subtypeIndex !== null
+            ? strtolower($tokens[$subtypeIndex]->value)
+            : 'mixed';
+
+        $parameters = [];
+
+        if ($subtypeIndex !== null) {
+            foreach (array_slice($tokens, $subtypeIndex + 1) as $token) {
+                if ($token instanceof ListData && ! static::isDispositionList($token)) {
+                    $parameters = $token->toKeyValuePairs();
+
+                    break;
+                }
+            }
+        }
+
+        return new static($subtype, $parameters, $parts);
     }
 
     /**
@@ -84,26 +82,6 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
     protected static function isMultipart(ListData $data): bool
     {
         return head($data->tokens()) instanceof ListData;
-    }
-
-    /**
-     * Parse multipart parameters from tokens after the subtype.
-     */
-    protected static function parseMultipartParameters(array $tokens): array
-    {
-        foreach ($tokens as $token) {
-            if (! $token instanceof ListData) {
-                continue;
-            }
-
-            if (static::isDispositionList($token)) {
-                continue;
-            }
-
-            return $token->toKeyValuePairs();
-        }
-
-        return [];
     }
 
     /**
