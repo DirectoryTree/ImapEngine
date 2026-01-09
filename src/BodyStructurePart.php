@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Enums\ContentDisposition;
+use DirectoryTree\ImapEngine\Enums\ContentDispositionType;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 
@@ -25,7 +25,6 @@ class BodyStructurePart implements Arrayable, JsonSerializable
         protected ?int $size = null,
         protected ?int $lines = null,
         protected ?ContentDisposition $disposition = null,
-        protected array $dispositionParameters = [],
     ) {}
 
     /**
@@ -43,8 +42,6 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     protected static function parse(array $tokens, string $partNumber): static
     {
-        [$disposition, $dispositionParameters] = static::parseDisposition($tokens);
-
         return new static(
             partNumber: $partNumber,
             type: isset($tokens[0]) ? strtolower(static::tokenValue($tokens[0])) : 'text',
@@ -55,8 +52,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             encoding: isset($tokens[5]) ? static::nullableTokenValue($tokens[5]) : null,
             size: isset($tokens[6]) ? static::intTokenValue($tokens[6]) : null,
             lines: isset($tokens[7]) ? static::intTokenValue($tokens[7]) : null,
-            disposition: $disposition,
-            dispositionParameters: $dispositionParameters,
+            disposition: static::parseDisposition($tokens),
         );
     }
 
@@ -64,9 +60,8 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      * Parse the disposition from tokens.
      *
      * @param  array<Token|ListData>  $tokens
-     * @return array{0: ContentDisposition|null, 1: array}
      */
-    protected static function parseDisposition(array $tokens): array
+    protected static function parseDisposition(array $tokens): ?ContentDisposition
     {
         for ($i = 8; $i < count($tokens); $i++) {
             if (! $tokens[$i] instanceof ListData) {
@@ -79,7 +74,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
                 continue;
             }
 
-            if (! $disposition = ContentDisposition::tryFrom(strtolower($innerTokens[0]->value))) {
+            if (! $type = ContentDispositionType::tryFrom(strtolower($innerTokens[0]->value))) {
                 continue;
             }
 
@@ -87,10 +82,10 @@ class BodyStructurePart implements Arrayable, JsonSerializable
                 ? static::parseParameters($innerTokens[1])
                 : [];
 
-            return [$disposition, $parameters];
+            return new ContentDisposition($type, $parameters);
         }
 
-        return [null, []];
+        return null;
     }
 
     /**
@@ -236,7 +231,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get the content disposition (inline, attachment).
+     * Get the content disposition.
      */
     public function disposition(): ?ContentDisposition
     {
@@ -244,19 +239,11 @@ class BodyStructurePart implements Arrayable, JsonSerializable
     }
 
     /**
-     * Get the disposition parameters (e.g., filename).
-     */
-    public function dispositionParameters(): array
-    {
-        return $this->dispositionParameters;
-    }
-
-    /**
      * Get the filename from disposition parameters.
      */
     public function filename(): ?string
     {
-        return $this->dispositionParameters['filename'] ?? $this->parameters['name'] ?? null;
+        return $this->disposition?->filename() ?? $this->parameters['name'] ?? null;
     }
 
     /**
@@ -288,12 +275,12 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     public function isAttachment(): bool
     {
-        if ($this->disposition === ContentDisposition::Attachment) {
+        if ($this->disposition?->isAttachment()) {
             return true;
         }
 
         // Inline parts are not attachments.
-        if ($this->disposition === ContentDisposition::Inline) {
+        if ($this->disposition?->isInline()) {
             return false;
         }
 
@@ -310,7 +297,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     public function isInline(): bool
     {
-        return $this->disposition === ContentDisposition::Inline;
+        return $this->disposition?->isInline() ?? false;
     }
 
     /**
@@ -329,8 +316,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             'part_number' => $this->partNumber,
             'description' => $this->description,
             'content_type' => $this->contentType(),
-            'disposition' => $this->disposition?->value,
-            'disposition_parameters' => $this->dispositionParameters,
+            'disposition' => $this->disposition?->toArray(),
         ];
     }
 
