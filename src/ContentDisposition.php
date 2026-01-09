@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ContentDispositionType;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
@@ -18,6 +20,38 @@ class ContentDisposition implements Arrayable, JsonSerializable
         protected ContentDispositionType $type,
         protected array $parameters = [],
     ) {}
+
+    /**
+     * Parse the disposition from tokens.
+     *
+     * @param  array<Token|ListData>  $tokens
+     */
+    public static function parse(array $tokens): ?static
+    {
+        for ($i = 8; $i < count($tokens); $i++) {
+            if (! $tokens[$i] instanceof ListData) {
+                continue;
+            }
+
+            $innerTokens = $tokens[$i]->tokens();
+
+            if (! isset($innerTokens[0]) || ! $innerTokens[0] instanceof Token) {
+                continue;
+            }
+
+            if (! $type = ContentDispositionType::tryFrom(strtolower($innerTokens[0]->value))) {
+                continue;
+            }
+
+            $parameters = isset($innerTokens[1]) && $innerTokens[1] instanceof ListData
+                ? $innerTokens[1]->toKeyValuePairs()
+                : [];
+
+            return new self($type, $parameters);
+        }
+
+        return null;
+    }
 
     /**
      * Get the disposition type.

@@ -5,7 +5,6 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Enums\ContentDispositionType;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 
@@ -52,40 +51,8 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             encoding: isset($tokens[5]) && ! $tokens[5] instanceof Nil ? $tokens[5]->value : null,
             size: isset($tokens[6]) && ! $tokens[6] instanceof Nil ? (int) $tokens[6]->value : null,
             lines: isset($tokens[7]) && ! $tokens[7] instanceof Nil ? (int) $tokens[7]->value : null,
-            disposition: static::parseDisposition($tokens),
+            disposition: ContentDisposition::parse($tokens),
         );
-    }
-
-    /**
-     * Parse the disposition from tokens.
-     *
-     * @param  array<Token|ListData>  $tokens
-     */
-    protected static function parseDisposition(array $tokens): ?ContentDisposition
-    {
-        for ($i = 8; $i < count($tokens); $i++) {
-            if (! $tokens[$i] instanceof ListData) {
-                continue;
-            }
-
-            $innerTokens = $tokens[$i]->tokens();
-
-            if (! isset($innerTokens[0]) || ! $innerTokens[0] instanceof Token) {
-                continue;
-            }
-
-            if (! $type = ContentDispositionType::tryFrom(strtolower($innerTokens[0]->value))) {
-                continue;
-            }
-
-            $parameters = isset($innerTokens[1]) && $innerTokens[1] instanceof ListData
-                ? $innerTokens[1]->toKeyValuePairs()
-                : [];
-
-            return new ContentDisposition($type, $parameters);
-        }
-
-        return null;
     }
 
     /**
