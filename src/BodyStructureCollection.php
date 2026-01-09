@@ -102,7 +102,7 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
                 continue;
             }
 
-            return BodyStructurePart::parseParameters($token);
+            return $token->toKeyValuePairs();
         }
 
         return [];

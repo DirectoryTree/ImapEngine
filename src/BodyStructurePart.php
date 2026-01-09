@@ -46,7 +46,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             partNumber: $partNumber,
             type: isset($tokens[0]) ? strtolower(static::tokenValue($tokens[0])) : 'text',
             subtype: isset($tokens[1]) ? strtolower(static::tokenValue($tokens[1])) : 'plain',
-            parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? static::parseParameters($tokens[2]) : [],
+            parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? $tokens[2]->toKeyValuePairs() : [],
             id: isset($tokens[3]) ? static::nullableTokenValue($tokens[3]) : null,
             description: isset($tokens[4]) ? static::nullableTokenValue($tokens[4]) : null,
             encoding: isset($tokens[5]) ? static::nullableTokenValue($tokens[5]) : null,
@@ -79,31 +79,13 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             }
 
             $parameters = isset($innerTokens[1]) && $innerTokens[1] instanceof ListData
-                ? static::parseParameters($innerTokens[1])
+                ? $innerTokens[1]->toKeyValuePairs()
                 : [];
 
             return new ContentDisposition($type, $parameters);
         }
 
         return null;
-    }
-
-    /**
-     * Parse parameters from a ListData.
-     */
-    public static function parseParameters(ListData $data): array
-    {
-        $tokens = $data->tokens();
-
-        $parameters = [];
-
-        for ($i = 0; $i < count($tokens) - 1; $i += 2) {
-            $key = strtolower(static::tokenValue($tokens[$i]));
-
-            $parameters[$key] = static::tokenValue($tokens[$i + 1]);
-        }
-
-        return $parameters;
     }
 
     /**

@@ -21,6 +21,22 @@ class ListData extends Data
     }
 
     /**
+     * Convert alternating key/value tokens to an associative array.
+     */
+    public function toKeyValuePairs(): array
+    {
+        $pairs = [];
+
+        for ($i = 0; $i < count($this->tokens) - 1; $i += 2) {
+            $key = strtolower(trim($this->tokens[$i]->value, '"'));
+
+            $pairs[$key] = trim($this->tokens[$i + 1]->value, '"');
+        }
+
+        return $pairs;
+    }
+
+    /**
      * Get the list as a string.
      */
     public function __toString(): string
