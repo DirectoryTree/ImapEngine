@@ -30,9 +30,10 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
     /**
      * Parse a multipart BODYSTRUCTURE ListData into a BodyStructureCollection.
      */
-    public static function fromListData(ListData $data, string $partNumber = ''): static
+    public static function fromListData(ListData $data, ?string $partNumber = null): static
     {
         $tokens = $data->tokens();
+
         $parts = [];
         $childIndex = 1;
         $subtypeIndex = null;
@@ -48,7 +49,7 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
                 continue;
             }
 
-            $childPartNumber = $partNumber === '' ? (string) $childIndex : "{$partNumber}.{$childIndex}";
+            $childPartNumber = $partNumber ? "{$partNumber}.{$childIndex}" : (string) $childIndex;
 
             $parts[] = static::isMultipart($token)
                 ? static::fromListData($token, $childPartNumber)
@@ -57,13 +58,13 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
             $childIndex++;
         }
 
-        $subtype = $subtypeIndex !== null
+        $subtype = $subtypeIndex
             ? strtolower($tokens[$subtypeIndex]->value)
             : 'mixed';
 
         $parameters = [];
 
-        if ($subtypeIndex !== null) {
+        if ($subtypeIndex) {
             foreach (array_slice($tokens, $subtypeIndex + 1) as $token) {
                 if ($token instanceof ListData && ! static::isDispositionList($token)) {
                     $parameters = $token->toKeyValuePairs();
