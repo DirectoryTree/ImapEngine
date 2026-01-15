@@ -8,7 +8,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 
-function parseBodyStructureData(string $response): ListData
+function parseBodyStructureResponse(string $response): ListData
 {
     $stream = new FakeStream;
     $stream->open();
@@ -29,7 +29,7 @@ function parseBodyStructureData(string $response): ListData
 }
 
 test('it parses a simple text/plain message as BodyStructurePart', function () {
-    $listData = parseBodyStructureData(
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) UID 1)'
     );
 
@@ -45,7 +45,7 @@ test('it parses a simple text/plain message as BodyStructurePart', function () {
 });
 
 test('it parses a multipart/alternative message as BodyStructureCollection', function () {
-    $listData = parseBodyStructureData(
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "quoted-printable" 11 1 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "quoted-printable" 18 1 NIL NIL NIL) "alternative" ("boundary" "Aq14h3UL") NIL NIL) UID 1)'
     );
 
@@ -67,7 +67,7 @@ test('it parses a multipart/alternative message as BodyStructureCollection', fun
 });
 
 test('it flattens all parts in a collection', function () {
-    $listData = parseBodyStructureData(
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -80,7 +80,7 @@ test('it flattens all parts in a collection', function () {
 });
 
 test('it finds part by part number in a collection', function () {
-    $listData = parseBodyStructureData(
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -95,7 +95,7 @@ test('it finds part by part number in a collection', function () {
 });
 
 test('it detects attachments in a collection', function () {
-    $listData = parseBodyStructureData(
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name" "document.pdf") NIL NIL "base64" 5000 NIL ("attachment" ("filename" "document.pdf")) NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -109,8 +109,8 @@ test('it detects attachments in a collection', function () {
     expect($attachments[0]->contentType())->toBe('application/pdf');
 });
 
-test('BodyStructurePart converts to array', function () {
-    $listData = parseBodyStructureData(
+test('it converts BodyStructurePart to array', function () {
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) UID 1)'
     );
 
@@ -124,8 +124,8 @@ test('BodyStructurePart converts to array', function () {
     expect($array['content_type'])->toBe('text/plain');
 });
 
-test('BodyStructureCollection converts to array', function () {
-    $listData = parseBodyStructureData(
+test('it converts BodyStructureCollection to array', function () {
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -138,8 +138,8 @@ test('BodyStructureCollection converts to array', function () {
     expect($array['parts'])->toHaveCount(2);
 });
 
-test('body structure part identifies inline disposition', function () {
-    $listData = parseBodyStructureData(
+test('it identifies inline disposition in body structure part', function () {
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "html" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("image" "png" ("name" "logo.png") "<cid123>" NIL "base64" 1000 NIL ("inline" ("filename" "logo.png")) NIL NIL) "related" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -152,8 +152,8 @@ test('body structure part identifies inline disposition', function () {
     expect($imagePart->id())->toBe('<cid123>');
 });
 
-test('BodyStructureCollection is countable', function () {
-    $listData = parseBodyStructureData(
+test('it makes BodyStructureCollection countable', function () {
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
@@ -162,8 +162,8 @@ test('BodyStructureCollection is countable', function () {
     expect(count($collection))->toBe(2);
 });
 
-test('BodyStructureCollection is iterable', function () {
-    $listData = parseBodyStructureData(
+test('it makes BodyStructureCollection iterable', function () {
+    $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
