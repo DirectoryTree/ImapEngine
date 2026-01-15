@@ -86,7 +86,7 @@ class FakeMessage implements MessageInterface
      */
     public function hasBodyStructure(): bool
     {
-        return $this->bodyStructure !== null;
+        return (bool) $this->bodyStructure;
     }
 
     /**
