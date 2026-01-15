@@ -68,7 +68,7 @@ class FileMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyStructure(): ?BodyStructure
+    public function bodyStructure(): ?BodyStructureCollection
     {
         return null;
     }
