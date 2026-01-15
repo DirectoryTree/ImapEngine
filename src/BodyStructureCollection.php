@@ -58,10 +58,6 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
             $childIndex++;
         }
 
-        $subtype = $subtypeIndex
-            ? strtolower($tokens[$subtypeIndex]->value)
-            : 'mixed';
-
         $parameters = [];
 
         if ($subtypeIndex) {
@@ -74,7 +70,11 @@ class BodyStructureCollection implements Arrayable, Countable, IteratorAggregate
             }
         }
 
-        return new static($subtype, $parameters, $parts);
+        return new static(
+            $subtypeIndex ? strtolower($tokens[$subtypeIndex]->value) : 'mixed',
+            $parameters,
+            $parts
+        );
     }
 
     /**
