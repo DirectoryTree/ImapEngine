@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -14,6 +15,11 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     use HasFlags, HasParsedMessage;
 
     /**
+     * The parsed body structure.
+     */
+    protected ?BodyStructureCollection $bodyStructure = null;
+
+    /**
      * Constructor.
      */
     public function __construct(
@@ -23,6 +29,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         protected string $head,
         protected string $body,
         protected ?int $size = null,
+        protected ?ListData $bodyStructureData = null,
     ) {}
 
     /**
@@ -96,6 +103,33 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function hasBody(): bool
     {
         return ! empty($this->body);
+    }
+
+    /**
+     * Get the message's body structure.
+     */
+    public function bodyStructure(): ?BodyStructureCollection
+    {
+        if ($this->bodyStructure) {
+            return $this->bodyStructure;
+        }
+
+        if (! $tokens = $this->bodyStructureData?->tokens()) {
+            return null;
+        }
+
+        // If the first token is a list, it's a multipart message.
+        return $this->bodyStructure = head($tokens) instanceof ListData
+            ? BodyStructureCollection::fromListData($this->bodyStructureData)
+            : new BodyStructureCollection(parts: [BodyStructurePart::fromListData($this->bodyStructureData)]);
+    }
+
+    /**
+     * Determine if the message has body structure data.
+     */
+    public function hasBodyStructure(): bool
+    {
+        return (bool) $this->bodyStructureData;
     }
 
     /**
@@ -182,6 +216,28 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
                     'Unable to move message. IMAP server does not support MOVE or UIDPLUS capabilities'
                 );
         }
+    }
+
+    /**
+     * Fetch a specific body part by part number.
+     */
+    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    {
+        $response = $this->folder->mailbox()
+            ->connection()
+            ->bodyPart($partNumber, $this->uid, $peek);
+
+        if ($response->isEmpty()) {
+            return null;
+        }
+
+        $data = $response->first()->tokenAt(3);
+
+        if (! $data instanceof ListData) {
+            return null;
+        }
+
+        return $data->lookup("[$partNumber]")?->value;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine\Testing;
 
 use BackedEnum;
+use DirectoryTree\ImapEngine\BodyStructureCollection;
 use DirectoryTree\ImapEngine\HasFlags;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
@@ -20,6 +21,7 @@ class FakeMessage implements MessageInterface
         protected array $flags = [],
         protected string $contents = '',
         protected ?int $size = null,
+        protected ?BodyStructureCollection $bodyStructure = null,
     ) {}
 
     /**
@@ -69,6 +71,30 @@ class FakeMessage implements MessageInterface
     public function flags(): array
     {
         return $this->flags;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function bodyStructure(): ?BodyStructureCollection
+    {
+        return $this->bodyStructure;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function hasBodyStructure(): bool
+    {
+        return (bool) $this->bodyStructure;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    {
+        return null;
     }
 
     /**

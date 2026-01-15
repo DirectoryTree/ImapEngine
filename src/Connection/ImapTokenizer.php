@@ -9,6 +9,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\EmailAddress;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListClose;
 use DirectoryTree\ImapEngine\Connection\Tokens\ListOpen;
 use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Number;
 use DirectoryTree\ImapEngine\Connection\Tokens\QuotedString;
 use DirectoryTree\ImapEngine\Connection\Tokens\ResponseCodeClose;
@@ -384,6 +385,10 @@ class ImapTokenizer
             $value .= $char;
 
             $this->advance();
+        }
+
+        if (strcasecmp($value, 'NIL') === 0) {
+            return new Nil($value);
         }
 
         return new Atom($value);

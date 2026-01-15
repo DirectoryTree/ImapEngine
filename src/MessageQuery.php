@@ -237,9 +237,10 @@ class MessageQuery implements MessageQueryInterface
                 $this->newMessage(
                     $uid,
                     $response['flags'] ?? [],
-                    $response['headers'] ?? '',
-                    $response['contents'] ?? '',
+                    $response['head'] ?? '',
+                    $response['body'] ?? '',
                     $response['size'] ?? null,
+                    $response['bodystructure'] ?? null,
                 )
             );
         }
@@ -281,13 +282,18 @@ class MessageQuery implements MessageQueryInterface
                 : 'BODY[TEXT]';
         }
 
+        if ($this->fetchBodyStructure) {
+            $fetch[] = 'BODYSTRUCTURE';
+        }
+
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
                 $uid => [
                     'size' => null,
                     'flags' => [],
-                    'headers' => '',
-                    'contents' => '',
+                    'head' => '',
+                    'body' => '',
+                    'bodystructure' => null,
                 ],
             ])->all();
         }
@@ -311,8 +317,9 @@ class MessageQuery implements MessageQueryInterface
                 $uid => [
                     'size' => $size ? (int) $size : null,
                     'flags' => $data->lookup('FLAGS')?->values() ?? [],
-                    'headers' => $data->lookup('[HEADER]')->value ?? '',
-                    'contents' => $data->lookup('[TEXT]')->value ?? '',
+                    'head' => $data->lookup('[HEADER]')->value ?? '',
+                    'body' => $data->lookup('[TEXT]')->value ?? '',
+                    'bodystructure' => $data->lookup('BODYSTRUCTURE'),
                 ],
             ];
         })->all();
@@ -365,9 +372,9 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Make a new message from given raw components.
      */
-    protected function newMessage(int $uid, array $flags, string $headers, string $contents, ?int $size = null): Message
+    protected function newMessage(int $uid, array $flags, string $head, string $body, ?int $size = null, ?ListData $bodystructure = null): Message
     {
-        return new Message($this->folder, $uid, $flags, $headers, $contents, $size);
+        return new Message($this->folder, $uid, $flags, $head, $body, $size, $bodystructure);
     }
 
     /**

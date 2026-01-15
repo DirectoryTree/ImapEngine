@@ -46,6 +46,11 @@ trait QueriesMessages
     protected bool $fetchSize = false;
 
     /**
+     * Whether to fetch the message body structure.
+     */
+    protected bool $fetchBodyStructure = false;
+
+    /**
      * The fetch order.
      *
      * @var 'asc'|'desc'
@@ -181,6 +186,14 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
+    public function isFetchingBodyStructure(): bool
+    {
+        return $this->fetchBodyStructure;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function withFlags(): MessageQueryInterface
     {
         return $this->setFetchFlags(true);
@@ -213,6 +226,14 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
+    public function withBodyStructure(): MessageQueryInterface
+    {
+        return $this->setFetchBodyStructure(true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function withoutBody(): MessageQueryInterface
     {
         return $this->setFetchBody(false);
@@ -240,6 +261,14 @@ trait QueriesMessages
     public function withoutSize(): MessageQueryInterface
     {
         return $this->setFetchSize(false);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function withoutBodyStructure(): MessageQueryInterface
+    {
+        return $this->setFetchBodyStructure(false);
     }
 
     /**
@@ -278,6 +307,16 @@ trait QueriesMessages
     protected function setFetchSize(bool $fetchSize): MessageQueryInterface
     {
         $this->fetchSize = $fetchSize;
+
+        return $this;
+    }
+
+    /**
+     * Set whether to fetch the body structure.
+     */
+    protected function setFetchBodyStructure(bool $fetchBodyStructure): MessageQueryInterface
+    {
+        $this->fetchBodyStructure = $fetchBodyStructure;
 
         return $this;
     }

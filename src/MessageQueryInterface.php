@@ -67,6 +67,11 @@ interface MessageQueryInterface
     public function isFetchingSize(): bool;
 
     /**
+     * Determine if the body structure of messages is being fetched.
+     */
+    public function isFetchingBodyStructure(): bool;
+
+    /**
      * Fetch the flags of messages.
      */
     public function withFlags(): MessageQueryInterface;
@@ -87,6 +92,11 @@ interface MessageQueryInterface
     public function withSize(): MessageQueryInterface;
 
     /**
+     * Fetch the body structure of messages.
+     */
+    public function withBodyStructure(): MessageQueryInterface;
+
+    /**
      * Don't fetch the body of messages.
      */
     public function withoutBody(): MessageQueryInterface;
@@ -105,6 +115,11 @@ interface MessageQueryInterface
      * Don't fetch the size of messages.
      */
     public function withoutSize(): MessageQueryInterface;
+
+    /**
+     * Don't fetch the body structure of messages.
+     */
+    public function withoutBodyStructure(): MessageQueryInterface;
 
     /**
      * Set the fetch order.
