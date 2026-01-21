@@ -92,7 +92,7 @@ class FileMessage implements MessageInterface
     /**
      * Determine if the message is empty.
      */
-    protected function isEmpty(): bool
+    public function isEmpty(): bool
     {
         return empty($this->contents);
     }

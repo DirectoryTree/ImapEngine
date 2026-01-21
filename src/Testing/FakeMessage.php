@@ -100,7 +100,7 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    protected function isEmpty(): bool
+    public function isEmpty(): bool
     {
         return empty($this->contents);
     }

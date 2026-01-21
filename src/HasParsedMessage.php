@@ -249,7 +249,7 @@ trait HasParsedMessage
     /**
      * Determine if the message is empty.
      */
-    abstract protected function isEmpty(): bool;
+    abstract public function isEmpty(): bool;
 
     /**
      * Get the string representation of the message.

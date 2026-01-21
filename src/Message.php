@@ -292,7 +292,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Determine if the message is empty.
      */
-    protected function isEmpty(): bool
+    public function isEmpty(): bool
     {
         return ! $this->hasHead() && ! $this->hasBody();
     }
