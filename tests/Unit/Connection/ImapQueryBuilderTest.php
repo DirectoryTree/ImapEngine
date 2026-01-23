@@ -284,3 +284,19 @@ test('compiles UID range with single value array', function () {
 
     expect($builder->toImap())->toBe('UID 2');
 });
+
+test('compiles LARGER condition without quotes', function () {
+    expect((new ImapQueryBuilder)->larger(5242880)->toImap())->toBe('LARGER 5242880');
+});
+
+test('compiles SMALLER condition without quotes', function () {
+    expect((new ImapQueryBuilder)->smaller(10240)->toImap())->toBe('SMALLER 10240');
+});
+
+test('compiles LARGER and SMALLER conditions together', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->larger(1024)->smaller(1048576);
+
+    expect($builder->toImap())->toBe('LARGER 1024 SMALLER 1048576');
+});

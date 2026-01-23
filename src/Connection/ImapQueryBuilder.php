@@ -236,6 +236,22 @@ class ImapQueryBuilder
     }
 
     /**
+     * Add a where "LARGER" clause to the query.
+     */
+    public function larger(int $bytes): static
+    {
+        return $this->where(ImapSearchKey::Larger, new RawQueryValue($bytes));
+    }
+
+    /**
+     * Add a where "SMALLER" clause to the query.
+     */
+    public function smaller(int $bytes): static
+    {
+        return $this->where(ImapSearchKey::Smaller, new RawQueryValue($bytes));
+    }
+
+    /**
      * Add a "where" condition.
      */
     public function where(mixed $column, mixed $value = null): static

@@ -22,10 +22,12 @@ enum ImapSearchKey: string
     case Unseen = 'UNSEEN';
     case Before = 'BEFORE';
     case Header = 'HEADER';
+    case Larger = 'LARGER';
     case Deleted = 'DELETED';
     case Flagged = 'FLAGGED';
     case Keyword = 'KEYWORD';
     case Subject = 'SUBJECT';
+    case Smaller = 'SMALLER';
     case Answered = 'ANSWERED';
     case Undeleted = 'UNDELETED';
     case Unflagged = 'UNFLAGGED';
