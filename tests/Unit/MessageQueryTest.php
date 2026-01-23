@@ -204,3 +204,275 @@ test('append with single flag converts to array', function (mixed $flag) {
     expect($uid)->toBe(1);
     $stream->assertWritten('TAG2 APPEND "INBOX" (\\Seen) "Hello world"');
 })->with([ImapFlag::Seen, '\\Seen']);
+
+test('flag adds flag to all matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->flag(ImapFlag::Seen, '+');
+
+    expect($count)->toBe(3);
+    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Seen)');
+});
+
+test('flag removes flag from all matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 4 5',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->flag(ImapFlag::Flagged, '-');
+
+    expect($count)->toBe(2);
+    $stream->assertWritten('TAG3 UID STORE 4,5 -FLAGS.SILENT (\Flagged)');
+});
+
+test('flag returns zero when no messages match', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->flag(ImapFlag::Seen, '+');
+
+    expect($count)->toBe(0);
+});
+
+test('markRead marks all matching messages as read', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->markRead();
+
+    expect($count)->toBe(3);
+    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Seen)');
+});
+
+test('markUnread marks all matching messages as unread', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->markUnread();
+
+    expect($count)->toBe(2);
+    $stream->assertWritten('TAG3 UID STORE 1,2 -FLAGS.SILENT (\Seen)');
+});
+
+test('markFlagged flags all matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 5 6 7 8',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->markFlagged();
+
+    expect($count)->toBe(4);
+    $stream->assertWritten('TAG3 UID STORE 5,6,7,8 +FLAGS.SILENT (\Flagged)');
+});
+
+test('unmarkFlagged unflags all matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 10',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->unmarkFlagged();
+
+    expect($count)->toBe(1);
+    $stream->assertWritten('TAG3 UID STORE 10 -FLAGS.SILENT (\Flagged)');
+});
+
+test('delete marks all matching messages as deleted', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->delete();
+
+    expect($count)->toBe(3);
+    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Deleted)');
+});
+
+test('delete with expunge also expunges folder', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID STORE completed',
+        'TAG4 OK EXPUNGE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $folder = new Folder($mailbox, 'INBOX');
+    $query = new MessageQuery($folder, new ImapQueryBuilder);
+
+    $count = $query->delete(expunge: true);
+
+    expect($count)->toBe(2);
+    $stream->assertWritten('TAG3 UID STORE 1,2 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG4 EXPUNGE');
+});
+
+test('move moves all matching messages to folder', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID MOVE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->move('Archive');
+
+    expect($count)->toBe(3);
+    $stream->assertWritten('TAG3 UID MOVE 1,2,3 "Archive"');
+});
+
+test('move returns zero when no messages match', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->move('Archive');
+
+    expect($count)->toBe(0);
+});
+
+test('copy copies all matching messages to folder', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 4 5',
+        'TAG2 OK SEARCH completed',
+        'TAG3 OK UID COPY completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->copy('Backup');
+
+    expect($count)->toBe(2);
+    $stream->assertWritten('TAG3 UID COPY 4,5 "Backup"');
+});
+
+test('copy returns zero when no messages match', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)->copy('Backup');
+
+    expect($count)->toBe(0);
+});
