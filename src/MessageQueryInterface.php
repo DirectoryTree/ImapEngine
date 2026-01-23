@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -205,4 +206,61 @@ interface MessageQueryInterface
      * Destroy the given messages.
      */
     public function destroy(array|int $uids, bool $expunge = false): void;
+
+    /**
+     * Add or remove a flag from all messages matching the current query.
+     *
+     * @param  string  $operation  '+'|'-'
+     * @return int The number of messages affected.
+     */
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): int;
+
+    /**
+     * Mark all messages matching the current query as read.
+     *
+     * @return int The number of messages affected.
+     */
+    public function markRead(): int;
+
+    /**
+     * Mark all messages matching the current query as unread.
+     *
+     * @return int The number of messages affected.
+     */
+    public function markUnread(): int;
+
+    /**
+     * Mark all messages matching the current query as flagged.
+     *
+     * @return int The number of messages affected.
+     */
+    public function markFlagged(): int;
+
+    /**
+     * Unmark all messages matching the current query as flagged.
+     *
+     * @return int The number of messages affected.
+     */
+    public function unmarkFlagged(): int;
+
+    /**
+     * Delete all messages matching the current query.
+     *
+     * @return int The number of messages affected.
+     */
+    public function delete(bool $expunge = false): int;
+
+    /**
+     * Move all messages matching the current query to the given folder.
+     *
+     * @return int The number of messages affected.
+     */
+    public function move(string $folder, bool $expunge = false): int;
+
+    /**
+     * Copy all messages matching the current query to the given folder.
+     *
+     * @return int The number of messages affected.
+     */
+    public function copy(string $folder): int;
 }

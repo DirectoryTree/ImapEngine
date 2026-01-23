@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
@@ -209,6 +210,106 @@ class MessageQuery implements MessageQueryInterface
         if ($expunge) {
             $this->folder->expunge();
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): int
+    {
+        $uids = $this->search()->all();
+
+        if (empty($uids)) {
+            return 0;
+        }
+
+        $this->connection()->store(
+            (array) Str::enums($flag),
+            $uids,
+            mode: $operation
+        );
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+
+        return count($uids);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markRead(): int
+    {
+        return $this->flag(ImapFlag::Seen, '+');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markUnread(): int
+    {
+        return $this->flag(ImapFlag::Seen, '-');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markFlagged(): int
+    {
+        return $this->flag(ImapFlag::Flagged, '+');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function unmarkFlagged(): int
+    {
+        return $this->flag(ImapFlag::Flagged, '-');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function delete(bool $expunge = false): int
+    {
+        return $this->flag(ImapFlag::Deleted, '+', $expunge);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function move(string $folder, bool $expunge = false): int
+    {
+        $uids = $this->search()->all();
+
+        if (empty($uids)) {
+            return 0;
+        }
+
+        $this->connection()->move($folder, $uids);
+
+        if ($expunge) {
+            $this->folder->expunge();
+        }
+
+        return count($uids);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function copy(string $folder): int
+    {
+        $uids = $this->search()->all();
+
+        if (empty($uids)) {
+            return 0;
+        }
+
+        $this->connection()->copy($folder, $uids);
+
+        return count($uids);
     }
 
     /**
