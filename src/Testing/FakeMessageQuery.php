@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -153,5 +154,73 @@ class FakeMessageQuery implements MessageQueryInterface
         $this->folder->setMessages(
             $messages->values()->all()
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markRead(): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markUnread(): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markFlagged(): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function unmarkFlagged(): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function delete(bool $expunge = false): int
+    {
+        $count = count($this->folder->getMessages());
+
+        $this->folder->setMessages([]);
+
+        return $count;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function move(string $folder, bool $expunge = false): int
+    {
+        return count($this->folder->getMessages());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function copy(string $folder): int
+    {
+        return count($this->folder->getMessages());
     }
 }
