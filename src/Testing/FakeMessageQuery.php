@@ -6,6 +6,7 @@ use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -227,7 +228,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function sortBy(string|\DirectoryTree\ImapEngine\Enums\ImapSortKey $key, string $direction = 'asc'): static
+    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): static
     {
         return $this;
     }
