@@ -4,6 +4,7 @@ use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageQuery;
@@ -475,4 +476,80 @@ test('copy returns zero when no messages match', function () {
     $count = query($mailbox)->copy('Backup');
 
     expect($count)->toBe(0);
+});
+
+test('sortBy sends correct sort command with ascending order', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SORT 3 1 2',
+        'TAG2 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->sortBy('date')->get();
+
+    $stream->assertWritten('TAG2 UID SORT (DATE) UTF-8 ALL');
+});
+
+test('sortBy sends correct sort command with descending order', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SORT 2 1 3',
+        'TAG2 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->sortBy('date', 'desc')->get();
+
+    $stream->assertWritten('TAG2 UID SORT (REVERSE DATE) UTF-8 ALL');
+});
+
+test('sortBy works with ImapSortKey enum', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SORT 1 2 3',
+        'TAG2 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->sortBy(ImapSortKey::Subject)->get();
+
+    $stream->assertWritten('TAG2 UID SORT (SUBJECT) UTF-8 ALL');
+});
+
+test('sortBy combined with search criteria', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SORT 5 3',
+        'TAG2 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->unseen()->sortBy('arrival', 'desc')->get();
+
+    $stream->assertWritten('TAG2 UID SORT (REVERSE ARRIVAL) UTF-8 UNSEEN');
 });
