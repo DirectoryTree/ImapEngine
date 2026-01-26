@@ -48,12 +48,20 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Set the server-side sort criteria using RFC 5256 SORT extension.
      */
-    public function sortBy(string|ImapSortKey $key, string $direction = 'asc'): static
+    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): static
     {
         $this->sortKey = is_string($key) ? ImapSortKey::from(strtoupper($key)) : $key;
         $this->sortDirection = strtolower($direction);
 
         return $this;
+    }
+
+    /**
+     * Set the server-side sort criteria using RFC 5256 SORT extension (in descending order).
+     */
+    public function sortByDesc(ImapSortKey|string $key): static
+    {
+        return $this->sortBy($key, 'desc');
     }
 
     /**
