@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -151,6 +152,36 @@ interface MessageQueryInterface
      * Set the fetch order to show newest messages first (descending).
      */
     public function newest(): MessageQueryInterface;
+
+    /**
+     * Set the sort key for server-side sorting (RFC 5256).
+     */
+    public function setSortKey(ImapSortKey|string|null $key): MessageQueryInterface;
+
+    /**
+     * Get the sort key for server-side sorting.
+     */
+    public function getSortKey(): ?ImapSortKey;
+
+    /**
+     * Set the sort direction for server-side sorting.
+     */
+    public function setSortDirection(string $direction): MessageQueryInterface;
+
+    /**
+     * Get the sort direction for server-side sorting.
+     */
+    public function getSortDirection(): string;
+
+    /**
+     * Sort messages by a field using server-side sorting (RFC 5256).
+     */
+    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): MessageQueryInterface;
+
+    /**
+     * Sort messages by a field in descending order using server-side sorting.
+     */
+    public function sortByDesc(ImapSortKey|string $key): MessageQueryInterface;
 
     /**
      * Count all available messages matching the current search criteria.

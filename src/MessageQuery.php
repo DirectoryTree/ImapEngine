@@ -12,7 +12,6 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
-use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -28,41 +27,12 @@ class MessageQuery implements MessageQueryInterface
     use QueriesMessages;
 
     /**
-     * The sort key to use for server-side sorting.
-     */
-    protected ?ImapSortKey $sortKey = null;
-
-    /**
-     * The sort direction (asc or desc).
-     */
-    protected string $sortDirection = 'asc';
-
-    /**
      * Constructor.
      */
     public function __construct(
         protected FolderInterface $folder,
         protected ImapQueryBuilder $query,
     ) {}
-
-    /**
-     * Set the server-side sort criteria using RFC 5256 SORT extension.
-     */
-    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): static
-    {
-        $this->sortKey = is_string($key) ? ImapSortKey::from(strtoupper($key)) : $key;
-        $this->sortDirection = strtolower($direction);
-
-        return $this;
-    }
-
-    /**
-     * Set the server-side sort criteria using RFC 5256 SORT extension (in descending order).
-     */
-    public function sortByDesc(ImapSortKey|string $key): static
-    {
-        return $this->sortBy($key, 'desc');
-    }
 
     /**
      * Count all available messages matching the current search criteria.
