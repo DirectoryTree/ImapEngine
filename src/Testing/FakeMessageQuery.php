@@ -223,4 +223,12 @@ class FakeMessageQuery implements MessageQueryInterface
     {
         return count($this->folder->getMessages());
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sortBy(string|\DirectoryTree\ImapEngine\Enums\ImapSortKey $key, string $direction = 'asc'): static
+    {
+        return $this;
+    }
 }

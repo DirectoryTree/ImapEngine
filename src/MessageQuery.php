@@ -12,6 +12,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -27,12 +28,33 @@ class MessageQuery implements MessageQueryInterface
     use QueriesMessages;
 
     /**
+     * The sort key to use for server-side sorting.
+     */
+    protected ?ImapSortKey $sortKey = null;
+
+    /**
+     * The sort direction (asc or desc).
+     */
+    protected string $sortDirection = 'asc';
+
+    /**
      * Constructor.
      */
     public function __construct(
         protected FolderInterface $folder,
         protected ImapQueryBuilder $query,
     ) {}
+
+    /**
+     * Set the server-side sort criteria using RFC 5256 SORT extension.
+     */
+    public function sortBy(string|ImapSortKey $key, string $direction = 'asc'): static
+    {
+        $this->sortKey = is_string($key) ? ImapSortKey::from(strtoupper($key)) : $key;
+        $this->sortDirection = strtolower($direction);
+
+        return $this;
+    }
 
     /**
      * Count all available messages matching the current search criteria.
@@ -67,7 +89,7 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->search());
+        return $this->process($this->sortKey ? $this->sort() : $this->search());
     }
 
     /**
@@ -439,6 +461,27 @@ class MessageQuery implements MessageQueryInterface
         $response = $this->connection()->search([
             $this->query->toImap(),
         ]);
+
+        return new Collection(array_map(
+            fn (Token $token) => $token->value,
+            $response->tokensAfter(2)
+        ));
+    }
+
+    /**
+     * Execute an IMAP UID SORT request using RFC 5256.
+     */
+    protected function sort(): Collection
+    {
+        if ($this->query->isEmpty()) {
+            $this->query->all();
+        }
+
+        $response = $this->connection()->sort(
+            $this->sortKey,
+            $this->sortDirection,
+            [$this->query->toImap()]
+        );
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
