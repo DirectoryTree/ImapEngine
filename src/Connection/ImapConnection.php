@@ -14,6 +14,7 @@ use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
@@ -494,6 +495,22 @@ class ImapConnection implements ConnectionInterface
 
         return $this->result->responses()->untagged()->firstOrFail(
             fn (UntaggedResponse $response) => $response->type()->is('SEARCH')
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sort(ImapSortKey $key, string $direction, array $params): UntaggedResponse
+    {
+        $sortCriteria = $direction === 'desc' ? "REVERSE {$key->value}" : $key->value;
+
+        $this->send('UID SORT', ["({$sortCriteria})", 'UTF-8', ...$params], tag: $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        return $this->result->responses()->untagged()->firstOrFail(
+            fn (UntaggedResponse $response) => $response->type()->is('SORT')
         );
     }
 

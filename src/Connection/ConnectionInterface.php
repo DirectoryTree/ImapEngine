@@ -6,6 +6,7 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use Generator;
 
 interface ConnectionInterface
@@ -110,6 +111,15 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
     public function search(array $params): UntaggedResponse;
+
+    /**
+     * Send a "SORT" command.
+     *
+     * Execute a sort request using RFC 5256.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc5256
+     */
+    public function sort(ImapSortKey $key, string $direction, array $params): UntaggedResponse;
 
     /**
      * Send a "FETCH" command.
