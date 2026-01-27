@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageQuery;
@@ -485,8 +486,10 @@ test('sortBy sends correct sort command with ascending order', function () {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
         '* SORT 3 1 2',
-        'TAG2 OK SORT completed',
+        'TAG3 OK SORT completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -494,7 +497,7 @@ test('sortBy sends correct sort command with ascending order', function () {
 
     query($mailbox)->sortBy('date')->get();
 
-    $stream->assertWritten('TAG2 UID SORT (DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
 });
 
 test('sortBy sends correct sort command with descending order', function () {
@@ -504,8 +507,10 @@ test('sortBy sends correct sort command with descending order', function () {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
         '* SORT 2 1 3',
-        'TAG2 OK SORT completed',
+        'TAG3 OK SORT completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -513,7 +518,7 @@ test('sortBy sends correct sort command with descending order', function () {
 
     query($mailbox)->sortBy('date', 'desc')->get();
 
-    $stream->assertWritten('TAG2 UID SORT (REVERSE DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (REVERSE DATE) UTF-8 ALL');
 });
 
 test('sortBy works with ImapSortKey enum', function () {
@@ -523,8 +528,10 @@ test('sortBy works with ImapSortKey enum', function () {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
         '* SORT 1 2 3',
-        'TAG2 OK SORT completed',
+        'TAG3 OK SORT completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -532,7 +539,7 @@ test('sortBy works with ImapSortKey enum', function () {
 
     query($mailbox)->sortBy(ImapSortKey::Subject)->get();
 
-    $stream->assertWritten('TAG2 UID SORT (SUBJECT) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (SUBJECT) UTF-8 ALL');
 });
 
 test('sortBy combined with search criteria', function () {
@@ -542,8 +549,10 @@ test('sortBy combined with search criteria', function () {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
         '* SORT 5 3',
-        'TAG2 OK SORT completed',
+        'TAG3 OK SORT completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -551,5 +560,22 @@ test('sortBy combined with search criteria', function () {
 
     query($mailbox)->unseen()->sortBy('arrival', 'desc')->get();
 
-    $stream->assertWritten('TAG2 UID SORT (REVERSE ARRIVAL) UTF-8 UNSEEN');
+    $stream->assertWritten('TAG3 UID SORT (REVERSE ARRIVAL) UTF-8 UNSEEN');
 });
+
+test('sortBy throws exception when SORT capability is not available', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1',
+        'TAG2 OK CAPABILITY completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->sortBy('date', 'desc')->get();
+})->throws(ImapCapabilityException::class);

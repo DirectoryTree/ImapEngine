@@ -12,6 +12,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -451,6 +452,12 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function sort(): Collection
     {
+        if (! in_array('SORT', $this->folder->mailbox()->capabilities())) {
+            throw new ImapCapabilityException(
+                'Unable to sort messages. IMAP server does not support SORT capability.'
+            );
+        }
+
         if ($this->query->isEmpty()) {
             $this->query->all();
         }
