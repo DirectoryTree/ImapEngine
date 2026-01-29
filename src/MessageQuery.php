@@ -355,10 +355,15 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        $messages = match ($this->fetchOrder) {
-            'asc' => $messages->sort(SORT_NUMERIC),
-            'desc' => $messages->sortDesc(SORT_NUMERIC),
-        };
+        // Only apply client-side sorting when not using server-side sorting.
+        // When sortKey is set, the IMAP SORT command already returns UIDs
+        // in the correct order, so we should preserve that order.
+        if (! $this->sortKey) {
+            $messages = match ($this->fetchOrder) {
+                'asc' => $messages->sort(SORT_NUMERIC),
+                'desc' => $messages->sortDesc(SORT_NUMERIC),
+            };
+        }
 
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
