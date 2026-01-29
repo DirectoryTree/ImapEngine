@@ -453,3 +453,31 @@ test('querying for unseen messages', function () {
 
     expect($folder->messages()->unseen()->count())->toBe(0);
 });
+
+test('sort by subject', function () {
+    $folder = folder();
+
+    $uid1 = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            subject: 'AAA First alphabetically',
+            text: 'hello world',
+        ),
+    );
+
+    $uid2 = $folder->messages()->append(
+        new DraftMessage(
+            from: 'foo@email.com',
+            subject: 'ZZZ Last alphabetically',
+            text: 'hello world',
+        ),
+    );
+
+    // Ascending order: AAA should come before ZZZ
+    $messagesAsc = $folder->messages()->sortBy('subject', 'asc')->get();
+    expect($messagesAsc->map(fn (Message $message) => $message->uid())->all())->toEqual([$uid1, $uid2]);
+
+    // Descending order: ZZZ should come before AAA
+    $messagesDesc = $folder->messages()->sortBy('subject', 'desc')->get();
+    expect($messagesDesc->map(fn (Message $message) => $message->uid())->all())->toEqual([$uid2, $uid1]);
+});
