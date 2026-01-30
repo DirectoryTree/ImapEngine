@@ -479,6 +479,10 @@ test('copy returns zero when no messages match', function () {
     expect($count)->toBe(0);
 });
 
+test('sortBy fails with incorrect string key', function () {
+    query()->sortBy('invalid');
+})->throws(ValueError::class);
+
 test('sortBy sends correct sort command with ascending order', function () {
     $stream = new FakeStream;
     $stream->open();
