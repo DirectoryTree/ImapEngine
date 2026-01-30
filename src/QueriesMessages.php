@@ -392,7 +392,7 @@ trait QueriesMessages
     public function setSortKey(ImapSortKey|string|null $key): MessageQueryInterface
     {
         if (is_string($key)) {
-            $key = ImapSortKey::tryFrom(strtoupper($key));
+            $key = ImapSortKey::from(strtoupper($key));
         }
 
         $this->sortKey = $key;
