@@ -174,6 +174,14 @@ class ImapQueryBuilder
     }
 
     /**
+     * Add a where "UNKEYWORD" clause to the query.
+     */
+    public function unkeyword(string $value): static
+    {
+        return $this->where(ImapSearchKey::Unkeyword, $value);
+    }
+
+    /**
      * Add a where "ON" clause to the query.
      */
     public function on(mixed $date): static
