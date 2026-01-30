@@ -300,3 +300,11 @@ test('compiles LARGER and SMALLER conditions together', function () {
 
     expect($builder->toImap())->toBe('LARGER 1024 SMALLER 1048576');
 });
+
+test('compiles KEYWORD condition', function () {
+    expect((new ImapQueryBuilder)->keyword('important')->toImap())->toBe('KEYWORD "important"');
+});
+
+test('compiles UNKEYWORD condition', function () {
+    expect((new ImapQueryBuilder)->unkeyword('important')->toImap())->toBe('UNKEYWORD "important"');
+});

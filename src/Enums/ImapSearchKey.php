@@ -26,6 +26,7 @@ enum ImapSearchKey: string
     case Deleted = 'DELETED';
     case Flagged = 'FLAGGED';
     case Keyword = 'KEYWORD';
+    case Unkeyword = 'UNKEYWORD';
     case Subject = 'SUBJECT';
     case Smaller = 'SMALLER';
     case Answered = 'ANSWERED';
