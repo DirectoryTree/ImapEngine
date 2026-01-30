@@ -12,6 +12,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -67,7 +68,7 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->search());
+        return $this->process($this->sortKey ? $this->sort() : $this->search());
     }
 
     /**
@@ -354,10 +355,15 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        $messages = match ($this->fetchOrder) {
-            'asc' => $messages->sort(SORT_NUMERIC),
-            'desc' => $messages->sortDesc(SORT_NUMERIC),
-        };
+        // Only apply client-side sorting when not using server-side sorting.
+        // When sortKey is set, the IMAP SORT command already returns UIDs
+        // in the correct order, so we should preserve that order.
+        if (! $this->sortKey) {
+            $messages = match ($this->fetchOrder) {
+                'asc' => $messages->sort(SORT_NUMERIC),
+                'desc' => $messages->sortDesc(SORT_NUMERIC),
+            };
+        }
 
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
@@ -439,6 +445,33 @@ class MessageQuery implements MessageQueryInterface
         $response = $this->connection()->search([
             $this->query->toImap(),
         ]);
+
+        return new Collection(array_map(
+            fn (Token $token) => $token->value,
+            $response->tokensAfter(2)
+        ));
+    }
+
+    /**
+     * Execute an IMAP UID SORT request using RFC 5256.
+     */
+    protected function sort(): Collection
+    {
+        if (! in_array('SORT', $this->folder->mailbox()->capabilities())) {
+            throw new ImapCapabilityException(
+                'Unable to sort messages. IMAP server does not support SORT capability.'
+            );
+        }
+
+        if ($this->query->isEmpty()) {
+            $this->query->all();
+        }
+
+        $response = $this->connection()->sort(
+            $this->sortKey,
+            $this->sortDirection,
+            [$this->query->toImap()]
+        );
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
