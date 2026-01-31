@@ -212,6 +212,36 @@ class ImapQueryBuilder
     }
 
     /**
+     * Add a where "SENTON" clause to the query.
+     */
+    public function sentOn(mixed $date): static
+    {
+        return $this->where(ImapSearchKey::SentOn, new RawQueryValue(
+            $this->parseDate($date)->format($this->dateFormat)
+        ));
+    }
+
+    /**
+     * Add a where "SENTSINCE" clause to the query.
+     */
+    public function sentSince(mixed $date): static
+    {
+        return $this->where(ImapSearchKey::SentSince, new RawQueryValue(
+            $this->parseDate($date)->format($this->dateFormat)
+        ));
+    }
+
+    /**
+     * Add a where "SENTBEFORE" clause to the query.
+     */
+    public function sentBefore(mixed $date): static
+    {
+        return $this->where(ImapSearchKey::SentBefore, new RawQueryValue(
+            $this->parseDate($date)->format($this->dateFormat)
+        ));
+    }
+
+    /**
      * Add a where "SUBJECT" clause to the query.
      */
     public function subject(string $value): static

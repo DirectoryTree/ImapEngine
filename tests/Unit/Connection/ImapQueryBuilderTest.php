@@ -308,3 +308,15 @@ test('compiles KEYWORD condition', function () {
 test('compiles UNKEYWORD condition', function () {
     expect((new ImapQueryBuilder)->unkeyword('important')->toImap())->toBe('UNKEYWORD "important"');
 });
+
+test('compiles a SENTON condition with unquoted date', function () {
+    expect((new ImapQueryBuilder)->sentOn(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTON 04-Apr-2024');
+});
+
+test('compiles a SENTSINCE condition with unquoted date', function () {
+    expect((new ImapQueryBuilder)->sentSince(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTSINCE 04-Apr-2024');
+});
+
+test('compiles a SENTBEFORE condition with unquoted date', function () {
+    expect((new ImapQueryBuilder)->sentBefore(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTBEFORE 04-Apr-2024');
+});
