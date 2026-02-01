@@ -18,6 +18,9 @@ enum ImapSearchKey: string
     case Text = 'TEXT';
     case Draft = 'DRAFT';
     case Since = 'SINCE';
+    case SentOn = 'SENTON';
+    case SentSince = 'SENTSINCE';
+    case SentBefore = 'SENTBEFORE';
     case Recent = 'RECENT';
     case Unseen = 'UNSEEN';
     case Before = 'BEFORE';
