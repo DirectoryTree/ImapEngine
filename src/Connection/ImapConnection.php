@@ -539,7 +539,7 @@ class ImapConnection implements ConnectionInterface
             $token = '(';
 
             foreach ($ids as $id) {
-                $token .= '"'.$id.'" ';
+                $token .= '"'.Str::escape($id).'" ';
             }
 
             $token = rtrim($token).')';

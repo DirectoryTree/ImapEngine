@@ -648,6 +648,28 @@ test('id with parameters', function () {
     expect($response->type()->is('ID'))->toBeTrue();
 });
 
+test('id escapes special characters to prevent command injection', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* ID NIL',
+        'TAG1 OK ID completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $connection->id([
+        'name' => 'Evil"Client',
+        'version' => "1.0\r\nLOGOUT",
+        'vendor' => 'Test\\Vendor',
+    ]);
+
+    $stream->assertWritten('TAG1 ID ("Evil\\"Client" "1.0LOGOUT" "Test\\\\Vendor")');
+});
+
 test('expunge', function () {
     $stream = new FakeStream;
     $stream->open();
