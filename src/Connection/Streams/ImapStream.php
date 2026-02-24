@@ -19,7 +19,7 @@ class ImapStream implements StreamInterface
     public function open(string $transport, string $host, int $port, int $timeout, array $options = []): bool
     {
         $this->stream = @stream_socket_client(
-            "{$transport}://{$host}:{$port}",
+            $address = "{$transport}://{$host}:{$port}",
             $errno,
             $errstr,
             $timeout,
@@ -28,7 +28,7 @@ class ImapStream implements StreamInterface
         );
 
         if (! $this->stream) {
-            throw new ImapConnectionFailedException($errstr, $errno);
+            throw new ImapConnectionFailedException("Unable to connect to {$address} ({$errstr})", $errno);
         }
 
         return true;
