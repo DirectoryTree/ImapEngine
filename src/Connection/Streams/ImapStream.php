@@ -18,7 +18,7 @@ class ImapStream implements StreamInterface
      */
     public function open(string $transport, string $host, int $port, int $timeout, array $options = []): bool
     {
-        $this->stream = stream_socket_client(
+        $this->stream = @stream_socket_client(
             "{$transport}://{$host}:{$port}",
             $errno,
             $errstr,
@@ -28,7 +28,7 @@ class ImapStream implements StreamInterface
         );
 
         if (! $this->stream) {
-            throw new ImapConnectionFailedException('Stream failed to open: '.$errstr, $errno);
+            throw new ImapConnectionFailedException($errstr, $errno);
         }
 
         return true;
