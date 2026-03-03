@@ -43,16 +43,44 @@ class BodyStructurePart implements Arrayable, JsonSerializable
     {
         return new static(
             partNumber: $partNumber,
-            type: isset($tokens[0]) ? strtolower($tokens[0]->value) : 'text',
-            subtype: isset($tokens[1]) ? strtolower($tokens[1]->value) : 'plain',
+            type: strtolower(static::tokenValueAt($tokens, 0) ?? 'text'),
+            subtype: strtolower(static::tokenValueAt($tokens, 1) ?? 'plain'),
             parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? $tokens[2]->toKeyValuePairs() : [],
-            id: isset($tokens[3]) && ! $tokens[3] instanceof Nil ? $tokens[3]->value : null,
-            description: isset($tokens[4]) && ! $tokens[4] instanceof Nil ? $tokens[4]->value : null,
-            encoding: isset($tokens[5]) && ! $tokens[5] instanceof Nil ? $tokens[5]->value : null,
-            size: isset($tokens[6]) && ! $tokens[6] instanceof Nil ? (int) $tokens[6]->value : null,
-            lines: isset($tokens[7]) && ! $tokens[7] instanceof Nil ? (int) $tokens[7]->value : null,
+            id: static::tokenValueAt($tokens, 3),
+            description: static::tokenValueAt($tokens, 4),
+            encoding: static::tokenValueAt($tokens, 5),
+            size: static::tokenIntValueAt($tokens, 6),
+            lines: static::tokenIntValueAt($tokens, 7),
             disposition: ContentDisposition::parse($tokens),
         );
+    }
+
+    /**
+     * Safely read a scalar token value from the parsed body structure.
+     *
+     * @param  array<Token|ListData>  $tokens
+     */
+    protected static function tokenValueAt(array $tokens, int $index): ?string
+    {
+        $token = $tokens[$index] ?? null;
+
+        if (! $token instanceof Token || $token instanceof Nil) {
+            return null;
+        }
+
+        return $token->value;
+    }
+
+    /**
+     * Safely read an integer token value from the parsed body structure.
+     *
+     * @param  array<Token|ListData>  $tokens
+     */
+    protected static function tokenIntValueAt(array $tokens, int $index): ?int
+    {
+        $value = static::tokenValueAt($tokens, $index);
+
+        return $value === null ? null : (int) $value;
     }
 
     /**
