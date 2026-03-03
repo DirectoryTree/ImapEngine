@@ -152,6 +152,26 @@ test('it identifies inline disposition in body structure part', function () {
     expect($imagePart->id())->toBe('<cid123>');
 });
 
+test('it does not emit warnings when non-scalar tokens appear in message/rfc822 structure fields', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE ("MESSAGE" "RFC822" NIL NIL NIL "7BIT" 3456 (NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL) ("TEXT" "PLAIN" ("charset" "utf-8") NIL NIL "7BIT" 100 10 NIL NIL NIL) 42) UID 1)'
+    );
+
+    set_error_handler(static function (int $severity, string $message, string $file, int $line): never {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    });
+
+    try {
+        $part = BodyStructurePart::fromListData($listData);
+    } finally {
+        restore_error_handler();
+    }
+
+    expect($part->contentType())->toBe('message/rfc822');
+    expect($part->size())->toBe(3456);
+    expect($part->lines())->toBeNull();
+});
+
 test('it makes BodyStructureCollection countable', function () {
     $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 200 10 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
