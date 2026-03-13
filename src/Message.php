@@ -110,16 +110,15 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Get the message's body structure, fetching it from the server if necessary.
+     * Get the message's body structure.
      */
-    public function bodyStructure(): ?BodyStructureCollection
+    public function bodyStructure(bool $lazy = false): ?BodyStructureCollection
     {
         if ($this->bodyStructure) {
             return $this->bodyStructure;
         }
 
-        // If we don't have body structure data, lazy load it from the server.
-        if (! $this->bodyStructureData) {
+        if (! $this->bodyStructureData && $lazy) {
             $this->bodyStructureData = $this->fetchBodyStructureData();
         }
 
@@ -233,7 +232,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function text(bool $lazy = false): ?string
     {
         if ($lazy && ! $this->hasBody()) {
-            if ($part = $this->bodyStructure()?->text()) {
+            if ($part = $this->bodyStructure(lazy: true)?->text()) {
                 return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
@@ -247,7 +246,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function html(bool $lazy = false): ?string
     {
         if ($lazy && ! $this->hasBody()) {
-            if ($part = $this->bodyStructure()?->html()) {
+            if ($part = $this->bodyStructure(lazy: true)?->html()) {
                 return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
@@ -284,7 +283,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
                 $part->disposition()?->type()?->value,
                 new Support\LazyBodyPartStream($this, $part),
             ),
-            $this->bodyStructure()?->attachments() ?? []
+            $this->bodyStructure(lazy: true)?->attachments() ?? []
         );
     }
 
