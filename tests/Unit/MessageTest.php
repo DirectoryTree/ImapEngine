@@ -503,3 +503,39 @@ test('it lazy loads attachments from body structure', function () {
     // Content is fetched lazily when contents() is called
     expect($attachments[0]->contents())->toBe('Hello World!');
 });
+
+test('it lazy loads headers from server', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $headers = "Subject: Test Subject\r\nFrom: sender@example.com";
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (UID 1 BODY[HEADER] {'.strlen($headers).'}',
+        $headers,
+        ')',
+        'TAG2 OK FETCH completed',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    // Create a message with just the UID - no headers or body
+    $message = new Message($folder, 1, [], '', '');
+
+    expect($message->hasHead())->toBeFalse();
+    expect($message->hasBody())->toBeFalse();
+
+    // Without lazy, returns null because message is empty
+    expect($message->header('Subject'))->toBeNull();
+
+    // With lazy, fetches headers from server
+    $header = $message->header('Subject', lazy: true);
+
+    expect($header)->not->toBeNull();
+    expect($header->getValue())->toBe('Test Subject');
+    expect($message->hasHead())->toBeTrue();
+});
