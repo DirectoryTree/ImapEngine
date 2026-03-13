@@ -28,21 +28,6 @@ class LazyBodyPartStream implements StreamInterface
     ) {}
 
     /**
-     * Fetch the content from the server if not already cached.
-     */
-    protected function fetchContent(): string
-    {
-        if ($this->content === null) {
-            $this->content = BodyPartDecoder::binary(
-                $this->part,
-                $this->message->bodyPart($this->part->partNumber())
-            ) ?? '';
-        }
-
-        return $this->content;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function __toString(): string
@@ -74,7 +59,7 @@ class LazyBodyPartStream implements StreamInterface
      */
     public function getSize(): ?int
     {
-        return strlen($this->fetchContent());
+        return strlen($this->getOrFetchContent());
     }
 
     /**
@@ -90,7 +75,7 @@ class LazyBodyPartStream implements StreamInterface
      */
     public function eof(): bool
     {
-        return $this->position >= strlen($this->fetchContent());
+        return $this->position >= strlen($this->getOrFetchContent());
     }
 
     /**
@@ -106,7 +91,7 @@ class LazyBodyPartStream implements StreamInterface
      */
     public function seek(int $offset, int $whence = SEEK_SET): void
     {
-        $content = $this->fetchContent();
+        $content = $this->getOrFetchContent();
         $size = strlen($content);
 
         $this->position = match ($whence) {
@@ -150,7 +135,7 @@ class LazyBodyPartStream implements StreamInterface
      */
     public function read(int $length): string
     {
-        $content = $this->fetchContent();
+        $content = $this->getOrFetchContent();
 
         $result = substr($content, $this->position, $length);
 
@@ -164,7 +149,7 @@ class LazyBodyPartStream implements StreamInterface
      */
     public function getContents(): string
     {
-        $content = $this->fetchContent();
+        $content = $this->getOrFetchContent();
 
         $result = substr($content, $this->position);
 
@@ -176,7 +161,7 @@ class LazyBodyPartStream implements StreamInterface
     /**
      * {@inheritDoc}
      */
-    public function getMetadata(?string $key = null): mixed
+    public function getMetadata(?string $key = null): ?array
     {
         return $key === null ? [] : null;
     }
@@ -187,5 +172,20 @@ class LazyBodyPartStream implements StreamInterface
     public function write(string $string): int
     {
         throw new RuntimeException('Stream is not writable');
+    }
+
+    /**
+     * Fetch the content from the server if not already cached.
+     */
+    protected function getOrFetchContent(): string
+    {
+        if ($this->content === null) {
+            $this->content = BodyPartDecoder::binary(
+                $this->part,
+                $this->message->bodyPart($this->part->partNumber())
+            ) ?? '';
+        }
+
+        return $this->content;
     }
 }
