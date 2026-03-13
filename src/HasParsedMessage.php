@@ -21,7 +21,7 @@ trait HasParsedMessage
     /**
      * The parsed message.
      */
-    protected ?IMessage $parsed = null;
+    protected ?IMessage $message = null;
 
     /**
      * Get the message date and time.
@@ -243,7 +243,7 @@ trait HasParsedMessage
             throw new RuntimeException('Cannot parse an empty message');
         }
 
-        return $this->parsed ??= MessageParser::parse((string) $this);
+        return $this->message ??= MessageParser::parse((string) $this);
     }
 
     /**

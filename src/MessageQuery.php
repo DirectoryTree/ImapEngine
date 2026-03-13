@@ -21,7 +21,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
 
 /**
- * @mixin \DirectoryTree\ImapEngine\Connection\ImapQueryBuilder
+ * @mixin ImapQueryBuilder
  */
 class MessageQuery implements MessageQueryInterface
 {

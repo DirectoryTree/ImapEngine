@@ -2,31 +2,6 @@
 
 use DirectoryTree\ImapEngine\BodyStructureCollection;
 use DirectoryTree\ImapEngine\BodyStructurePart;
-use DirectoryTree\ImapEngine\Connection\ImapParser;
-use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
-use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
-use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-
-function parseBodyStructureResponse(string $response): ListData
-{
-    $stream = new FakeStream;
-    $stream->open();
-    $stream->feed([$response]);
-
-    $tokenizer = new ImapTokenizer($stream);
-    $parser = new ImapParser($tokenizer);
-
-    $parsed = $parser->next();
-
-    expect($parsed)->toBeInstanceOf(UntaggedResponse::class);
-
-    $data = $parsed->tokenAt(3);
-
-    expect($data)->toBeInstanceOf(ListData::class);
-
-    return $data->lookup('BODYSTRUCTURE');
-}
 
 test('it parses a simple text/plain message as BodyStructurePart', function () {
     $listData = parseBodyStructureResponse(
