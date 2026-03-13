@@ -281,7 +281,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
                 $part->filename(),
                 $part->id(),
                 $part->contentType(),
-                $part->disposition()?->type(),
+                $part->disposition()?->type()?->value,
                 new Support\LazyBodyPartStream($this, $part),
             ),
             $this->bodyStructure()?->attachments() ?? []
