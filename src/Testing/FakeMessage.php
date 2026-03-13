@@ -5,13 +5,14 @@ namespace DirectoryTree\ImapEngine\Testing;
 use BackedEnum;
 use DirectoryTree\ImapEngine\BodyStructureCollection;
 use DirectoryTree\ImapEngine\HasFlags;
+use DirectoryTree\ImapEngine\HasMessageAccessors;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeMessage implements MessageInterface
 {
-    use HasFlags, HasParsedMessage;
+    use HasFlags, HasMessageAccessors, HasParsedMessage;
 
     /**
      * Constructor.
