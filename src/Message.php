@@ -119,7 +119,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         $data = $response->first()->tokenAt(3);
 
-        if (! $data instanceof Connection\Responses\Data\ListData) {
+        if (! $data instanceof ListData) {
             return null;
         }
 
