@@ -12,7 +12,11 @@ use JsonSerializable;
 
 class Message implements Arrayable, JsonSerializable, MessageInterface
 {
-    use HasFlags, HasParsedMessage;
+    use HasFlags, HasParsedMessage {
+        text as protected getParsedText;
+        html as protected getParsedHtml;
+        attachments as protected getParsedAttachments;
+    }
 
     /**
      * The parsed body structure.
@@ -106,12 +110,17 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Get the message's body structure.
+     * Get the message's body structure, fetching it from the server if necessary.
      */
     public function bodyStructure(): ?BodyStructureCollection
     {
         if ($this->bodyStructure) {
             return $this->bodyStructure;
+        }
+
+        // If we don't have body structure data, lazy load it from the server.
+        if (! $this->bodyStructureData) {
+            $this->bodyStructureData = $this->fetchBodyStructureData();
         }
 
         if (! $tokens = $this->bodyStructureData?->tokens()) {
@@ -219,6 +228,67 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
+     * Get the message's text content.
+     */
+    public function text(bool $lazy = false): ?string
+    {
+        if ($lazy && ! $this->hasBody()) {
+            if ($part = $this->bodyStructure()?->text()) {
+                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+            }
+        }
+
+        return $this->getParsedText();
+    }
+
+    /**
+     * Get the message's HTML content.
+     */
+    public function html(bool $lazy = false): ?string
+    {
+        if ($lazy && ! $this->hasBody()) {
+            if ($part = $this->bodyStructure()?->html()) {
+                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+            }
+        }
+
+        return $this->getParsedHtml();
+    }
+
+    /**
+     * Get the message's attachments.
+     *
+     * @return Attachment[]
+     */
+    public function attachments(bool $lazy = false): array
+    {
+        if ($lazy && ! $this->hasBody()) {
+            return $this->getLazyAttachments();
+        }
+
+        return $this->getParsedAttachments();
+    }
+
+    /**
+     * Get attachments using lazy loading from body structure.
+     *
+     * @return Attachment[]
+     */
+    protected function getLazyAttachments(): array
+    {
+        return array_map(
+            fn (BodyStructurePart $part) => new Attachment(
+                $part->filename(),
+                $part->id(),
+                $part->contentType(),
+                $part->disposition()?->type(),
+                new Support\LazyBodyPartStream($this, $part),
+            ),
+            $this->bodyStructure()?->attachments() ?? []
+        );
+    }
+
+    /**
      * Fetch a specific body part by part number.
      */
     public function bodyPart(string $partNumber, bool $peek = true): ?string
@@ -295,5 +365,28 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function isEmpty(): bool
     {
         return ! $this->hasHead() && ! $this->hasBody();
+    }
+
+    /**
+     * Fetch the body structure data from the server.
+     */
+    protected function fetchBodyStructureData(): ?ListData
+    {
+        $response = $this->folder
+            ->mailbox()
+            ->connection()
+            ->bodyStructure($this->uid);
+
+        if ($response->isEmpty()) {
+            return null;
+        }
+
+        $data = $response->first()->tokenAt(3);
+
+        if (! $data instanceof ListData) {
+            return null;
+        }
+
+        return $data->lookup('BODYSTRUCTURE');
     }
 }
