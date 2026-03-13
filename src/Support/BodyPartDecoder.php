@@ -45,4 +45,3 @@ class BodyPartDecoder
         return $parsed->getBinaryContentStream()?->getContents();
     }
 }
-

@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -439,7 +440,7 @@ test('store flags', function () {
 
     $stream->assertWritten('TAG1 UID STORE 1:3 +FLAGS.SILENT (\\Seen)');
 
-    expect($response)->toBeInstanceOf(\DirectoryTree\ImapEngine\Collections\ResponseCollection::class);
+    expect($response)->toBeInstanceOf(ResponseCollection::class);
 });
 
 test('uid fetch with uid', function () {
