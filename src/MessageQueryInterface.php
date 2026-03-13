@@ -4,12 +4,13 @@ namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
- * @mixin \DirectoryTree\ImapEngine\Connection\ImapQueryBuilder
+ * @mixin ImapQueryBuilder
  */
 interface MessageQueryInterface
 {

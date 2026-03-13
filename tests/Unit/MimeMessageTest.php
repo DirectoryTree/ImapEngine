@@ -82,4 +82,3 @@ test('it builds mime message with iso-8859-1 charset', function () {
 
     expect($mime)->toBe("Content-Type: text/plain; charset=\"iso-8859-1\"\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCaf=E9");
 });
-
