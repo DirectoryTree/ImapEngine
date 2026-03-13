@@ -464,3 +464,42 @@ test('it fetches body structure automatically for html when not preloaded', func
     expect($message->hasBodyStructure())->toBeFalse();
     expect($message->html(lazy: true))->toBe('<p>Hello World!</p>');
 });
+
+test('it lazy loads attachments from body structure', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $encodedContent = base64_encode('Hello World!');
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (UID 1 BODY[2] {'.(strlen($encodedContent) + 2).'}',
+        $encodedContent,
+        ')',
+        'TAG2 OK FETCH completed',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    // Multipart mixed with text/plain at part 1 and PDF attachment at part 2
+    $bodyStructureData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name" "document.pdf") NIL NIL "base64" 5000 NIL ("attachment" ("filename" "document.pdf")) NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+
+    expect($message->hasBody())->toBeFalse();
+    expect($message->hasBodyStructure())->toBeTrue();
+
+    $attachments = $message->attachments(lazy: true);
+
+    expect($attachments)->toHaveCount(1);
+    expect($attachments[0]->filename())->toBe('document.pdf');
+    expect($attachments[0]->contentType())->toBe('application/pdf');
+
+    // Content is fetched lazily when contents() is called
+    expect($attachments[0]->contents())->toBe('Hello World!');
+});
