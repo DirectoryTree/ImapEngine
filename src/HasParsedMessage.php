@@ -9,7 +9,6 @@ use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
 use ZBateson\MailMimeParser\IMessage;
-use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasParsedMessage
 {
@@ -51,16 +50,6 @@ trait HasParsedMessage
         }, $parts);
 
         return array_filter($addresses);
-    }
-
-    /**
-     * Determine if the attachment should be treated as an embedded forwarded message.
-     */
-    protected function isForwardedMessage(IMessagePart $part): bool
-    {
-        return empty($part->getFilename())
-            && strtolower((string) $part->getContentType()) === 'message/rfc822'
-            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 
     /**

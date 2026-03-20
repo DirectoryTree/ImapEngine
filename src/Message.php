@@ -19,6 +19,7 @@ use ZBateson\MailMimeParser\Header\IHeaderPart;
 use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
+use ZBateson\MailMimeParser\Message\IMessagePart;
 
 class Message implements Arrayable, JsonSerializable, MessageInterface
 {
@@ -453,6 +454,25 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
+     * Get attachments using lazy loading from body structure.
+     *
+     * @return Attachment[]
+     */
+    protected function getLazyAttachments(): array
+    {
+        return array_map(
+            fn (BodyStructurePart $part) => new Attachment(
+                $part->filename(),
+                $part->id(),
+                $part->contentType(),
+                $part->disposition()?->type()?->value,
+                new Support\LazyBodyPartStream($this, $part),
+            ),
+            $this->bodyStructure(lazy: true)?->attachments() ?? []
+        );
+    }
+
+    /**
      * Get attachments from the parsed message.
      *
      * @return Attachment[]
@@ -499,22 +519,13 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Get attachments using lazy loading from body structure.
-     *
-     * @return Attachment[]
+     * Determine if the attachment should be treated as an embedded forwarded message.
      */
-    protected function getLazyAttachments(): array
+    protected function isForwardedMessage(IMessagePart $part): bool
     {
-        return array_map(
-            fn (BodyStructurePart $part) => new Attachment(
-                $part->filename(),
-                $part->id(),
-                $part->contentType(),
-                $part->disposition()?->type()?->value,
-                new Support\LazyBodyPartStream($this, $part),
-            ),
-            $this->bodyStructure(lazy: true)?->attachments() ?? []
-        );
+        return empty($part->getFilename())
+            && strtolower((string) $part->getContentType()) === 'message/rfc822'
+            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 
     /**

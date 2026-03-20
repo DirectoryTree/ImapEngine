@@ -32,11 +32,6 @@ trait HasMessageAccessors
     abstract public function header(string $name, int $offset = 0): ?IHeader;
 
     /**
-     * Determine if the attachment should be treated as an embedded forwarded message.
-     */
-    abstract protected function isForwardedMessage(IMessagePart $part): bool;
-
-    /**
      * Get the message date and time.
      */
     public function date(): ?CarbonInterface
@@ -105,9 +100,7 @@ trait HasMessageAccessors
     {
         $parts = $this->header(HeaderConsts::IN_REPLY_TO)?->getParts() ?? [];
 
-        $values = array_map(function (IHeaderPart $part) {
-            return $part->getValue();
-        }, $parts);
+        $values = array_map(fn (IHeaderPart $part) => $part->getValue(), $parts);
 
         return array_values(array_filter($values));
     }
@@ -198,5 +191,15 @@ trait HasMessageAccessors
     public function attachmentCount(): int
     {
         return $this->parse()->getAttachmentCount();
+    }
+
+    /**
+     * Determine if the attachment should be treated as an embedded forwarded message.
+     */
+    protected function isForwardedMessage(IMessagePart $part): bool
+    {
+        return empty($part->getFilename())
+            && strtolower((string) $part->getContentType()) === 'message/rfc822'
+            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 }
