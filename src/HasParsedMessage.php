@@ -2,19 +2,13 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use Carbon\Carbon;
-use Carbon\CarbonInterface;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
-use GuzzleHttp\Psr7\Utils;
-use ZBateson\MailMimeParser\Header\DateHeader;
-use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Header\IHeaderPart;
 use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
 use ZBateson\MailMimeParser\IMessage;
-use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasParsedMessage
 {
@@ -24,163 +18,19 @@ trait HasParsedMessage
     protected ?IMessage $message = null;
 
     /**
-     * Get the message date and time.
+     * Get all headers from the message.
      */
-    public function date(): ?CarbonInterface
+    public function headers(): array
     {
-        if (! $header = $this->header(HeaderConsts::DATE)) {
-            return null;
-        }
-
-        if (! $header instanceof DateHeader) {
-            return null;
-        }
-
-        if (! $date = $header->getDateTime()) {
-            return null;
-        }
-
-        return Carbon::instance($date);
+        return $this->parse()->getAllHeaders();
     }
 
     /**
-     * Get the message's message-id.
+     * Get a header from the message.
      */
-    public function messageId(): ?string
+    public function header(string $name, int $offset = 0): ?IHeader
     {
-        return $this->header(HeaderConsts::MESSAGE_ID)?->getValue();
-    }
-
-    /**
-     * Get the message's subject.
-     */
-    public function subject(): ?string
-    {
-        return $this->header(HeaderConsts::SUBJECT)?->getValue();
-    }
-
-    /**
-     * Get the FROM address.
-     */
-    public function from(): ?Address
-    {
-        return head($this->addresses(HeaderConsts::FROM)) ?: null;
-    }
-
-    /**
-     * Get the SENDER address.
-     */
-    public function sender(): ?Address
-    {
-        return head($this->addresses(HeaderConsts::SENDER)) ?: null;
-    }
-
-    /**
-     * Get the REPLY-TO address.
-     */
-    public function replyTo(): ?Address
-    {
-        return head($this->addresses(HeaderConsts::REPLY_TO)) ?: null;
-    }
-
-    /**
-     * Get the IN-REPLY-TO message identifier(s).
-     *
-     * @return string[]
-     */
-    public function inReplyTo(): array
-    {
-        $parts = $this->header(HeaderConsts::IN_REPLY_TO)?->getParts() ?? [];
-
-        $values = array_map(function (IHeaderPart $part) {
-            return $part->getValue();
-        }, $parts);
-
-        return array_values(array_filter($values));
-    }
-
-    /**
-     * Get the TO addresses.
-     *
-     * @return Address[]
-     */
-    public function to(): array
-    {
-        return $this->addresses(HeaderConsts::TO);
-    }
-
-    /**
-     * Get the CC addresses.
-     *
-     * @return Address[]
-     */
-    public function cc(): array
-    {
-        return $this->addresses(HeaderConsts::CC);
-    }
-
-    /**
-     * Get the BCC addresses.
-     *
-     * @return Address[]
-     */
-    public function bcc(): array
-    {
-        return $this->addresses(HeaderConsts::BCC);
-    }
-
-    /**
-     * Get the message's attachments.
-     *
-     * @return Attachment[]
-     */
-    public function attachments(): array
-    {
-        $attachments = [];
-
-        foreach ($this->parse()->getAllAttachmentParts() as $part) {
-            if ($this->isForwardedMessage($part)) {
-                $message = new FileMessage($part->getContent());
-
-                $attachments = array_merge($attachments, $message->attachments());
-            } else {
-                $attachments[] = new Attachment(
-                    $part->getFilename(),
-                    $part->getContentId(),
-                    $part->getContentType(),
-                    $part->getContentDisposition(),
-                    $part->getBinaryContentStream() ?? Utils::streamFor(''),
-                );
-            }
-        }
-
-        return $attachments;
-    }
-
-    /**
-     * Determine if the message has attachments.
-     */
-    public function hasAttachments(): bool
-    {
-        return $this->attachmentCount() > 0;
-    }
-
-    /**
-     * Get the count of attachments.
-     */
-    public function attachmentCount(): int
-    {
-        return $this->parse()->getAttachmentCount();
-    }
-
-    /**
-     * Determine if the attachment should be treated as an embedded forwarded message.
-     */
-    protected function isForwardedMessage(IMessagePart $part): bool
-    {
-        return empty($part->getFilename())
-            && strtolower((string) $part->getContentType()) === 'message/rfc822'
-            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
+        return $this->parse()->getHeader($name, $offset);
     }
 
     /**
@@ -200,38 +50,6 @@ trait HasParsedMessage
         }, $parts);
 
         return array_filter($addresses);
-    }
-
-    /**
-     * Get the message's HTML content.
-     */
-    public function html(): ?string
-    {
-        return $this->parse()->getHtmlContent();
-    }
-
-    /**
-     * Get the message's text content.
-     */
-    public function text(): ?string
-    {
-        return $this->parse()->getTextContent();
-    }
-
-    /**
-     * Get all headers from the message.
-     */
-    public function headers(): array
-    {
-        return $this->parse()->getAllHeaders();
-    }
-
-    /**
-     * Get a header from the message.
-     */
-    public function header(string $name, int $offset = 0): ?IHeader
-    {
-        return $this->parse()->getHeader($name, $offset);
     }
 
     /**
