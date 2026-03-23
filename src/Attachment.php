@@ -2,10 +2,12 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Psr\Http\Message\StreamInterface;
 use Symfony\Component\Mime\MimeTypes;
+use ZBateson\MailMimeParser\Message\IMessagePart;
 
 class Attachment implements Arrayable, JsonSerializable
 {
@@ -19,6 +21,64 @@ class Attachment implements Arrayable, JsonSerializable
         protected ?string $contentDisposition,
         protected StreamInterface $contentStream,
     ) {}
+
+    /**
+     * Get attachments from a parsed message.
+     *
+     * @return Attachment[]
+     */
+    public static function parsed(MessageInterface $message): array
+    {
+        $attachments = [];
+
+        foreach ($message->parse()->getAllAttachmentParts() as $part) {
+            if (static::isForwardedMessage($part)) {
+                $attachments = array_merge($attachments, (new FileMessage($part->getContent()))->attachments());
+            } else {
+                $attachments[] = new Attachment(
+                    $part->getFilename(),
+                    $part->getContentId(),
+                    $part->getContentType(),
+                    $part->getContentDisposition(),
+                    $part->getBinaryContentStream() ?? Utils::streamFor(''),
+                );
+            }
+        }
+
+        return $attachments;
+    }
+
+    /**
+     * Get attachments from a message's body structure using lazy streams.
+     *
+     * @return Attachment[]
+     */
+    public static function lazy(Message $message): array
+    {
+        $attachments = [];
+
+        foreach ($message->bodyStructure(fetch: true)?->attachments() ?? [] as $part) {
+            $attachments[] = new Attachment(
+                $part->filename(),
+                $part->id(),
+                $part->contentType(),
+                $part->disposition()?->type()?->value,
+                new Support\LazyBodyPartStream($message, $part),
+            );
+        }
+
+        return $attachments;
+    }
+
+    /**
+     * Determine if the attachment should be treated as an embedded forwarded message.
+     */
+    protected static function isForwardedMessage(IMessagePart $part): bool
+    {
+        return empty($part->getFilename())
+            && strtolower((string) $part->getContentType()) === 'message/rfc822'
+            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
+    }
 
     /**
      * Get the attachment's filename.

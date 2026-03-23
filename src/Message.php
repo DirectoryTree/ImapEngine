@@ -9,7 +9,6 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
-use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use ZBateson\MailMimeParser\Header\DateHeader;
@@ -19,7 +18,6 @@ use ZBateson\MailMimeParser\Header\IHeaderPart;
 use ZBateson\MailMimeParser\Header\Part\AddressPart;
 use ZBateson\MailMimeParser\Header\Part\ContainerPart;
 use ZBateson\MailMimeParser\Header\Part\NameValuePart;
-use ZBateson\MailMimeParser\Message\IMessagePart;
 
 class Message implements Arrayable, JsonSerializable, MessageInterface
 {
@@ -420,59 +418,14 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function attachments(bool $fetch = false): array
     {
         if ($fetch && ! $this->hasBody()) {
-            return $this->getAttachmentsFromBodyStructure();
+            return Attachment::lazy($this);
         }
 
         if ($this->isEmpty()) {
             return [];
         }
 
-        return $this->getParsedAttachments();
-    }
-
-    /**
-     * Get attachments from the body structure.
-     *
-     * @return Attachment[]
-     */
-    protected function getAttachmentsFromBodyStructure(): array
-    {
-        return array_map(
-            fn (BodyStructurePart $part) => new Attachment(
-                $part->filename(),
-                $part->id(),
-                $part->contentType(),
-                $part->disposition()?->type()?->value,
-                new Support\LazyBodyPartStream($this, $part),
-            ),
-            $this->bodyStructure(fetch: true)?->attachments() ?? []
-        );
-    }
-
-    /**
-     * Get attachments from the parsed message.
-     *
-     * @return Attachment[]
-     */
-    protected function getParsedAttachments(): array
-    {
-        $attachments = [];
-
-        foreach ($this->parse()->getAllAttachmentParts() as $part) {
-            if ($this->isForwardedMessage($part)) {
-                $attachments = array_merge($attachments, (new FileMessage($part->getContent()))->attachments());
-            } else {
-                $attachments[] = new Attachment(
-                    $part->getFilename(),
-                    $part->getContentId(),
-                    $part->getContentType(),
-                    $part->getContentDisposition(),
-                    $part->getBinaryContentStream() ?? Utils::streamFor(''),
-                );
-            }
-        }
-
-        return $attachments;
+        return Attachment::parsed($this);
     }
 
     /**
@@ -493,16 +446,6 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         }
 
         return $this->parse()->getAttachmentCount();
-    }
-
-    /**
-     * Determine if the attachment should be treated as an embedded forwarded message.
-     */
-    protected function isForwardedMessage(IMessagePart $part): bool
-    {
-        return empty($part->getFilename())
-            && strtolower((string) $part->getContentType()) === 'message/rfc822'
-            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 
     /**

@@ -4,13 +4,11 @@ namespace DirectoryTree\ImapEngine;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use GuzzleHttp\Psr7\Utils;
 use ZBateson\MailMimeParser\Header\DateHeader;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
 use ZBateson\MailMimeParser\Header\IHeader;
 use ZBateson\MailMimeParser\Header\IHeaderPart;
 use ZBateson\MailMimeParser\IMessage;
-use ZBateson\MailMimeParser\Message\IMessagePart;
 
 trait HasMessageAccessors
 {
@@ -158,23 +156,7 @@ trait HasMessageAccessors
      */
     public function attachments(): array
     {
-        $attachments = [];
-
-        foreach ($this->parse()->getAllAttachmentParts() as $part) {
-            if ($this->isForwardedMessage($part)) {
-                $attachments = array_merge($attachments, (new FileMessage($part->getContent()))->attachments());
-            } else {
-                $attachments[] = new Attachment(
-                    $part->getFilename(),
-                    $part->getContentId(),
-                    $part->getContentType(),
-                    $part->getContentDisposition(),
-                    $part->getBinaryContentStream() ?? Utils::streamFor(''),
-                );
-            }
-        }
-
-        return $attachments;
+        return Attachment::parsed($this);
     }
 
     /**
@@ -191,15 +173,5 @@ trait HasMessageAccessors
     public function attachmentCount(): int
     {
         return $this->parse()->getAttachmentCount();
-    }
-
-    /**
-     * Determine if the attachment should be treated as an embedded forwarded message.
-     */
-    protected function isForwardedMessage(IMessagePart $part): bool
-    {
-        return empty($part->getFilename())
-            && strtolower((string) $part->getContentType()) === 'message/rfc822'
-            && strtolower((string) $part->getContentDisposition()) !== 'attachment';
     }
 }
