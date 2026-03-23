@@ -87,9 +87,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's raw headers.
      */
-    public function head(bool $lazy = false): string
+    public function head(bool $fetch = false): string
     {
-        if (! $this->head && $lazy) {
+        if (! $this->head && $fetch) {
             $this->head = $this->fetchHead() ?? '';
         }
 
@@ -146,13 +146,13 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's body structure.
      */
-    public function bodyStructure(bool $lazy = false): ?BodyStructureCollection
+    public function bodyStructure(bool $fetch = false): ?BodyStructureCollection
     {
         if ($this->bodyStructure) {
             return $this->bodyStructure;
         }
 
-        if (! $this->bodyStructureData && $lazy) {
+        if (! $this->bodyStructureData && $fetch) {
             $this->bodyStructureData = $this->fetchBodyStructureData();
         }
 
@@ -263,10 +263,10 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get a header from the message.
      */
-    public function header(string $name, int $offset = 0, bool $lazy = false): ?IHeader
+    public function header(string $name, int $offset = 0, bool $fetch = false): ?IHeader
     {
-        if ($lazy && ! $this->hasHead()) {
-            $this->head(lazy: true);
+        if ($fetch && ! $this->hasHead()) {
+            $this->head(fetch: true);
         }
 
         if ($this->isEmpty()) {
@@ -279,9 +279,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message date and time.
      */
-    public function date(bool $lazy = false): ?CarbonInterface
+    public function date(bool $fetch = false): ?CarbonInterface
     {
-        if (! $header = $this->header(HeaderConsts::DATE, lazy: $lazy)) {
+        if (! $header = $this->header(HeaderConsts::DATE, fetch: $fetch)) {
             return null;
         }
 
@@ -299,41 +299,41 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's message-id.
      */
-    public function messageId(bool $lazy = false): ?string
+    public function messageId(bool $fetch = false): ?string
     {
-        return $this->header(HeaderConsts::MESSAGE_ID, lazy: $lazy)?->getValue();
+        return $this->header(HeaderConsts::MESSAGE_ID, fetch: $fetch)?->getValue();
     }
 
     /**
      * Get the message's subject.
      */
-    public function subject(bool $lazy = false): ?string
+    public function subject(bool $fetch = false): ?string
     {
-        return $this->header(HeaderConsts::SUBJECT, lazy: $lazy)?->getValue();
+        return $this->header(HeaderConsts::SUBJECT, fetch: $fetch)?->getValue();
     }
 
     /**
      * Get the FROM address.
      */
-    public function from(bool $lazy = false): ?Address
+    public function from(bool $fetch = false): ?Address
     {
-        return head($this->addresses(HeaderConsts::FROM, lazy: $lazy)) ?: null;
+        return head($this->addresses(HeaderConsts::FROM, fetch: $fetch)) ?: null;
     }
 
     /**
      * Get the SENDER address.
      */
-    public function sender(bool $lazy = false): ?Address
+    public function sender(bool $fetch = false): ?Address
     {
-        return head($this->addresses(HeaderConsts::SENDER, lazy: $lazy)) ?: null;
+        return head($this->addresses(HeaderConsts::SENDER, fetch: $fetch)) ?: null;
     }
 
     /**
      * Get the REPLY-TO address.
      */
-    public function replyTo(bool $lazy = false): ?Address
+    public function replyTo(bool $fetch = false): ?Address
     {
-        return head($this->addresses(HeaderConsts::REPLY_TO, lazy: $lazy)) ?: null;
+        return head($this->addresses(HeaderConsts::REPLY_TO, fetch: $fetch)) ?: null;
     }
 
     /**
@@ -341,9 +341,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return string[]
      */
-    public function inReplyTo(bool $lazy = false): array
+    public function inReplyTo(bool $fetch = false): array
     {
-        $parts = $this->header(HeaderConsts::IN_REPLY_TO, lazy: $lazy)?->getParts() ?? [];
+        $parts = $this->header(HeaderConsts::IN_REPLY_TO, fetch: $fetch)?->getParts() ?? [];
 
         $values = array_map(fn (IHeaderPart $part) => $part->getValue(), $parts);
 
@@ -355,9 +355,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return Address[]
      */
-    public function to(bool $lazy = false): array
+    public function to(bool $fetch = false): array
     {
-        return $this->addresses(HeaderConsts::TO, lazy: $lazy);
+        return $this->addresses(HeaderConsts::TO, fetch: $fetch);
     }
 
     /**
@@ -365,9 +365,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return Address[]
      */
-    public function cc(bool $lazy = false): array
+    public function cc(bool $fetch = false): array
     {
-        return $this->addresses(HeaderConsts::CC, lazy: $lazy);
+        return $this->addresses(HeaderConsts::CC, fetch: $fetch);
     }
 
     /**
@@ -375,9 +375,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return Address[]
      */
-    public function bcc(bool $lazy = false): array
+    public function bcc(bool $fetch = false): array
     {
-        return $this->addresses(HeaderConsts::BCC, lazy: $lazy);
+        return $this->addresses(HeaderConsts::BCC, fetch: $fetch);
     }
 
     /**
@@ -385,9 +385,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return Address[]
      */
-    public function addresses(string $header, bool $lazy = false): array
+    public function addresses(string $header, bool $fetch = false): array
     {
-        $parts = $this->header($header, lazy: $lazy)?->getParts() ?? [];
+        $parts = $this->header($header, fetch: $fetch)?->getParts() ?? [];
 
         $addresses = array_map(fn (IHeaderPart $part) => match (true) {
             $part instanceof AddressPart => new Address($part->getEmail(), $part->getName()),
@@ -402,10 +402,10 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's text content.
      */
-    public function text(bool $lazy = false): ?string
+    public function text(bool $fetch = false): ?string
     {
-        if ($lazy && ! $this->hasBody()) {
-            if ($part = $this->bodyStructure(lazy: true)?->text()) {
+        if ($fetch && ! $this->hasBody()) {
+            if ($part = $this->bodyStructure(fetch: true)?->text()) {
                 return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
@@ -420,10 +420,10 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     /**
      * Get the message's HTML content.
      */
-    public function html(bool $lazy = false): ?string
+    public function html(bool $fetch = false): ?string
     {
-        if ($lazy && ! $this->hasBody()) {
-            if ($part = $this->bodyStructure(lazy: true)?->html()) {
+        if ($fetch && ! $this->hasBody()) {
+            if ($part = $this->bodyStructure(fetch: true)?->html()) {
                 return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
@@ -440,10 +440,10 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      *
      * @return Attachment[]
      */
-    public function attachments(bool $lazy = false): array
+    public function attachments(bool $fetch = false): array
     {
-        if ($lazy && ! $this->hasBody()) {
-            return $this->getLazyAttachments();
+        if ($fetch && ! $this->hasBody()) {
+            return $this->getAttachmentsFromBodyStructure();
         }
 
         if ($this->isEmpty()) {
@@ -454,11 +454,11 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Get attachments using lazy loading from body structure.
+     * Get attachments from the body structure.
      *
      * @return Attachment[]
      */
-    protected function getLazyAttachments(): array
+    protected function getAttachmentsFromBodyStructure(): array
     {
         return array_map(
             fn (BodyStructurePart $part) => new Attachment(
@@ -468,7 +468,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
                 $part->disposition()?->type()?->value,
                 new Support\LazyBodyPartStream($this, $part),
             ),
-            $this->bodyStructure(lazy: true)?->attachments() ?? []
+            $this->bodyStructure(fetch: true)?->attachments() ?? []
         );
     }
 

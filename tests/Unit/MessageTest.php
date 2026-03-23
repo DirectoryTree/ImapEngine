@@ -178,7 +178,7 @@ test('it serializes and unserializes the message correctly', function () {
     expect($unserializedMessage->size())->toBe(1024);
 });
 
-test('it lazy loads text content from body structure when body is not loaded', function () {
+test('it fetches text content from body structure when body is not loaded', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -203,10 +203,10 @@ test('it lazy loads text content from body structure when body is not loaded', f
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
-    expect($message->text(lazy: true))->toBe('Hello World!');
+    expect($message->text(fetch: true))->toBe('Hello World!');
 });
 
-test('it lazy loads html content from body structure when body is not loaded', function () {
+test('it fetches html content from body structure when body is not loaded', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -231,7 +231,7 @@ test('it lazy loads html content from body structure when body is not loaded', f
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
-    expect($message->html(lazy: true))->toBe('<p>Hello World!</p>');
+    expect($message->html(fetch: true))->toBe('<p>Hello World!</p>');
 });
 
 test('it decodes base64 encoded content when lazy loading', function () {
@@ -259,7 +259,7 @@ test('it decodes base64 encoded content when lazy loading', function () {
 
     $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
 
-    expect($message->text(lazy: true))->toBe('Hello World!');
+    expect($message->text(fetch: true))->toBe('Hello World!');
 });
 
 test('it decodes quoted-printable encoded content when lazy loading', function () {
@@ -287,7 +287,7 @@ test('it decodes quoted-printable encoded content when lazy loading', function (
 
     $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
 
-    expect($message->text(lazy: true))->toBe('Hello World!');
+    expect($message->text(fetch: true))->toBe('Hello World!');
 });
 
 test('it converts charset to utf-8 when lazy loading', function () {
@@ -317,7 +317,7 @@ test('it converts charset to utf-8 when lazy loading', function () {
 
     $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
 
-    expect($message->text(lazy: true))->toBe($originalContent);
+    expect($message->text(fetch: true))->toBe($originalContent);
 });
 
 test('it uses parsed body when body is already loaded', function () {
@@ -349,7 +349,7 @@ HEAD;
     expect($message->text())->toBe('Hello from parsed body!');
 });
 
-test('it lazy loads text from multipart message body structure', function () {
+test('it fetches text from multipart message body structure', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -375,10 +375,10 @@ test('it lazy loads text from multipart message body structure', function () {
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
-    expect($message->text(lazy: true))->toBe('Hello World!');
+    expect($message->text(fetch: true))->toBe('Hello World!');
 });
 
-test('it lazy loads html from multipart message body structure', function () {
+test('it fetches html from multipart message body structure', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -402,7 +402,7 @@ test('it lazy loads html from multipart message body structure', function () {
 
     $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
 
-    expect($message->html(lazy: true))->toBe('<p>Hello World!</p>');
+    expect($message->html(fetch: true))->toBe('<p>Hello World!</p>');
 });
 
 test('it fetches body structure automatically when not preloaded', function () {
@@ -435,7 +435,7 @@ test('it fetches body structure automatically when not preloaded', function () {
     expect($message->hasBodyStructure())->toBeFalse();
 
     // This should automatically fetch body structure, then fetch and decode the text part
-    expect($message->text(lazy: true))->toBe('Hello World!');
+    expect($message->text(fetch: true))->toBe('Hello World!');
 });
 
 test('it fetches body structure automatically for html when not preloaded', function () {
@@ -462,10 +462,10 @@ test('it fetches body structure automatically for html when not preloaded', func
     $message = new Message($folder, 1, [], 'From: test@example.com', '');
 
     expect($message->hasBodyStructure())->toBeFalse();
-    expect($message->html(lazy: true))->toBe('<p>Hello World!</p>');
+    expect($message->html(fetch: true))->toBe('<p>Hello World!</p>');
 });
 
-test('it lazy loads attachments from body structure', function () {
+test('it fetches attachments from body structure', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -494,7 +494,7 @@ test('it lazy loads attachments from body structure', function () {
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
 
-    $attachments = $message->attachments(lazy: true);
+    $attachments = $message->attachments(fetch: true);
 
     expect($attachments)->toHaveCount(1);
     expect($attachments[0]->filename())->toBe('document.pdf');
@@ -504,7 +504,7 @@ test('it lazy loads attachments from body structure', function () {
     expect($attachments[0]->contents())->toBe('Hello World!');
 });
 
-test('it lazy loads headers from server', function () {
+test('it fetches headers from server', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'bar',
@@ -533,7 +533,7 @@ test('it lazy loads headers from server', function () {
     expect($message->header('Subject'))->toBeNull();
 
     // With lazy, fetches headers from server
-    $header = $message->header('Subject', lazy: true);
+    $header = $message->header('Subject', fetch: true);
 
     expect($header)->not->toBeNull();
     expect($header->getValue())->toBe('Test Subject');
