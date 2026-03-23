@@ -7,7 +7,7 @@ use BadMethodCallException;
 
 class FileMessage implements MessageInterface
 {
-    use HasFlags, HasParsedMessage;
+    use HasFlags, HasMessageAccessors, HasParsedMessage;
 
     /**
      * Constructor.
