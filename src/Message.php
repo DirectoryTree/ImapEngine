@@ -105,29 +105,6 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Fetch the headers from the server.
-     */
-    protected function fetchHead(): ?string
-    {
-        $response = $this->folder
-            ->mailbox()
-            ->connection()
-            ->bodyHeader($this->uid);
-
-        if ($response->isEmpty()) {
-            return null;
-        }
-
-        $data = $response->first()->tokenAt(3);
-
-        if (! $data instanceof ListData) {
-            return null;
-        }
-
-        return $data->lookup('[HEADER]')?->value;
-    }
-
-    /**
      * Get the message's raw body.
      */
     public function body(): string
@@ -605,6 +582,29 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function isEmpty(): bool
     {
         return ! $this->hasHead() && ! $this->hasBody();
+    }
+
+    /**
+     * Fetch the headers from the server.
+     */
+    protected function fetchHead(): ?string
+    {
+        $response = $this->folder
+            ->mailbox()
+            ->connection()
+            ->bodyHeader($this->uid);
+
+        if ($response->isEmpty()) {
+            return null;
+        }
+
+        $data = $response->first()->tokenAt(3);
+
+        if (! $data instanceof ListData) {
+            return null;
+        }
+
+        return $data->lookup('[HEADER]')?->value;
     }
 
     /**
