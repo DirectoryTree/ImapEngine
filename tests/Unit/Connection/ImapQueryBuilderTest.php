@@ -245,12 +245,12 @@ test('compiles multiple UID values without quotes', function () {
     expect($builder->toImap())->toBe('UID 2,3,5');
 });
 
-test('compiles UID range to infinity with from and to', function () {
+test('compiles UID range to infinity with from and to as a numeric upper bound', function () {
     $builder = new ImapQueryBuilder;
 
     $builder->uid(2, INF);
 
-    expect($builder->toImap())->toBe('UID 2:*');
+    expect($builder->toImap())->toBe('UID 2:4294967295');
 });
 
 test('compiles UID range with upper bound with array', function () {

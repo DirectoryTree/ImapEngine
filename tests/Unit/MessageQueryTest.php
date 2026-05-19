@@ -331,6 +331,26 @@ test('markFlagged flags all matching messages', function () {
     $stream->assertWritten('TAG3 UID STORE 5,6,7,8 +FLAGS.SILENT (\Flagged)');
 });
 
+test('uid range to infinity searches with numeric upper bound', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $messages = query($mailbox)->uid(42, INF)->get();
+
+    expect($messages)->toBeEmpty();
+    $stream->assertWritten('TAG2 UID SEARCH UID 42:4294967295');
+});
+
 test('unmarkFlagged unflags all matching messages', function () {
     $stream = new FakeStream;
     $stream->open();
