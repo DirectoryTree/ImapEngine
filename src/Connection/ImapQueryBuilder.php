@@ -12,6 +12,11 @@ use DirectoryTree\ImapEngine\Support\Str;
 class ImapQueryBuilder
 {
     /**
+     * The largest UID value allowed by IMAP.
+     */
+    protected const MAX_UID = '4294967295';
+
+    /**
      * The where conditions for the query.
      */
     protected array $wheres = [];
@@ -270,6 +275,10 @@ class ImapQueryBuilder
      */
     public function uid(int|string|array $from, int|float|null $to = null): static
     {
+        if ($to === INF) {
+            $to = self::MAX_UID;
+        }
+
         return $this->where(ImapSearchKey::Uid, new RawQueryValue(Str::set($from, $to)));
     }
 
