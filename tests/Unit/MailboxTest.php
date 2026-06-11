@@ -62,6 +62,20 @@ test('config dot notated access', function () {
     expect($mailbox->config('proxy.username'))->toBe('bar');
 });
 
+test('serialization', function () {
+    $mailbox = Mailbox::make([
+        'host' => 'imap.example.com',
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $serialized = serialize($mailbox);
+
+    expect(unserialize($serialized))
+        ->toBeInstanceOf(Mailbox::class)
+        ->config()->toBe($mailbox->config());
+});
+
 test('connect', function () {
     $mailbox = Mailbox::make();
 
