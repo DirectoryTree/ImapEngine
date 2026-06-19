@@ -33,6 +33,13 @@ test('where', function () {
     expect($query)->toBe('SUBJECT "hello"');
 });
 
+test('message id forwards to query builder', function () {
+    $query = query();
+
+    expect($query->messageId('unique-message-id@server.example.com'))->toBe($query);
+    expect($query->toImap())->toBe('HEADER MESSAGE-ID "unique-message-id@server.example.com"');
+});
+
 test('destroy', function () {
     $stream = new FakeStream;
     $stream->open();
