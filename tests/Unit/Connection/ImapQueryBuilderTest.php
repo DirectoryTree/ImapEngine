@@ -221,6 +221,17 @@ test('compiles raw value', function () {
     expect($builder->toImap())->toBe('FOO bar');
 });
 
+test('compiles message id condition', function (string $messageId) {
+    $builder = new ImapQueryBuilder;
+
+    $builder->messageId($messageId);
+
+    expect($builder->toImap())->toBe('HEADER MESSAGE-ID "unique-message-id@server.example.com"');
+})->with([
+    'bare message id' => ['unique-message-id@server.example.com'],
+    'wrapped message id' => ['<unique-message-id@server.example.com>'],
+]);
+
 test('converts values from utf-8 to utf-7', function () {
     $builder = new ImapQueryBuilder;
 
