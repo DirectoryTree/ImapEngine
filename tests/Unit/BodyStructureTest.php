@@ -17,6 +17,29 @@ test('it parses a simple text/plain message as BodyStructurePart', function () {
     expect($part->size())->toBe(100);
     expect($part->lines())->toBe(5);
     expect($part->partNumber())->toBe('1');
+    expect($part->description())->toBeNull();
+});
+
+test('it preserves plain content descriptions', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE ("application" "pdf" NIL NIL "A PDF invoice" "base64" 5000 NIL NIL NIL NIL) UID 1)'
+    );
+
+    $part = BodyStructurePart::fromListData($listData);
+
+    expect($part->description())->toBe('A PDF invoice');
+    expect($part->toArray()['description'])->toBe('A PDF invoice');
+});
+
+test('it decodes MIME encoded content descriptions', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE ("application" "pdf" NIL NIL "=?iso-8859-1?Q?123456_-_von_Beispiel_GmbH_vom_01.01.2025_Pauschale?= =?iso-8859-1?Q?_f=FCr_Zustellungen=5F.pdf?=" "base64" 5000 NIL NIL NIL NIL) UID 1)'
+    );
+
+    $part = BodyStructurePart::fromListData($listData);
+
+    expect($part->description())->toBe('123456 - von Beispiel GmbH vom 01.01.2025 Pauschale für Zustellungen_.pdf');
+    expect($part->toArray()['description'])->toBe('123456 - von Beispiel GmbH vom 01.01.2025 Pauschale für Zustellungen_.pdf');
 });
 
 test('it parses a multipart/alternative message as BodyStructureCollection', function () {
@@ -82,6 +105,37 @@ test('it detects attachments in a collection', function () {
     $attachments = $collection->attachments();
     expect($attachments[0]->filename())->toBe('document.pdf');
     expect($attachments[0]->contentType())->toBe('application/pdf');
+});
+
+test('it decodes continued attachment filenames', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name*1" "attachment_name_part_1.pdf" "name*0" "attachment_name_part_0") NIL NIL "base64" 5000 NIL ("attachment" ("filename*1" "attachment_name_part_1.pdf" "filename*0" "attachment_name_part_0")) NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $collection = BodyStructureCollection::fromListData($listData);
+    $attachment = $collection->attachments()[0];
+
+    expect($attachment->filename())->toBe('attachment_name_part_0attachment_name_part_1.pdf');
+    expect($attachment->parameters())->toBe([
+        'name' => 'attachment_name_part_0attachment_name_part_1.pdf',
+    ]);
+    expect($attachment->disposition()?->parameters())->toBe([
+        'filename' => 'attachment_name_part_0attachment_name_part_1.pdf',
+    ]);
+});
+
+test('it decodes extended content type names when no disposition is present', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name*1" "2026.pdf" "name*0*" "utf-8\'\'invoice%20") NIL NIL "base64" 5000 NIL NIL NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $collection = BodyStructureCollection::fromListData($listData);
+    $attachment = $collection->attachments()[0];
+
+    expect($attachment->filename())->toBe('invoice 2026.pdf');
+    expect($attachment->parameters())->toBe([
+        'name' => 'invoice 2026.pdf',
+    ]);
 });
 
 test('it converts BodyStructurePart to array', function () {
