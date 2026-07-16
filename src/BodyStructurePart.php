@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Support\MimeParameterParser;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 
@@ -45,7 +46,9 @@ class BodyStructurePart implements Arrayable, JsonSerializable
             partNumber: $partNumber,
             type: strtolower(static::tokenValueAt($tokens, 0) ?? 'text'),
             subtype: strtolower(static::tokenValueAt($tokens, 1) ?? 'plain'),
-            parameters: isset($tokens[2]) && $tokens[2] instanceof ListData ? $tokens[2]->toKeyValuePairs() : [],
+            parameters: isset($tokens[2]) && $tokens[2] instanceof ListData
+                ? MimeParameterParser::parse($tokens[2]->toKeyValuePairs())
+                : [],
             id: static::tokenValueAt($tokens, 3),
             description: static::tokenValueAt($tokens, 4),
             encoding: static::tokenValueAt($tokens, 5),
@@ -184,7 +187,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     public function filename(): ?string
     {
-        return $this->disposition?->filename() ?? $this->parameters['name'] ?? null;
+        return $this->disposition?->filename() ?? $this->parameter('name');
     }
 
     /**

@@ -84,6 +84,37 @@ test('it detects attachments in a collection', function () {
     expect($attachments[0]->contentType())->toBe('application/pdf');
 });
 
+test('it decodes continued attachment filenames', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name*1" "attachment_name_part_1.pdf" "name*0" "attachment_name_part_0") NIL NIL "base64" 5000 NIL ("attachment" ("filename*1" "attachment_name_part_1.pdf" "filename*0" "attachment_name_part_0")) NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $collection = BodyStructureCollection::fromListData($listData);
+    $attachment = $collection->attachments()[0];
+
+    expect($attachment->filename())->toBe('attachment_name_part_0attachment_name_part_1.pdf');
+    expect($attachment->parameters())->toBe([
+        'name' => 'attachment_name_part_0attachment_name_part_1.pdf',
+    ]);
+    expect($attachment->disposition()?->parameters())->toBe([
+        'filename' => 'attachment_name_part_0attachment_name_part_1.pdf',
+    ]);
+});
+
+test('it decodes extended content type names when no disposition is present', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name*1" "2026.pdf" "name*0*" "utf-8\'\'invoice%20") NIL NIL "base64" 5000 NIL NIL NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $collection = BodyStructureCollection::fromListData($listData);
+    $attachment = $collection->attachments()[0];
+
+    expect($attachment->filename())->toBe('invoice 2026.pdf');
+    expect($attachment->parameters())->toBe([
+        'name' => 'invoice 2026.pdf',
+    ]);
+});
+
 test('it converts BodyStructurePart to array', function () {
     $listData = parseBodyStructureResponse(
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) UID 1)'
