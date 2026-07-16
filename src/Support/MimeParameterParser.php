@@ -14,7 +14,7 @@ class MimeParameterParser
      */
     public static function parse(array $parameters): array
     {
-        if ($parameters === []) {
+        if (empty($parameters)) {
             return [];
         }
 
@@ -32,9 +32,7 @@ class MimeParameterParser
                 continue;
             }
 
-            $value = $header->getValueFor($name);
-
-            if ($value !== null) {
+            if (! is_null($value = $header->getValueFor($name))) {
                 $parsed[$name] = $value;
             }
         }
