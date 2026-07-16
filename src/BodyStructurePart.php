@@ -43,8 +43,6 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     protected static function parse(array $tokens, string $partNumber): static
     {
-        $description = static::tokenValueAt($tokens, 4);
-
         return new static(
             partNumber: $partNumber,
             type: strtolower(static::tokenValueAt($tokens, 0) ?? 'text'),
@@ -53,7 +51,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
                 ? MimeParameterParser::parse($tokens[2]->toKeyValuePairs())
                 : [],
             id: static::tokenValueAt($tokens, 3),
-            description: $description === null ? null : Str::decodeMimeHeader($description),
+            description: Str::decodeMimeHeader(static::tokenValueAt($tokens, 4) ?? ''),
             encoding: static::tokenValueAt($tokens, 5),
             size: static::tokenIntValueAt($tokens, 6),
             lines: static::tokenIntValueAt($tokens, 7),
