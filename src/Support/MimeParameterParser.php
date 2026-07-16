@@ -53,17 +53,9 @@ class MimeParameterParser
         $values = [];
 
         foreach ($parameters as $name => $value) {
-            $values[] = sprintf('%s="%s"', $name, static::escape($value));
+            $values[] = sprintf('%s="%s"', $name, Str::escape($value));
         }
 
         return $values;
-    }
-
-    /**
-     * Escape a MIME quoted-string value.
-     */
-    protected static function escape(string $value): string
-    {
-        return str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
     }
 }
