@@ -17,6 +17,29 @@ test('it parses a simple text/plain message as BodyStructurePart', function () {
     expect($part->size())->toBe(100);
     expect($part->lines())->toBe(5);
     expect($part->partNumber())->toBe('1');
+    expect($part->description())->toBeNull();
+});
+
+test('it preserves plain content descriptions', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE ("application" "pdf" NIL NIL "A PDF invoice" "base64" 5000 NIL NIL NIL NIL) UID 1)'
+    );
+
+    $part = BodyStructurePart::fromListData($listData);
+
+    expect($part->description())->toBe('A PDF invoice');
+    expect($part->toArray()['description'])->toBe('A PDF invoice');
+});
+
+test('it decodes MIME encoded content descriptions', function () {
+    $listData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE ("application" "pdf" NIL NIL "=?iso-8859-1?Q?123456_-_von_Beispiel_GmbH_vom_01.01.2025_Pauschale?= =?iso-8859-1?Q?_f=FCr_Zustellungen=5F.pdf?=" "base64" 5000 NIL NIL NIL NIL) UID 1)'
+    );
+
+    $part = BodyStructurePart::fromListData($listData);
+
+    expect($part->description())->toBe('123456 - von Beispiel GmbH vom 01.01.2025 Pauschale für Zustellungen_.pdf');
+    expect($part->toArray()['description'])->toBe('123456 - von Beispiel GmbH vom 01.01.2025 Pauschale für Zustellungen_.pdf');
 });
 
 test('it parses a multipart/alternative message as BodyStructureCollection', function () {

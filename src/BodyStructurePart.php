@@ -6,6 +6,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Support\MimeParameterParser;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 
@@ -42,6 +43,8 @@ class BodyStructurePart implements Arrayable, JsonSerializable
      */
     protected static function parse(array $tokens, string $partNumber): static
     {
+        $description = static::tokenValueAt($tokens, 4);
+
         return new static(
             partNumber: $partNumber,
             type: strtolower(static::tokenValueAt($tokens, 0) ?? 'text'),
@@ -50,7 +53,7 @@ class BodyStructurePart implements Arrayable, JsonSerializable
                 ? MimeParameterParser::parse($tokens[2]->toKeyValuePairs())
                 : [],
             id: static::tokenValueAt($tokens, 3),
-            description: static::tokenValueAt($tokens, 4),
+            description: $description === null ? null : Str::decodeMimeHeader($description),
             encoding: static::tokenValueAt($tokens, 5),
             size: static::tokenIntValueAt($tokens, 6),
             lines: static::tokenIntValueAt($tokens, 7),
