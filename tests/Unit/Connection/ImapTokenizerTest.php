@@ -207,6 +207,73 @@ test('tokenizer throws exception for CR not followed by LF', function () {
     $tokenizer->nextToken();
 })->throws(ImapParserException::class);
 
+test('tokenizer throws exception for an unexpected byte instead of returning an empty atom', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feedRaw("TAG1 OK L\x80GIN completed\r\n");
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken()->value)->toBe('TAG1');
+    expect($tokenizer->nextToken()->value)->toBe('OK');
+    expect($tokenizer->nextToken()->value)->toBe('L');
+
+    expect(fn () => $tokenizer->nextToken())
+        ->toThrow(ImapParserException::class, 'Unexpected byte 0x80 in response at buffer offset 9');
+});
+
+test('tokenizer throws exception for an unexpected atom delimiter', function (string $delimiter, string $hex) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feedRaw($delimiter);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect(fn () => $tokenizer->nextToken())
+        ->toThrow(ImapParserException::class, "Unexpected byte 0x{$hex} in response at buffer offset 0");
+})->with([
+    'closing curly brace' => ['}', '7D'],
+    'closing angle bracket' => ['>', '3E'],
+]);
+
+test('tokenizer stops filling the buffer when the stream returns an empty string', function () {
+    $stream = new class extends FakeStream
+    {
+        public int $reads = 0;
+
+        public function fgets(): string|false
+        {
+            if ($this->reads++ > 1) {
+                throw new RuntimeException('The tokenizer continued reading after an empty stream read');
+            }
+
+            return '';
+        }
+    };
+
+    $stream->open();
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toBeNull();
+    expect($stream->reads)->toBe(2);
+});
+
+test('tokenizer does not treat zero stream data as empty', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feedRaw(['0', "\r\n"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    $token = $tokenizer->nextToken();
+
+    expect($token->value)->toBe('0');
+});
+
 test('tokenizer throws exception for unterminated quoted string', function () {
     $stream = new FakeStream;
     $stream->open();
