@@ -59,14 +59,20 @@ test('first', function () {
 test('first or fail', function () {
     $folder = folder();
 
-    expect(fn () => $folder->messages()->firstOrFail())->toThrow(ItemNotFoundException::class);
-
     $uid = $folder->messages()->append(
         new DraftMessage(from: 'foo@example.com', text: 'hello world'),
     );
 
-    expect($folder->messages()->firstOrFail()->uid())->toBe($uid);
+    $message = $folder->messages()->firstOrFail();
+
+    expect($message->uid())->toBe($uid);
 });
+
+test('first or fail throws exception', function () {
+    $folder = folder();
+
+    $folder->messages()->firstOrFail();
+})->throws(ItemNotFoundException::class);
 
 test('find', function () {
     $folder = folder();
@@ -93,12 +99,16 @@ test('find or fail', function () {
         ),
     );
 
-    expect($folder->messages()->findOrFail($uid))->toBeInstanceOf(Message::class);
+    $message = $folder->messages()->findOrFail($uid);
 
-    expect(function () use ($folder) {
-        $folder->messages()->findOrFail(999);
-    })->toThrow(ItemNotFoundException::class);
+    expect($message)->toBeInstanceOf(Message::class);
 });
+
+test('find or fail throws exception', function () {
+    $folder = folder();
+
+    $folder->messages()->findOrFail(999);
+})->throws(ItemNotFoundException::class);
 
 test('get without fetches', function () {
     $folder = folder();
