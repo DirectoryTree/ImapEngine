@@ -219,9 +219,8 @@ test('tokenizer throws exception for an unexpected byte instead of returning an 
     expect($tokenizer->nextToken()->value)->toBe('OK');
     expect($tokenizer->nextToken()->value)->toBe('L');
 
-    expect(fn () => $tokenizer->nextToken())
-        ->toThrow(ImapParserException::class, 'Unexpected byte 0x80 in response at buffer offset 9');
-});
+    $tokenizer->nextToken();
+})->throws(ImapParserException::class, 'Unexpected byte 0x80 in response at buffer offset 9');
 
 test('tokenizer throws exception for an unexpected atom delimiter', function (string $delimiter, string $hex) {
     $stream = new FakeStream;
@@ -231,8 +230,10 @@ test('tokenizer throws exception for an unexpected atom delimiter', function (st
 
     $tokenizer = new ImapTokenizer($stream);
 
-    expect(fn () => $tokenizer->nextToken())
-        ->toThrow(ImapParserException::class, "Unexpected byte 0x{$hex} in response at buffer offset 0");
+    expect(fn () => $tokenizer->nextToken())->toThrow(
+        ImapParserException::class,
+        "Unexpected byte 0x{$hex} in response at buffer offset 0"
+    );
 })->with([
     'closing curly brace' => ['}', '7D'],
     'closing angle bracket' => ['>', '3E'],
