@@ -17,8 +17,8 @@ jobs:
             matrix:
                 os: [ ubuntu-latest ]
                 php: [ 8.5, 8.4, 8.3, 8.2 ]
-                dependency-version: [ prefer-stable ]
                 mail-mime-parser: [ ^3.0, ^4.0 ]
+                dependency-version: [ prefer-stable ]
 
         name: ${{ matrix.os }} - P${{ matrix.php }} - MMP${{ matrix.mail-mime-parser }} - ${{ matrix.dependency-version }}
 
