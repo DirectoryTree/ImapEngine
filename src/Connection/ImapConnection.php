@@ -259,7 +259,7 @@ class ImapConnection implements ConnectionInterface
 
         $this->assertTaggedResponse($tag);
 
-        return $this->result->responses()->untagged()->firstWhere(
+        return $this->result->responses()->untagged()->first(
             fn (UntaggedResponse $response) => $response->type()->is('STATUS')
         );
     }
