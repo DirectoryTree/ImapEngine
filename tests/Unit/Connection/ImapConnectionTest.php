@@ -391,6 +391,66 @@ test('append message', function () {
     $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "Test message"');
 });
 
+test('append sends literal data after receiving a continuation response', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '+ Ready for literal data',
+        'TAG1 OK APPEND completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $message = "Subject: probe\r\n\r\nbody";
+
+    $connection->append('INBOX', $message);
+
+    $stream->assertWritten('TAG1 APPEND "INBOX" {22}');
+    $stream->assertWritten($message);
+});
+
+test('append does not send literal data when the server rejects the command', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 NO [TRYCREATE] No such mailbox',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $message = "Subject: probe\r\n\r\nbody";
+
+    expect(fn () => $connection->append('Missing', $message))
+        ->toThrow(ImapCommandException::class);
+
+    $stream->assertWritten('TAG1 APPEND "Missing" {22}');
+    $stream->assertNotWritten($message);
+});
+
+test('send does not wait before sending non-synchronizing literal data', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed('* OK Welcome to IMAP');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $connection->send('APPEND', [
+        '"INBOX"',
+        ['{4+}', 'test'],
+    ]);
+
+    $stream->assertWritten('TAG1 APPEND "INBOX" {4+}');
+    $stream->assertWritten('test');
+});
+
 test('copy messages', function () {
     $stream = new FakeStream;
     $stream->open();
