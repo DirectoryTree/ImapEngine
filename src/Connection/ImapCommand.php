@@ -9,7 +9,7 @@ class ImapCommand implements Stringable
     /**
      * The compiled command lines.
      *
-     * @var string[]
+     * @var ImapCommandLine[]|null
      */
     protected ?array $compiled = null;
 
@@ -49,7 +49,7 @@ class ImapCommand implements Stringable
     /**
      * Compile the command into lines for transmission.
      *
-     * @return string[]
+     * @return ImapCommandLine[]
      */
     public function compile(): array
     {
@@ -63,12 +63,12 @@ class ImapCommand implements Stringable
 
         foreach ($this->tokens as $token) {
             if (is_array($token)) {
-                // For tokens provided as arrays, the first element is a placeholder
-                // (for example, "{20}") that signals a literal value will follow.
-                // The second element holds the actual literal content.
-                [$placeholder, $literal] = $token;
+                [$lengthDeclaration, $literal] = $token;
 
-                $lines[] = "{$line} {$placeholder}";
+                $lines[] = new ImapCommandLine(
+                    value: "{$line} {$lengthDeclaration}",
+                    synchronizing: ! str_contains($lengthDeclaration, '+'),
+                );
 
                 $line = $literal;
             } else {
@@ -76,7 +76,7 @@ class ImapCommand implements Stringable
             }
         }
 
-        $lines[] = $line;
+        $lines[] = new ImapCommandLine($line);
 
         return $this->compiled = $lines;
     }
