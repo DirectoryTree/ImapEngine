@@ -207,11 +207,11 @@ test('tokenizer throws exception for CR not followed by LF', function () {
     $tokenizer->nextToken();
 })->throws(ImapParserException::class);
 
-test('tokenizer throws exception for an unexpected byte instead of returning an empty atom', function () {
+test('tokenizer throws exception for an unexpected control byte instead of returning an empty atom', function () {
     $stream = new FakeStream;
     $stream->open();
 
-    $stream->feedRaw("TAG1 OK L\x80GIN completed\r\n");
+    $stream->feedRaw("TAG1 OK L\x01GIN completed\r\n");
 
     $tokenizer = new ImapTokenizer($stream);
 
@@ -220,7 +220,7 @@ test('tokenizer throws exception for an unexpected byte instead of returning an 
     expect($tokenizer->nextToken()->value)->toBe('L');
 
     $tokenizer->nextToken();
-})->throws(ImapParserException::class, 'Unexpected byte 0x80 in response at buffer offset 9');
+})->throws(ImapParserException::class, 'Unexpected byte 0x01 in response at buffer offset 9');
 
 test('tokenizer throws exception for an unexpected atom delimiter', function (string $delimiter, string $hex) {
     $stream = new FakeStream;
