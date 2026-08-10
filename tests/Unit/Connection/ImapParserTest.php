@@ -149,6 +149,22 @@ test('parses a several lines', function () {
     expect((string) $response5)->toBe('TAG2 OK FETCH completed');
 });
 
+test('parses tagged response text containing 8-bit bytes', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feedRaw("TAG2 NO DELETE failed. No such folder : Missing_\xE0\xE8\xEC\r\n");
+
+    $tokenizer = new ImapTokenizer($stream);
+    $parser = new ImapParser($tokenizer);
+
+    $response = $parser->next();
+
+    expect($response)->toBeInstanceOf(TaggedResponse::class);
+    expect($response->failed())->toBeTrue();
+    expect((string) $response)->toBe("TAG2 NO DELETE failed. No such folder : Missing_\xE0\xE8\xEC");
+});
+
 test('parses list response', function () {
     $stream = new FakeStream;
     $stream->open();
