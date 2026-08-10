@@ -63,11 +63,14 @@ class ImapCommand implements Stringable
 
         foreach ($this->tokens as $token) {
             if (is_array($token)) {
-                [$lengthDeclaration, $literal] = $token;
+                // For tokens provided as arrays, the first element is a placeholder
+                // (for example, "{20}") that signals a literal value will follow.
+                // The second element holds the actual literal content.
+                [$length, $literal] = $token;
 
                 $lines[] = new ImapCommandLine(
-                    value: "{$line} {$lengthDeclaration}",
-                    synchronizing: ! str_contains($lengthDeclaration, '+'),
+                    value: "{$line} {$length}",
+                    synchronizing: ! str_contains($length, '+'),
                 );
 
                 $line = $literal;
