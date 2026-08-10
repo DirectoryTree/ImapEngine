@@ -621,8 +621,7 @@ class ImapConnection implements ConnectionInterface
     public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
         if (! $tag) {
-            $this->sequence++;
-            $tag = 'TAG'.$this->sequence;
+            $tag = 'TAG'.++$this->sequence;
         }
 
         $command = new ImapCommand($tag, $name, $tokens);
