@@ -207,11 +207,11 @@ test('tokenizer throws exception for CR not followed by LF', function () {
     $tokenizer->nextToken();
 })->throws(ImapParserException::class);
 
-test('tokenizer throws exception for an unexpected control byte instead of returning an empty atom', function () {
+test('tokenizer throws exception for an unexpected control byte instead of returning an empty atom', function (string $byte, string $hex) {
     $stream = new FakeStream;
     $stream->open();
 
-    $stream->feedRaw("TAG1 OK L\x01GIN completed\r\n");
+    $stream->feedRaw("TAG1 OK L{$byte}GIN completed\r\n");
 
     $tokenizer = new ImapTokenizer($stream);
 
@@ -219,8 +219,33 @@ test('tokenizer throws exception for an unexpected control byte instead of retur
     expect($tokenizer->nextToken()->value)->toBe('OK');
     expect($tokenizer->nextToken()->value)->toBe('L');
 
-    $tokenizer->nextToken();
-})->throws(ImapParserException::class, 'Unexpected byte 0x01 in response at buffer offset 9');
+    expect(fn () => $tokenizer->nextToken())->toThrow(
+        ImapParserException::class,
+        "Unexpected byte 0x{$hex} in response at buffer offset 9"
+    );
+})->with([
+    'null' => ["\x00", '00'],
+    'start of heading' => ["\x01", '01'],
+    'unit separator' => ["\x1F", '1F'],
+    'delete' => ["\x7F", '7F'],
+]);
+
+test('tokenizer accepts 8-bit bytes in atoms', function (string $byte) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feedRaw("A{$byte}B\r\n");
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    $token = $tokenizer->nextToken();
+
+    expect($token)->toBeInstanceOf(Atom::class);
+    expect($token->value)->toBe("A{$byte}B");
+})->with([
+    'first 8-bit byte' => ["\x80"],
+    'last 8-bit byte' => ["\xFF"],
+]);
 
 test('tokenizer throws exception for an unexpected atom delimiter', function (string $delimiter, string $hex) {
     $stream = new FakeStream;
