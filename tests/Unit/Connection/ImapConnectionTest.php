@@ -481,7 +481,7 @@ test('move messages', function () {
 
     $connection->move('Archive', [1, 2, 3]);
 
-    $stream->assertWritten('TAG1 UID MOVE 1,2,3 "Archive"');
+    $stream->assertWritten('TAG1 UID MOVE 1:3 "Archive"');
 });
 
 test('store flags', function () {

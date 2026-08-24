@@ -13,6 +13,16 @@ test('set', function () {
     expect(Str::set(5))->toBe('5');
 });
 
+test('set converts consecutive values into sequence ranges', function () {
+    expect(Str::set([1, 2, 3, 5, 7, 8, 9]))->toBe('1:3,5,7:9');
+    expect(Str::set([9, 8, 7, 5, 3, 2, 1]))->toBe('9:7,5,3:1');
+    expect(Str::set(range(16902, 15146)))->toBe('16902:15146');
+    expect(Str::set([1, 3, 5]))->toBe('1,3,5');
+    expect(Str::set([1, 2, 3, 8, 7, 6]))->toBe('1:3,8:6');
+    expect(Str::set(['1', '2', '3', '5']))->toBe('1:3,5');
+    expect(Str::set([1, '*']))->toBe('1,*');
+});
+
 test('credentials', function () {
     expect(Str::credentials('foo', 'bar'))->toBe('dXNlcj1mb28BYXV0aD1CZWFyZXIgYmFyAQE=');
 });
@@ -22,7 +32,7 @@ test('set ignores $to when $from is a single-element array', function () {
 });
 
 test('set ignores $to when $from is a multi-element array', function () {
-    expect(Str::set([5, 6], 10))->toBe('5,6');
+    expect(Str::set([5, 6], 10))->toBe('5:6');
 });
 
 test('escape removes newlines/control characters and escapes backslashes and double quotes', function () {

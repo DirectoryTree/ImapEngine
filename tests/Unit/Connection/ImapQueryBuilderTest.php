@@ -253,7 +253,7 @@ test('compiles multiple UID values without quotes', function () {
 
     $builder->uid([2, 3, 5]);
 
-    expect($builder->toImap())->toBe('UID 2,3,5');
+    expect($builder->toImap())->toBe('UID 2:3,5');
 });
 
 test('compiles UID range to infinity with from and to as a numeric upper bound', function () {
