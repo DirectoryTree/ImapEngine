@@ -75,7 +75,7 @@ test('destroy with multiple messages', function () {
 
     query($mailbox)->destroy([1, 2, 3]);
 
-    $stream->assertWritten('TAG2 UID STORE 1,2,3 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG2 UID STORE 1:3 +FLAGS.SILENT (\Deleted)');
 });
 
 test('oldest sets fetch order to asc', function () {
@@ -232,7 +232,7 @@ test('flag adds flag to all matching messages', function () {
     $count = query($mailbox)->flag(ImapFlag::Seen, '+');
 
     expect($count)->toBe(3);
-    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Seen)');
+    $stream->assertWritten('TAG3 UID STORE 1:3 +FLAGS.SILENT (\Seen)');
 });
 
 test('flag removes flag from all matching messages', function () {
@@ -253,7 +253,7 @@ test('flag removes flag from all matching messages', function () {
     $count = query($mailbox)->flag(ImapFlag::Flagged, '-');
 
     expect($count)->toBe(2);
-    $stream->assertWritten('TAG3 UID STORE 4,5 -FLAGS.SILENT (\Flagged)');
+    $stream->assertWritten('TAG3 UID STORE 4:5 -FLAGS.SILENT (\Flagged)');
 });
 
 test('flag returns zero when no messages match', function () {
@@ -293,7 +293,7 @@ test('markRead marks all matching messages as read', function () {
     $count = query($mailbox)->markRead();
 
     expect($count)->toBe(3);
-    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Seen)');
+    $stream->assertWritten('TAG3 UID STORE 1:3 +FLAGS.SILENT (\Seen)');
 });
 
 test('markUnread marks all matching messages as unread', function () {
@@ -314,7 +314,7 @@ test('markUnread marks all matching messages as unread', function () {
     $count = query($mailbox)->markUnread();
 
     expect($count)->toBe(2);
-    $stream->assertWritten('TAG3 UID STORE 1,2 -FLAGS.SILENT (\Seen)');
+    $stream->assertWritten('TAG3 UID STORE 1:2 -FLAGS.SILENT (\Seen)');
 });
 
 test('markFlagged flags all matching messages', function () {
@@ -335,7 +335,7 @@ test('markFlagged flags all matching messages', function () {
     $count = query($mailbox)->markFlagged();
 
     expect($count)->toBe(4);
-    $stream->assertWritten('TAG3 UID STORE 5,6,7,8 +FLAGS.SILENT (\Flagged)');
+    $stream->assertWritten('TAG3 UID STORE 5:8 +FLAGS.SILENT (\Flagged)');
 });
 
 test('uid range to infinity searches with numeric upper bound', function () {
@@ -397,7 +397,7 @@ test('delete marks all matching messages as deleted', function () {
     $count = query($mailbox)->delete();
 
     expect($count)->toBe(3);
-    $stream->assertWritten('TAG3 UID STORE 1,2,3 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG3 UID STORE 1:3 +FLAGS.SILENT (\Deleted)');
 });
 
 test('delete with expunge also expunges folder', function () {
@@ -422,7 +422,7 @@ test('delete with expunge also expunges folder', function () {
     $count = $query->delete(expunge: true);
 
     expect($count)->toBe(2);
-    $stream->assertWritten('TAG3 UID STORE 1,2 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG3 UID STORE 1:2 +FLAGS.SILENT (\Deleted)');
     $stream->assertWritten('TAG4 EXPUNGE');
 });
 
@@ -444,7 +444,7 @@ test('move moves all matching messages to folder', function () {
     $count = query($mailbox)->move('Archive');
 
     expect($count)->toBe(3);
-    $stream->assertWritten('TAG3 UID MOVE 1,2,3 "Archive"');
+    $stream->assertWritten('TAG3 UID MOVE 1:3 "Archive"');
 });
 
 test('move returns zero when no messages match', function () {
@@ -484,7 +484,7 @@ test('copy copies all matching messages to folder', function () {
     $count = query($mailbox)->copy('Backup');
 
     expect($count)->toBe(2);
-    $stream->assertWritten('TAG3 UID COPY 4,5 "Backup"');
+    $stream->assertWritten('TAG3 UID COPY 4:5 "Backup"');
 });
 
 test('copy returns zero when no messages match', function () {
