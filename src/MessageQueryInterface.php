@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
@@ -57,64 +58,27 @@ interface MessageQueryInterface
     public function only(FetchItem ...$items): static;
 
     /**
-     * Set the fetch order.
+     * Fetch messages in ascending UID order.
      */
-    public function setFetchOrder(string $fetchOrder): MessageQueryInterface;
+    public function oldest(): static;
 
     /**
-     * Get the fetch order.
+     * Fetch messages in descending UID order.
      */
-    public function getFetchOrder(): string;
-
-    /**
-     * Set the fetch order to 'ascending'.
-     */
-    public function setFetchOrderAsc(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to 'descending'.
-     */
-    public function setFetchOrderDesc(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to show oldest messages first (ascending).
-     */
-    public function oldest(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to show newest messages first (descending).
-     */
-    public function newest(): MessageQueryInterface;
-
-    /**
-     * Set the sort key for server-side sorting (RFC 5256).
-     */
-    public function setSortKey(ImapSortKey|string|null $key): MessageQueryInterface;
-
-    /**
-     * Get the sort key for server-side sorting.
-     */
-    public function getSortKey(): ?ImapSortKey;
-
-    /**
-     * Set the sort direction for server-side sorting.
-     */
-    public function setSortDirection(string $direction): MessageQueryInterface;
-
-    /**
-     * Get the sort direction for server-side sorting.
-     */
-    public function getSortDirection(): string;
+    public function newest(): static;
 
     /**
      * Sort messages by a field using server-side sorting (RFC 5256).
      */
-    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): MessageQueryInterface;
+    public function sortBy(
+        ImapSortKey|string $key,
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static;
 
     /**
      * Sort messages by a field in descending order using server-side sorting.
      */
-    public function sortByDesc(ImapSortKey|string $key): MessageQueryInterface;
+    public function sortByDesc(ImapSortKey|string $key): static;
 
     /**
      * Count all available messages matching the current search criteria.

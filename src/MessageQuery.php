@@ -12,6 +12,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\MessageData\FetchItem;
@@ -342,8 +343,8 @@ class MessageQuery implements MessageQueryInterface
         // in the correct order, so we should preserve that order.
         if (! $this->sortKey) {
             $messages = match ($this->fetchOrder) {
-                'asc' => $messages->sort(SORT_NUMERIC),
-                'desc' => $messages->sortDesc(SORT_NUMERIC),
+                SortDirection::Ascending => $messages->sort(SORT_NUMERIC),
+                SortDirection::Descending => $messages->sortDesc(SORT_NUMERIC),
             };
         }
 
@@ -404,7 +405,7 @@ class MessageQuery implements MessageQueryInterface
 
         $response = $this->connection()->sort(
             $this->sortKey,
-            $this->sortDirection,
+            $this->sortDirection->value,
             [$this->query->toImap()]
         );
 
