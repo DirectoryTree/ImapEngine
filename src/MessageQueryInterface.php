@@ -58,27 +58,21 @@ interface MessageQueryInterface
     public function only(FetchItem ...$items): static;
 
     /**
-     * Fetch messages in ascending UID order.
+     * Order messages locally by UID, replacing any server-side sort criteria.
      */
-    public function oldest(): static;
+    public function orderByUid(
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static;
 
     /**
-     * Fetch messages in descending UID order.
-     */
-    public function newest(): static;
-
-    /**
-     * Sort messages by a field using server-side sorting (RFC 5256).
+     * Add a server-side sort criterion using RFC 5256.
+     *
+     * Subsequent calls are used as tie-breakers in the order they are added.
      */
     public function sortBy(
         ImapSortKey|string $key,
         SortDirection|string $direction = SortDirection::Ascending,
     ): static;
-
-    /**
-     * Sort messages by a field in descending order using server-side sorting.
-     */
-    public function sortByDesc(ImapSortKey|string $key): static;
 
     /**
      * Count all available messages matching the current search criteria.

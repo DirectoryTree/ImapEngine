@@ -69,7 +69,7 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->sortKey ? $this->sort() : $this->search());
+        return $this->process($this->sortCriteria ? $this->sort() : $this->search());
     }
 
     /**
@@ -338,11 +338,8 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        // Only apply client-side sorting when not using server-side sorting.
-        // When sortKey is set, the IMAP SORT command already returns UIDs
-        // in the correct order, so we should preserve that order.
-        if (! $this->sortKey) {
-            $messages = match ($this->fetchOrder) {
+        if ($this->uidOrder) {
+            $messages = match ($this->uidOrder) {
                 SortDirection::Ascending => $messages->sort(SORT_NUMERIC),
                 SortDirection::Descending => $messages->sortDesc(SORT_NUMERIC),
             };
@@ -404,8 +401,7 @@ class MessageQuery implements MessageQueryInterface
         }
 
         $response = $this->connection()->sort(
-            $this->sortKey,
-            $this->sortDirection->value,
+            $this->sortCriteria,
             [$this->query->toImap()]
         );
 

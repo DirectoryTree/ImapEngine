@@ -8,7 +8,7 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\SortCriterion;
 use Generator;
 
 interface ConnectionInterface
@@ -119,9 +119,11 @@ interface ConnectionInterface
      *
      * Execute a sort request using RFC 5256.
      *
+     * @param  array<int, SortCriterion>  $criteria
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc5256
      */
-    public function sort(ImapSortKey $key, string $direction, array $params): UntaggedResponse;
+    public function sort(array $criteria, array $params): UntaggedResponse;
 
     /**
      * Send a "FETCH" command.

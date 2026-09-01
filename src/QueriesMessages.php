@@ -36,9 +36,9 @@ trait QueriesMessages
     protected array $fetchItems = [];
 
     /**
-     * The fetch order.
+     * The UID order.
      */
-    protected SortDirection $fetchOrder = SortDirection::Descending;
+    protected ?SortDirection $uidOrder = SortDirection::Descending;
 
     /**
      * The methods that should be returned from query builder.
@@ -46,14 +46,11 @@ trait QueriesMessages
     protected array $passthru = ['toimap', 'isempty'];
 
     /**
-     * The sort key for server-side sorting (RFC 5256).
+     * The criteria for server-side sorting (RFC 5256).
+     *
+     * @var array<int, SortCriterion>
      */
-    protected ?ImapSortKey $sortKey = null;
-
-    /**
-     * The sort direction for server-side sorting.
-     */
-    protected SortDirection $sortDirection = SortDirection::Ascending;
+    protected array $sortCriteria = [];
 
     /**
      * Handle dynamic method calls into the query builder.
@@ -156,19 +153,14 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function oldest(): static
-    {
-        $this->fetchOrder = SortDirection::Ascending;
+    public function orderByUid(
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static {
+        $this->uidOrder = is_string($direction)
+            ? SortDirection::from(strtolower($direction))
+            : $direction;
 
-        return $this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function newest(): static
-    {
-        $this->fetchOrder = SortDirection::Descending;
+        $this->sortCriteria = [];
 
         return $this;
     }
@@ -180,22 +172,17 @@ trait QueriesMessages
         ImapSortKey|string $key,
         SortDirection|string $direction = SortDirection::Ascending,
     ): static {
-        $this->sortKey = is_string($key)
+        $key = is_string($key)
             ? ImapSortKey::from(strtoupper($key))
             : $key;
 
-        $this->sortDirection = is_string($direction)
+        $direction = is_string($direction)
             ? SortDirection::from(strtolower($direction))
             : $direction;
 
-        return $this;
-    }
+        $this->uidOrder = null;
+        $this->sortCriteria[] = new SortCriterion($key, $direction);
 
-    /**
-     * {@inheritDoc}
-     */
-    public function sortByDesc(ImapSortKey|string $key): static
-    {
-        return $this->sortBy($key, SortDirection::Descending);
+        return $this;
     }
 }
