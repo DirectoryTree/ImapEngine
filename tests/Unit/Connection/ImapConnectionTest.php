@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
@@ -380,15 +381,44 @@ test('append message', function () {
 
     $stream->feed([
         '* OK Welcome to IMAP',
+        'TAG1 OK [APPENDUID 1234567890 42] APPEND completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->append('INBOX', 'Test message', ['\\Seen']);
+
+    $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "Test message"');
+
+    expect($result)->toBeInstanceOf(AppendResult::class)
+        ->and($result->uidValidity())->toBe(1234567890)
+        ->and($result->uid())->toBe(42);
+});
+
+test('append message with internal date', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
         'TAG1 OK APPEND completed',
     ]);
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->append('INBOX', 'Test message', ['\\Seen']);
+    $result = $connection->append(
+        'INBOX',
+        'Test message',
+        ['\\Seen'],
+        new DateTimeImmutable('2026-09-01 12:34:56 -04:00'),
+    );
 
-    $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "Test message"');
+    $stream->assertWritten('TAG1 APPEND "INBOX" (\Seen) "01-Sep-2026 12:34:56 -0400" "Test message"');
+
+    expect($result->uidValidity())->toBeNull()
+        ->and($result->uid())->toBeNull();
 });
 
 test('append sends literal data after receiving a continuation response', function () {
@@ -747,6 +777,26 @@ test('expunge', function () {
     $responses = $connection->expunge();
 
     $stream->assertWritten('TAG1 EXPUNGE');
+
+    expect($responses->count())->toBeGreaterThan(0);
+});
+
+test('expunge messages by uid', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* 1 EXPUNGE',
+        'TAG1 OK UID EXPUNGE completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $responses = $connection->expunge([1, 2, 3]);
+
+    $stream->assertWritten('TAG1 UID EXPUNGE 1:3');
 
     expect($responses->count())->toBeGreaterThan(0);
 });

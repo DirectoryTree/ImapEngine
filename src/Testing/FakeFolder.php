@@ -141,7 +141,7 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function expunge(): array
+    public function expunge(array|int|null $uids = null): array
     {
         return [];
     }

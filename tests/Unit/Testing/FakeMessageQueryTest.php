@@ -74,14 +74,14 @@ test('it auto-increments uid when appending messages', function () {
     $folder = new FakeFolder('INBOX');
     $query = new FakeMessageQuery($folder);
 
-    $uid1 = $query->append('First message');
-    expect($uid1)->toBe(1);
+    $result1 = $query->append('First message');
+    expect($result1->uid())->toBe(1);
 
-    $uid2 = $query->append('Second message');
-    expect($uid2)->toBe(2);
+    $result2 = $query->append('Second message');
+    expect($result2->uid())->toBe(2);
 
-    $uid3 = $query->append('Third message');
-    expect($uid3)->toBe(3);
+    $result3 = $query->append('Third message');
+    expect($result3->uid())->toBe(3);
 
     expect($query->count())->toBe(3);
 });
@@ -93,8 +93,8 @@ test('it continues auto-incrementing from last message uid', function () {
 
     $query = new FakeMessageQuery($folder);
 
-    $uid = $query->append('New message');
-    expect($uid)->toBe(6);
+    $result = $query->append('New message');
+    expect($result->uid())->toBe(6);
 });
 
 test('it can find message by uid', function () {

@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DateTimeInterface;
+use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
@@ -363,7 +365,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function append(string $folder, string $message, ?array $flags = null): TaggedResponse
+    public function append(string $folder, string $message, ?array $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
         $tokens = [];
 
@@ -373,11 +375,17 @@ class ImapConnection implements ConnectionInterface
             $tokens[] = Str::list($flags);
         }
 
+        if ($date) {
+            $tokens[] = Str::literal($date->format('d-M-Y H:i:s O'));
+        }
+
         $tokens[] = Str::literal($message);
 
         $this->send('APPEND', $tokens, tag: $tag);
 
-        return $this->assertTaggedResponse($tag);
+        return AppendResult::fromResponse(
+            $this->assertTaggedResponse($tag)
+        );
     }
 
     /**
@@ -557,9 +565,13 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function expunge(): ResponseCollection
+    public function expunge(array|int|null $uids = null): ResponseCollection
     {
-        $this->send('EXPUNGE', tag: $tag);
+        $this->send(
+            $uids === null ? 'EXPUNGE' : 'UID EXPUNGE',
+            $uids === null ? [] : [Str::set($uids)],
+            $tag,
+        );
 
         $this->assertTaggedResponse($tag);
 

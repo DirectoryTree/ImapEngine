@@ -241,9 +241,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function expunge(): array
+    public function expunge(array|int|null $uids = null): array
     {
-        return $this->mailbox->connection()->expunge()->map(
+        return $this->mailbox->connection()->expunge($uids)->map(
             fn (UntaggedResponse $response) => $response->tokenAt(1)->value
         )->all();
     }
