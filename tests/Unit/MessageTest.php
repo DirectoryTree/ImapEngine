@@ -441,7 +441,7 @@ test('it fetches body structure automatically when not preloaded', function () {
         'password' => 'bar',
     ]);
 
-    // This simulates a message fetched without withBodyStructure(), then accessing text()
+    // This simulates a message fetched without its body structure, then accessing text().
     // The server will respond with: 1) body structure fetch, 2) body part fetch
     $mailbox->connect(ImapConnection::fake([
         '* OK Welcome to IMAP',
@@ -458,7 +458,7 @@ test('it fetches body structure automatically when not preloaded', function () {
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    // Message created without body structure data - simulates fetching without withBodyStructure()
+    // Message created without body structure data.
     $message = new Message($folder, 1, [], 'From: test@example.com', '');
 
     expect($message->hasBody())->toBeFalse();

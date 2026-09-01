@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -15,16 +16,6 @@ use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
  */
 interface MessageQueryInterface
 {
-    /**
-     * Don't mark messages as read when fetching.
-     */
-    public function leaveUnread(): MessageQueryInterface;
-
-    /**
-     * Mark all messages as read when fetching.
-     */
-    public function markAsRead(): MessageQueryInterface;
-
     /**
      * Set the limit and page for the current query.
      */
@@ -51,79 +42,19 @@ interface MessageQueryInterface
     public function setPage(int $page): MessageQueryInterface;
 
     /**
-     * Determine if the body of messages is being fetched.
+     * Add items to the message FETCH request.
      */
-    public function isFetchingBody(): bool;
+    public function with(FetchItem ...$items): static;
 
     /**
-     * Determine if the flags of messages is being fetched.
+     * Remove items from the message FETCH request.
      */
-    public function isFetchingFlags(): bool;
+    public function without(FetchItem ...$items): static;
 
     /**
-     * Determine if the headers of messages is being fetched.
+     * Replace the items in the message FETCH request.
      */
-    public function isFetchingHeaders(): bool;
-
-    /**
-     * Determine if the size of messages is being fetched.
-     */
-    public function isFetchingSize(): bool;
-
-    /**
-     * Determine if the body structure of messages is being fetched.
-     */
-    public function isFetchingBodyStructure(): bool;
-
-    /**
-     * Fetch the flags of messages.
-     */
-    public function withFlags(): MessageQueryInterface;
-
-    /**
-     * Fetch the body of messages.
-     */
-    public function withBody(): MessageQueryInterface;
-
-    /**
-     * Fetch the headers of messages.
-     */
-    public function withHeaders(): MessageQueryInterface;
-
-    /**
-     * Fetch the size of messages.
-     */
-    public function withSize(): MessageQueryInterface;
-
-    /**
-     * Fetch the body structure of messages.
-     */
-    public function withBodyStructure(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the body of messages.
-     */
-    public function withoutBody(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the headers of messages.
-     */
-    public function withoutHeaders(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the flags of messages.
-     */
-    public function withoutFlags(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the size of messages.
-     */
-    public function withoutSize(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the body structure of messages.
-     */
-    public function withoutBodyStructure(): MessageQueryInterface;
+    public function only(FetchItem ...$items): static;
 
     /**
      * Set the fetch order.

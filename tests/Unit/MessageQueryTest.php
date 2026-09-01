@@ -8,6 +8,7 @@ use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\MessageQuery;
 
 function query(?Mailbox $mailbox = null): MessageQuery
@@ -38,6 +39,58 @@ test('message id forwards to query builder', function () {
 
     expect($query->messageId('unique-message-id@server.example.com'))->toBe($query);
     expect($query->toImap())->toBe('HEADER MESSAGE-ID "unique-message-id@server.example.com"');
+});
+
+test('fetch items can be added and removed', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1',
+        'TAG2 OK UID SEARCH completed',
+        '* 1 FETCH (UID 1 RFC822.SIZE 1024)',
+        'TAG3 OK UID FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)
+        ->with(MessageData::flags(), MessageData::size())
+        ->without(MessageData::flags())
+        ->get();
+
+    $stream->assertWritten('TAG3 UID FETCH 1 (RFC822.SIZE)');
+});
+
+test('fetch items can be replaced', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1',
+        'TAG2 OK UID SEARCH completed',
+        '* 1 FETCH (UID 1 BODY[HEADER] {0}',
+        '',
+        ' BODY[TEXT] {0}',
+        '',
+        ')',
+        'TAG3 OK UID FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)
+        ->with(MessageData::flags())
+        ->only(MessageData::headers(), MessageData::text())
+        ->get();
+
+    $stream->assertWritten('TAG3 UID FETCH 1 (BODY[HEADER] BODY[TEXT])');
 });
 
 test('destroy', function () {
