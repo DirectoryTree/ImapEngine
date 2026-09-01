@@ -630,6 +630,10 @@ test('sortBy sends correct sort command with ascending order', function () {
         'TAG2 OK CAPABILITY completed',
         '* SORT 3 1 2',
         'TAG3 OK SORT completed',
+        '* 1 FETCH (UID 1 FLAGS ())',
+        '* 2 FETCH (UID 2 FLAGS ())',
+        '* 3 FETCH (UID 3 FLAGS ())',
+        'TAG4 OK UID FETCH completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -638,6 +642,7 @@ test('sortBy sends correct sort command with ascending order', function () {
     $uids = query($mailbox)
         ->orderByUid(SortDirection::Descending)
         ->sortBy('date')
+        ->with(MessageData::flags())
         ->get()
         ->map(fn ($message) => $message->uid())
         ->all();
@@ -645,6 +650,27 @@ test('sortBy sends correct sort command with ascending order', function () {
     $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
 
     expect($uids)->toBe([3, 1, 2]);
+});
+
+test('sortBy recognizes extended SORT capabilities', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT=DISPLAY',
+        'TAG2 OK CAPABILITY completed',
+        '* SORT 1',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->sortBy('date')->get();
+
+    $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
 });
 
 test('sortBy sends correct sort command with descending order', function () {

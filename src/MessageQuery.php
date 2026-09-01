@@ -360,11 +360,17 @@ class MessageQuery implements MessageQueryInterface
             ])->all();
         }
 
-        return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
+        $fetched = $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
             $data = FetchedMessageData::fromResponse($response);
 
             return [$data->uid() => $data];
-        })->all();
+        });
+
+        return $uids
+            ->map(fn (string|int $uid) => $fetched->get($uid))
+            ->filter()
+            ->mapWithKeys(fn (FetchedMessageData $data) => [$data->uid() => $data])
+            ->all();
     }
 
     /**
@@ -403,7 +409,11 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function sort(ImapSort $sort): Collection
     {
-        if (! in_array('SORT', $this->folder->mailbox()->capabilities())) {
+        $supportsSort = collect($this->folder->mailbox()->capabilities())->contains(
+            fn (string $capability) => str_starts_with(strtoupper($capability), 'SORT')
+        );
+
+        if (! $supportsSort) {
             throw new ImapCapabilityException(
                 'Unable to sort messages. IMAP server does not support SORT capability.'
             );

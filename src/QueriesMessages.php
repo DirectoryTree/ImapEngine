@@ -173,11 +173,13 @@ trait QueriesMessages
             ? SortDirection::from(strtolower($direction))
             : $direction;
 
-        if (! $this->ordering instanceof ImapSort) {
-            $this->ordering = new ImapSort;
-        }
+        $criterion = new SortCriterion($key, $direction);
 
-        $this->ordering->add(new SortCriterion($key, $direction));
+        if ($this->ordering instanceof ImapSort) {
+            $this->ordering->add($criterion);
+        } else {
+            $this->ordering = new ImapSort($criterion);
+        }
 
         return $this;
     }
