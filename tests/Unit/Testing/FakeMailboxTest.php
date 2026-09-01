@@ -15,6 +15,8 @@ test('it can be created with basic properties', function () {
     expect($mailbox->config('host'))->toBe('imap.example.com');
     expect($mailbox->config('username'))->toBe('user1');
     expect($mailbox->capabilities())->toBe(['IMAP4rev1', 'STARTTLS']);
+    expect($mailbox->hasCapability('imap4rev1'))->toBeTrue();
+    expect($mailbox->hasCapability('START'))->toBeFalse();
 });
 
 test('it returns config values correctly', function () {

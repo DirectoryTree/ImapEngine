@@ -12,6 +12,8 @@ use Exception;
 
 class Mailbox implements MailboxInterface
 {
+    use HasCapabilities;
+
     /**
      * The mailbox configuration.
      */

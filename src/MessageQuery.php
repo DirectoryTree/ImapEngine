@@ -409,11 +409,7 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function sort(ImapSort $sort): Collection
     {
-        $supportsSort = collect($this->folder->mailbox()->capabilities())->contains(
-            fn (string $capability) => str_starts_with(strtoupper($capability), 'SORT')
-        );
-
-        if (! $supportsSort) {
+        if (! $this->folder->mailbox()->hasCapability('SORT')) {
             throw new ImapCapabilityException(
                 'Unable to sort messages. IMAP server does not support SORT capability.'
             );

@@ -152,4 +152,10 @@ test('capabilities', function () {
         'STARTTLS',
         'AUTH=PLAIN',
     ]);
+
+    expect($mailbox->hasCapability('imap4rev1'))->toBeTrue();
+    expect($mailbox->hasCapability('AUTH'))->toBeTrue();
+    expect($mailbox->hasCapability('AUTH=PLAIN'))->toBeTrue();
+    expect($mailbox->hasCapability('AUTH=LOGIN'))->toBeFalse();
+    expect($mailbox->hasCapability('START'))->toBeFalse();
 });

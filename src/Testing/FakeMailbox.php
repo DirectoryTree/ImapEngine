@@ -6,10 +6,13 @@ use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
+use DirectoryTree\ImapEngine\HasCapabilities;
 use DirectoryTree\ImapEngine\MailboxInterface;
 
 class FakeMailbox implements MailboxInterface
 {
+    use HasCapabilities;
+
     /**
      * The currently selected folder.
      */
