@@ -34,7 +34,9 @@ class MessageQuery implements MessageQueryInterface
     public function __construct(
         protected FolderInterface $folder,
         protected ImapQueryBuilder $query,
-    ) {}
+    ) {
+        $this->ordering = new UidOrder(SortDirection::Descending);
+    }
 
     /**
      * Count all available messages matching the current search criteria.
@@ -69,7 +71,7 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->sortCriteria ? $this->sort() : $this->search());
+        return $this->process($this->orderedUids());
     }
 
     /**
@@ -104,8 +106,8 @@ class MessageQuery implements MessageQueryInterface
         $startChunk = max($startChunk, 1);
         $chunkSize = max($chunkSize, 1);
 
-        // Get all search result tokens once.
-        $messages = $this->search();
+        // Get all ordered result tokens once.
+        $messages = $this->orderedUids();
 
         // Calculate how many chunks there are
         $totalChunks = (int) ceil($messages->count() / $chunkSize);
@@ -338,8 +340,8 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function fetch(Collection $messages): array
     {
-        if ($this->uidOrder) {
-            $messages = match ($this->uidOrder) {
+        if ($this->ordering instanceof UidOrder) {
+            $messages = match ($this->ordering->direction) {
                 SortDirection::Ascending => $messages->sort(SORT_NUMERIC),
                 SortDirection::Descending => $messages->sortDesc(SORT_NUMERIC),
             };
@@ -366,6 +368,17 @@ class MessageQuery implements MessageQueryInterface
     }
 
     /**
+     * Get the ordered message UIDs.
+     */
+    protected function orderedUids(): Collection
+    {
+        return match (true) {
+            $this->ordering instanceof UidOrder => $this->search(),
+            $this->ordering instanceof ImapSort => $this->sort($this->ordering),
+        };
+    }
+
+    /**
      * Execute an IMAP search request.
      */
     protected function search(): Collection
@@ -388,7 +401,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Execute an IMAP UID SORT request using RFC 5256.
      */
-    protected function sort(): Collection
+    protected function sort(ImapSort $sort): Collection
     {
         if (! in_array('SORT', $this->folder->mailbox()->capabilities())) {
             throw new ImapCapabilityException(
@@ -401,7 +414,7 @@ class MessageQuery implements MessageQueryInterface
         }
 
         $response = $this->connection()->sort(
-            $this->sortCriteria,
+            $sort,
             [$this->query->toImap()]
         );
 

@@ -8,10 +8,12 @@ use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
+use DirectoryTree\ImapEngine\UidOrder;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -23,7 +25,9 @@ class FakeMessageQuery implements MessageQueryInterface
     public function __construct(
         protected FakeFolder $folder,
         protected ImapQueryBuilder $query = new ImapQueryBuilder
-    ) {}
+    ) {
+        $this->ordering = new UidOrder(SortDirection::Descending);
+    }
 
     /**
      * {@inheritDoc}

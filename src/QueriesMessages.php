@@ -36,21 +36,14 @@ trait QueriesMessages
     protected array $fetchItems = [];
 
     /**
-     * The UID order.
+     * The message ordering strategy.
      */
-    protected ?SortDirection $uidOrder = SortDirection::Descending;
+    protected UidOrder|ImapSort $ordering;
 
     /**
      * The methods that should be returned from query builder.
      */
     protected array $passthru = ['toimap', 'isempty'];
-
-    /**
-     * The criteria for server-side sorting (RFC 5256).
-     *
-     * @var array<int, SortCriterion>
-     */
-    protected array $sortCriteria = [];
 
     /**
      * Handle dynamic method calls into the query builder.
@@ -156,11 +149,11 @@ trait QueriesMessages
     public function orderByUid(
         SortDirection|string $direction = SortDirection::Ascending,
     ): static {
-        $this->uidOrder = is_string($direction)
-            ? SortDirection::from(strtolower($direction))
-            : $direction;
-
-        $this->sortCriteria = [];
+        $this->ordering = new UidOrder(
+            is_string($direction)
+                ? SortDirection::from(strtolower($direction))
+                : $direction,
+        );
 
         return $this;
     }
@@ -180,8 +173,11 @@ trait QueriesMessages
             ? SortDirection::from(strtolower($direction))
             : $direction;
 
-        $this->uidOrder = null;
-        $this->sortCriteria[] = new SortCriterion($key, $direction);
+        if (! $this->ordering instanceof ImapSort) {
+            $this->ordering = new ImapSort;
+        }
+
+        $this->ordering->add(new SortCriterion($key, $direction));
 
         return $this;
     }

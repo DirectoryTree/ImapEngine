@@ -22,7 +22,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
-use DirectoryTree\ImapEngine\SortCriterion;
+use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
@@ -509,14 +509,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function sort(array $criteria, array $params): UntaggedResponse
+    public function sort(ImapSort $sort, array $params): UntaggedResponse
     {
-        $sortCriteria = implode(' ', array_map(
-            fn (SortCriterion $criterion) => $criterion->toImap(),
-            $criteria,
-        ));
-
-        $this->send('UID SORT', ["({$sortCriteria})", 'UTF-8', ...$params], tag: $tag);
+        $this->send('UID SORT', ["({$sort->toImap()})", 'UTF-8', ...$params], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
