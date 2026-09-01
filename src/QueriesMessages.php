@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use Illuminate\Support\Traits\Conditionable;
@@ -27,29 +28,11 @@ trait QueriesMessages
     protected ?int $limit = null;
 
     /**
-     * Whether to fetch the message body.
+     * The items to include in message FETCH requests.
+     *
+     * @var array<string, ImapFetchItem>
      */
-    protected bool $fetchBody = false;
-
-    /**
-     * Whether to fetch the message flags.
-     */
-    protected bool $fetchFlags = false;
-
-    /**
-     * Whether to fetch the message headers.
-     */
-    protected bool $fetchHeaders = false;
-
-    /**
-     * Whether to fetch the message size.
-     */
-    protected bool $fetchSize = false;
-
-    /**
-     * Whether to fetch the message body structure.
-     */
-    protected bool $fetchBodyStructure = false;
+    protected array $fetchItems = [];
 
     /**
      * The fetch order.
@@ -167,171 +150,35 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function isFetchingBody(): bool
+    public function with(ImapFetchItem ...$items): static
     {
-        return $this->fetchBody;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function isFetchingFlags(): bool
-    {
-        return $this->fetchFlags;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function isFetchingHeaders(): bool
-    {
-        return $this->fetchHeaders;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function isFetchingSize(): bool
-    {
-        return $this->fetchSize;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function isFetchingBodyStructure(): bool
-    {
-        return $this->fetchBodyStructure;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withFlags(): MessageQueryInterface
-    {
-        return $this->setFetchFlags(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withBody(): MessageQueryInterface
-    {
-        return $this->setFetchBody(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withHeaders(): MessageQueryInterface
-    {
-        return $this->setFetchHeaders(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withSize(): MessageQueryInterface
-    {
-        return $this->setFetchSize(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withBodyStructure(): MessageQueryInterface
-    {
-        return $this->setFetchBodyStructure(true);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withoutBody(): MessageQueryInterface
-    {
-        return $this->setFetchBody(false);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withoutHeaders(): MessageQueryInterface
-    {
-        return $this->setFetchHeaders(false);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withoutFlags(): MessageQueryInterface
-    {
-        return $this->setFetchFlags(false);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withoutSize(): MessageQueryInterface
-    {
-        return $this->setFetchSize(false);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function withoutBodyStructure(): MessageQueryInterface
-    {
-        return $this->setFetchBodyStructure(false);
-    }
-
-    /**
-     * Set whether to fetch the flags.
-     */
-    protected function setFetchFlags(bool $fetchFlags): MessageQueryInterface
-    {
-        $this->fetchFlags = $fetchFlags;
+        foreach ($items as $item) {
+            $this->fetchItems[$item->value] = $item;
+        }
 
         return $this;
     }
 
     /**
-     * Set the fetch body flag.
+     * {@inheritDoc}
      */
-    protected function setFetchBody(bool $fetchBody): MessageQueryInterface
+    public function without(ImapFetchItem ...$items): static
     {
-        $this->fetchBody = $fetchBody;
+        foreach ($items as $item) {
+            unset($this->fetchItems[$item->value]);
+        }
 
         return $this;
     }
 
     /**
-     * Set whether to fetch the headers.
+     * {@inheritDoc}
      */
-    protected function setFetchHeaders(bool $fetchHeaders): MessageQueryInterface
+    public function only(ImapFetchItem ...$items): static
     {
-        $this->fetchHeaders = $fetchHeaders;
+        $this->fetchItems = [];
 
-        return $this;
-    }
-
-    /**
-     * Set whether to fetch the size.
-     */
-    protected function setFetchSize(bool $fetchSize): MessageQueryInterface
-    {
-        $this->fetchSize = $fetchSize;
-
-        return $this;
-    }
-
-    /**
-     * Set whether to fetch the body structure.
-     */
-    protected function setFetchBodyStructure(bool $fetchBodyStructure): MessageQueryInterface
-    {
-        $this->fetchBodyStructure = $fetchBodyStructure;
-
-        return $this;
+        return $this->with(...$items);
     }
 
     /** {@inheritDoc} */

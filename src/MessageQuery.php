@@ -8,14 +8,13 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
@@ -326,17 +325,8 @@ class MessageQuery implements MessageQueryInterface
 
         $messages->total($uids->count());
 
-        foreach ($this->fetch($uids) as $uid => $response) {
-            $messages->push(
-                $this->newMessage(
-                    $uid,
-                    $response['flags'] ?? [],
-                    $response['head'] ?? '',
-                    $response['body'] ?? '',
-                    $response['size'] ?? null,
-                    $response['bodystructure'] ?? null,
-                )
-            );
+        foreach ($this->fetch($uids) as $data) {
+            $messages->push($data->toMessage($this->folder));
         }
 
         return $messages;
@@ -359,68 +349,21 @@ class MessageQuery implements MessageQueryInterface
 
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
-        $fetch = [];
-
-        if ($this->fetchFlags) {
-            $fetch[] = 'FLAGS';
-        }
-
-        if ($this->fetchSize) {
-            $fetch[] = 'RFC822.SIZE';
-        }
-
-        if ($this->fetchHeaders) {
-            $fetch[] = $this->fetchAsUnread
-                ? 'BODY.PEEK[HEADER]'
-                : 'BODY[HEADER]';
-        }
-
-        if ($this->fetchBody) {
-            $fetch[] = $this->fetchAsUnread
-                ? 'BODY.PEEK[TEXT]'
-                : 'BODY[TEXT]';
-        }
-
-        if ($this->fetchBodyStructure) {
-            $fetch[] = 'BODYSTRUCTURE';
-        }
+        $fetch = array_map(
+            fn (ImapFetchItem $item) => $item->command($this->fetchAsUnread),
+            $this->fetchItems,
+        );
 
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
-                $uid => [
-                    'size' => null,
-                    'flags' => [],
-                    'head' => '',
-                    'body' => '',
-                    'bodystructure' => null,
-                ],
+                $uid => new FetchedMessageData((int) $uid),
             ])->all();
         }
 
         return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
-            $data = $response->tokenAt(3);
+            $data = FetchedMessageData::fromResponse($response);
 
-            if (! $data instanceof ListData) {
-                throw new RuntimeException(sprintf(
-                    'Expected instance of %s at index 3 in FETCH response, got %s',
-                    ListData::class,
-                    get_debug_type($data)
-                ));
-            }
-
-            $uid = $data->lookup('UID')->value;
-
-            $size = $data->lookup('RFC822.SIZE')?->value;
-
-            return [
-                $uid => [
-                    'size' => $size ? (int) $size : null,
-                    'flags' => $data->lookup('FLAGS')?->values() ?? [],
-                    'head' => $data->lookup('[HEADER]')->value ?? '',
-                    'body' => $data->lookup('[TEXT]')->value ?? '',
-                    'bodystructure' => $data->lookup('BODYSTRUCTURE'),
-                ],
-            ];
+            return [$data->uid() => $data];
         })->all();
     }
 
@@ -493,14 +436,6 @@ class MessageQuery implements MessageQueryInterface
             // Otherwise, re-throw the exception.
             throw $e;
         }
-    }
-
-    /**
-     * Make a new message from given raw components.
-     */
-    protected function newMessage(int $uid, array $flags, string $head, string $body, ?int $size = null, ?ListData $bodystructure = null): Message
-    {
-        return new Message($this->folder, $uid, $flags, $head, $body, $size, $bodystructure);
     }
 
     /**
