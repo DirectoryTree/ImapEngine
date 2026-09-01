@@ -5,6 +5,8 @@ namespace DirectoryTree\ImapEngine;
 class ImapSort
 {
     /**
+     * Constructor.
+     *
      * @param  array<int, SortCriterion>  $criteria
      */
     public function __construct(

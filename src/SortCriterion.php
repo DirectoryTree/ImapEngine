@@ -7,6 +7,9 @@ use DirectoryTree\ImapEngine\Enums\SortDirection;
 
 class SortCriterion
 {
+    /**
+     * Constructor.
+     */
     public function __construct(
         public ImapSortKey $key,
         public SortDirection $direction = SortDirection::Ascending,
