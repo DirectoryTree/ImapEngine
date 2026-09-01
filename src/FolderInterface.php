@@ -79,7 +79,7 @@ interface FolderInterface
     /**
      * Expunge the mailbox and return the expunged message sequence numbers.
      */
-    public function expunge(): array;
+    public function expunge(array|int|null $uids = null): array;
 
     /**
      * Delete the current folder.

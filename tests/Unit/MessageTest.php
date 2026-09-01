@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
@@ -52,6 +53,35 @@ test('it copies and then deletes message using UIDPLUS when incapable of MOVE an
     $newUid = $message->move('INBOX.Sent');
 
     expect($newUid)->toBe(123);
+});
+
+test('it only expunges the deleted message', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $stream = new FakeStream;
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK STORE completed',
+        'TAG3 OK UID EXPUNGE completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+
+    $mailbox->connect($connection);
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    $message = new Message($folder, 42, [], 'header', 'body');
+
+    $message->delete(expunge: true);
+
+    $stream->assertWritten('TAG2 UID STORE 42 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG3 UID EXPUNGE 42');
 });
 
 test('it throws exception when server does not support MOVE or UIDPLUS capabilities', function () {

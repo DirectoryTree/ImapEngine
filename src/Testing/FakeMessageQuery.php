@@ -3,6 +3,8 @@
 namespace DirectoryTree\ImapEngine\Testing;
 
 use BackedEnum;
+use DateTimeInterface;
+use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -62,7 +64,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function append(string $message, mixed $flags = null): int
+    public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
         $uid = 1;
 
@@ -74,7 +76,7 @@ class FakeMessageQuery implements MessageQueryInterface
             new FakeMessage($uid, $flags === null ? [] : $flags, $message)
         );
 
-        return $uid;
+        return new AppendResult(uid: $uid);
     }
 
     /**

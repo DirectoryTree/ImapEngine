@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DateTimeInterface;
+use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
@@ -92,7 +94,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-expunge-command
      */
-    public function expunge(): ResponseCollection;
+    public function expunge(array|int|null $uids = null): ResponseCollection;
 
     /**
      * Send a "CAPABILITY" command.
@@ -259,7 +261,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-append-command
      */
-    public function append(string $folder, string $message, ?array $flags = null): TaggedResponse;
+    public function append(string $folder, string $message, ?array $flags = null, ?DateTimeInterface $date = null): AppendResult;
 
     /**
      * Send a "UID COPY" command.

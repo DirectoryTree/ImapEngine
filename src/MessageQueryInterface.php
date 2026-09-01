@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
@@ -207,7 +208,7 @@ interface MessageQueryInterface
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, mixed $flags = null): int;
+    public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult;
 
     /**
      * Execute a callback over each message via a chunked query.

@@ -78,6 +78,27 @@ test('destroy with multiple messages', function () {
     $stream->assertWritten('TAG2 UID STORE 1:3 +FLAGS.SILENT (\Deleted)');
 });
 
+test('destroy with expunge only expunges the given messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK UID STORE completed',
+        'TAG3 OK UID EXPUNGE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)->destroy([1, 2, 3], expunge: true);
+
+    $stream->assertWritten('TAG2 UID STORE 1:3 +FLAGS.SILENT (\Deleted)');
+    $stream->assertWritten('TAG3 UID EXPUNGE 1:3');
+});
+
 test('oldest sets fetch order to asc', function () {
     $query = query();
 
@@ -208,9 +229,10 @@ test('append with single flag converts to array', function (mixed $flag) {
     $folder = new Folder($mailbox, 'INBOX');
     $query = new MessageQuery($folder, new ImapQueryBuilder);
 
-    $uid = $query->append('Hello world', $flag);
+    $result = $query->append('Hello world', $flag);
 
-    expect($uid)->toBe(1);
+    expect($result->uidValidity())->toBe(1234567890)
+        ->and($result->uid())->toBe(1);
     $stream->assertWritten('TAG2 APPEND "INBOX" (\\Seen) "Hello world"');
 })->with([ImapFlag::Seen, '\\Seen']);
 
@@ -410,7 +432,7 @@ test('delete with expunge also expunges folder', function () {
         '* SEARCH 1 2',
         'TAG2 OK SEARCH completed',
         'TAG3 OK UID STORE completed',
-        'TAG4 OK EXPUNGE completed',
+        'TAG4 OK UID EXPUNGE completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -423,7 +445,7 @@ test('delete with expunge also expunges folder', function () {
 
     expect($count)->toBe(2);
     $stream->assertWritten('TAG3 UID STORE 1:2 +FLAGS.SILENT (\Deleted)');
-    $stream->assertWritten('TAG4 EXPUNGE');
+    $stream->assertWritten('TAG4 UID EXPUNGE 1:2');
 });
 
 test('move moves all matching messages to folder', function () {

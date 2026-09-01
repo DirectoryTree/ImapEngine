@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
@@ -74,16 +75,11 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, mixed $flags = null): int
+    public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
-        $response = $this->connection()->append(
-            $this->folder->path(), $message, (array) Str::enums($flags),
+        return $this->connection()->append(
+            $this->folder->path(), $message, (array) Str::enums($flags), $date,
         );
-
-        return (int) $response // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
-            ->tokenAt(2) // [APPENDUID <uidvalidity> <uid>]
-            ->tokenAt(2) // <uid>
-            ->value;
     }
 
     /**
@@ -209,7 +205,7 @@ class MessageQuery implements MessageQueryInterface
             ->store([ImapFlag::Deleted->value], $uids, mode: '+');
 
         if ($expunge) {
-            $this->folder->expunge();
+            $this->folder->expunge($uids);
         }
     }
 
@@ -231,7 +227,7 @@ class MessageQuery implements MessageQueryInterface
         );
 
         if ($expunge) {
-            $this->folder->expunge();
+            $this->folder->expunge($uids);
         }
 
         return count($uids);
@@ -289,10 +285,6 @@ class MessageQuery implements MessageQueryInterface
         }
 
         $this->connection()->move($folder, $uids);
-
-        if ($expunge) {
-            $this->folder->expunge();
-        }
 
         return count($uids);
     }

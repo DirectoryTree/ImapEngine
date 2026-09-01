@@ -171,7 +171,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->store($flag, $this->uid, mode: $operation);
 
         if ($expunge) {
-            $this->folder->expunge();
+            $this->folder->expunge($this->uid);
         }
 
         $this->flags = match ($operation) {
@@ -214,10 +214,6 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         switch (true) {
             case in_array('MOVE', $capabilities):
                 $response = $mailbox->connection()->move($folder, $this->uid);
-
-                if ($expunge) {
-                    $this->folder->expunge();
-                }
 
                 return MessageResponseParser::getUidFromCopy($response);
 
