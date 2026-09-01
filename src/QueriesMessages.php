@@ -156,7 +156,9 @@ trait QueriesMessages
         return $this->with(...$items);
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public function setFetchOrder(string $fetchOrder): MessageQueryInterface
     {
         $fetchOrder = strtolower($fetchOrder);
