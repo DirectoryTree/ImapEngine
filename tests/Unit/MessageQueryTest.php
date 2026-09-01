@@ -3,12 +3,12 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\MessageQuery;
 
 function query(?Mailbox $mailbox = null): MessageQuery
@@ -58,8 +58,8 @@ test('fetch items can be added and removed', function () {
     $mailbox->connect(new ImapConnection($stream));
 
     query($mailbox)
-        ->with(ImapFetchItem::Flags, ImapFetchItem::Size)
-        ->without(ImapFetchItem::Flags)
+        ->with(MessageData::flags(), MessageData::size())
+        ->without(MessageData::flags())
         ->get();
 
     $stream->assertWritten('TAG3 UID FETCH 1 (RFC822.SIZE)');
@@ -86,9 +86,8 @@ test('fetch items can be replaced', function () {
     $mailbox->connect(new ImapConnection($stream));
 
     query($mailbox)
-        ->with(ImapFetchItem::Flags)
-        ->only(ImapFetchItem::Headers, ImapFetchItem::Body)
-        ->markAsRead()
+        ->with(MessageData::flags())
+        ->only(MessageData::headers(), MessageData::text())
         ->get();
 
     $stream->assertWritten('TAG3 UID FETCH 1 (BODY[HEADER] BODY[TEXT])');

@@ -7,8 +7,8 @@ use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -16,16 +16,6 @@ use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
  */
 interface MessageQueryInterface
 {
-    /**
-     * Don't mark messages as read when fetching.
-     */
-    public function leaveUnread(): MessageQueryInterface;
-
-    /**
-     * Mark all messages as read when fetching.
-     */
-    public function markAsRead(): MessageQueryInterface;
-
     /**
      * Set the limit and page for the current query.
      */
@@ -54,17 +44,17 @@ interface MessageQueryInterface
     /**
      * Add items to the message FETCH request.
      */
-    public function with(ImapFetchItem ...$items): static;
+    public function with(FetchItem ...$items): static;
 
     /**
      * Remove items from the message FETCH request.
      */
-    public function without(ImapFetchItem ...$items): static;
+    public function without(FetchItem ...$items): static;
 
     /**
      * Replace the items in the message FETCH request.
      */
-    public function only(ImapFetchItem ...$items): static;
+    public function only(FetchItem ...$items): static;
 
     /**
      * Set the fetch order.

@@ -11,10 +11,10 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
@@ -350,7 +350,7 @@ class MessageQuery implements MessageQueryInterface
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
         $fetch = array_map(
-            fn (ImapFetchItem $item) => $item->command($this->fetchAsUnread),
+            fn (FetchItem $item) => $item->toImap(),
             $this->fetchItems,
         );
 

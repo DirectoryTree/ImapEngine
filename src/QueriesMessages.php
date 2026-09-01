@@ -3,8 +3,8 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use Illuminate\Support\Traits\Conditionable;
 
@@ -30,7 +30,7 @@ trait QueriesMessages
     /**
      * The items to include in message FETCH requests.
      *
-     * @var array<string, ImapFetchItem>
+     * @var array<string, FetchItem>
      */
     protected array $fetchItems = [];
 
@@ -40,11 +40,6 @@ trait QueriesMessages
      * @var 'asc'|'desc'
      */
     protected string $fetchOrder = 'desc';
-
-    /**
-     * Whether to leave messages fetched as unread by default.
-     */
-    protected bool $fetchAsUnread = true;
 
     /**
      * The methods that should be returned from query builder.
@@ -73,26 +68,6 @@ trait QueriesMessages
         }
 
         $this->forwardCallTo($this->query, $method, $parameters);
-
-        return $this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function leaveUnread(): MessageQueryInterface
-    {
-        $this->fetchAsUnread = true;
-
-        return $this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function markAsRead(): MessageQueryInterface
-    {
-        $this->fetchAsUnread = false;
 
         return $this;
     }
@@ -150,10 +125,10 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function with(ImapFetchItem ...$items): static
+    public function with(FetchItem ...$items): static
     {
         foreach ($items as $item) {
-            $this->fetchItems[$item->value] = $item;
+            $this->fetchItems[$item->key()] = $item;
         }
 
         return $this;
@@ -162,10 +137,10 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function without(ImapFetchItem ...$items): static
+    public function without(FetchItem ...$items): static
     {
         foreach ($items as $item) {
-            unset($this->fetchItems[$item->value]);
+            unset($this->fetchItems[$item->key()]);
         }
 
         return $this;
@@ -174,7 +149,7 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function only(ImapFetchItem ...$items): static
+    public function only(FetchItem ...$items): static
     {
         $this->fetchItems = [];
 

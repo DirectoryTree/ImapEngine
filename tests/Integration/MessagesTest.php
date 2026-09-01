@@ -3,9 +3,9 @@
 use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
-use DirectoryTree\ImapEngine\Enums\ImapFetchItem;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
+use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\MessageQuery;
 use Illuminate\Support\ItemNotFoundException;
 
@@ -142,10 +142,10 @@ test('get with fetches', function (callable $callback) {
     expect($messages->count())->toBe(1);
     expect($messages->first()->uid())->toBe($uid);
 })->with([
-    fn (MessageQuery $query) => $query->with(ImapFetchItem::Body),
-    fn (MessageQuery $query) => $query->with(ImapFetchItem::Flags),
-    fn (MessageQuery $query) => $query->with(ImapFetchItem::Headers),
-    fn (MessageQuery $query) => $query->with(ImapFetchItem::Size),
+    fn (MessageQuery $query) => $query->with(MessageData::text()->peek()),
+    fn (MessageQuery $query) => $query->with(MessageData::flags()),
+    fn (MessageQuery $query) => $query->with(MessageData::headers()->peek()),
+    fn (MessageQuery $query) => $query->with(MessageData::size()),
 ]);
 
 test('get with size', function () {
@@ -165,7 +165,7 @@ test('get with size', function () {
     expect($messagesWithoutSize->first()->size())->toBeNull();
 
     // Fetch with size - should have a value
-    $messagesWithSize = $folder->messages()->with(ImapFetchItem::Size)->get();
+    $messagesWithSize = $folder->messages()->with(MessageData::size())->get();
     $message = $messagesWithSize->first();
 
     expect($message->size())->toBeInt();
@@ -189,7 +189,7 @@ test('size reflects actual message size', function () {
     $uid1 = $folder->messages()->append($shortMessage)->uid();
     $uid2 = $folder->messages()->append($longMessage)->uid();
 
-    $messages = $folder->messages()->with(ImapFetchItem::Size)->get();
+    $messages = $folder->messages()->with(MessageData::size())->get();
 
     $short = $messages->find($uid1);
     $long = $messages->find($uid2);
@@ -221,9 +221,9 @@ test('append', function () {
 
     $message = $messages
         ->with(
-            ImapFetchItem::Headers,
-            ImapFetchItem::Flags,
-            ImapFetchItem::Body,
+            MessageData::headers()->peek(),
+            MessageData::flags(),
+            MessageData::text()->peek(),
         )
         ->find($uid);
 
@@ -252,17 +252,17 @@ test('flag', function () {
     )->uid();
 
     // Initially, message should not be marked as seen.
-    $message = $messages->with(ImapFetchItem::Flags)->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeFalse();
 
     // Mark message as seen.
     $message->markSeen();
-    $message = $messages->with(ImapFetchItem::Flags)->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeTrue();
 
     // Unmark message as seen.
     $message->unmarkSeen();
-    $message = $messages->with(ImapFetchItem::Flags)->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeFalse();
 });
 
@@ -278,7 +278,7 @@ test('copy', function () {
         )
     )->uid();
 
-    $message = $messages->with(ImapFetchItem::Headers, ImapFetchItem::Body)->find($uid);
+    $message = $messages->with(MessageData::headers()->peek(), MessageData::text()->peek())->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
         $targetFolderName = uniqid()
@@ -290,7 +290,7 @@ test('copy', function () {
     expect($newUid)->toBeGreaterThan(0);
 
     $copiedMessage = $targetFolder->messages()
-        ->with(ImapFetchItem::Body, ImapFetchItem::Headers)
+        ->with(MessageData::text()->peek(), MessageData::headers()->peek())
         ->findOrFail($newUid);
 
     expect($copiedMessage->from()->email())->toBe('foo@email.com');
@@ -309,7 +309,7 @@ test('move', function () {
         )
     )->uid();
 
-    $message = $messages->with(ImapFetchItem::Headers, ImapFetchItem::Body)->find($uid);
+    $message = $messages->with(MessageData::headers()->peek(), MessageData::text()->peek())->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
         $targetFolderName = uniqid()
@@ -318,7 +318,7 @@ test('move', function () {
     expect($message->move($targetFolderName))->toBeNull();
 
     $targetMessages = $targetFolder->messages()
-        ->with(ImapFetchItem::Headers, ImapFetchItem::Body)
+        ->with(MessageData::headers()->peek(), MessageData::text()->peek())
         ->get();
 
     expect($folder->messages()->count())->toBe(0);
@@ -345,7 +345,7 @@ test('delete', function () {
 
     $message->delete();
 
-    expect($messages->with(ImapFetchItem::Flags)->find($uid)->isDeleted())->toBeTrue();
+    expect($messages->with(MessageData::flags())->find($uid)->isDeleted())->toBeTrue();
 });
 
 test('retrieves messages using or statement', function () {
@@ -419,11 +419,10 @@ test('marks messages as read when fetching', function () {
     )->uid();
 
     $folder->messages()
-        ->markAsRead()
-        ->with(ImapFetchItem::Headers)
+        ->with(MessageData::headers())
         ->get();
 
-    $message = $folder->messages()->with(ImapFetchItem::Flags)->find($uid);
+    $message = $folder->messages()->with(MessageData::flags())->find($uid);
 
     expect($message->isSeen())->toBeTrue();
 });
@@ -439,11 +438,10 @@ test('leaves messages unread when fetching', function () {
     )->uid();
 
     $folder->messages()
-        ->leaveUnread()
-        ->with(ImapFetchItem::Headers)
+        ->with(MessageData::headers()->peek())
         ->get();
 
-    $message = $folder->messages()->with(ImapFetchItem::Flags)->find($uid);
+    $message = $folder->messages()->with(MessageData::flags())->find($uid);
 
     expect($message->isSeen())->toBeFalse();
 });
@@ -460,7 +458,7 @@ test('querying for unseen messages', function () {
 
     expect($folder->messages()->unseen()->count())->toBe(1);
 
-    $folder->messages()->with(ImapFetchItem::Flags)->find($uid)->markSeen();
+    $folder->messages()->with(MessageData::flags())->find($uid)->markSeen();
 
     expect($folder->messages()->unseen()->count())->toBe(0);
 });
