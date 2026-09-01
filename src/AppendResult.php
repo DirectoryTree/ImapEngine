@@ -6,6 +6,9 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
+/**
+ * @see https://datatracker.ietf.org/doc/html/rfc4315#section-3
+ */
 class AppendResult
 {
     /**
