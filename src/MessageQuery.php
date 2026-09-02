@@ -71,7 +71,7 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->orderedUids());
+        return $this->process($this->uids());
     }
 
     /**
@@ -107,7 +107,7 @@ class MessageQuery implements MessageQueryInterface
         $chunkSize = max($chunkSize, 1);
 
         // Get all ordered result tokens once.
-        $messages = $this->orderedUids();
+        $messages = $this->uids();
 
         // Calculate how many chunks there are
         $totalChunks = (int) ceil($messages->count() / $chunkSize);
@@ -376,7 +376,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Get the ordered message UIDs.
      */
-    protected function orderedUids(): Collection
+    protected function uids(): Collection
     {
         return match (true) {
             $this->ordering instanceof UidOrder => $this->search(),
