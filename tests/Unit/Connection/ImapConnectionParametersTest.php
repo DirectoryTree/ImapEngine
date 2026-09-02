@@ -158,7 +158,7 @@ test('sort accepts an explicit charset separately from criteria', function () {
     $connection->connect('imap.example.com');
     $connection->sort(new ImapSort(new SortCriterion(ImapSortKey::Arrival)), ['ALL'], charset: 'US-ASCII');
 
-    $stream->assertWritten('TAG1 UID SORT (ARRIVAL) "US-ASCII" ALL');
+    $stream->assertWritten('TAG1 UID SORT (ARRIVAL) US-ASCII ALL');
 });
 
 test('list supports selection options multiple patterns and status return data', function () {

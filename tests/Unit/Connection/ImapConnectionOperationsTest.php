@@ -174,7 +174,7 @@ test('sort supports both identifier types', function (ImapIdentifier $identifier
 
     $response = $connection->sort($sort, ['ALL'], identifier: $identifier);
 
-    $stream->assertWritten("TAG1 $command (ARRIVAL) \"UTF-8\" ALL");
+    $stream->assertWritten("TAG1 $command (ARRIVAL) UTF-8 ALL");
     expect((string) $response)->toBe('* SORT 3 2');
 })->with([
     [ImapIdentifier::Uid, 'UID SORT'],

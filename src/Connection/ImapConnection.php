@@ -536,7 +536,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function sort(ImapSort $sort, array $criteria, ImapIdentifier $identifier = ImapIdentifier::Uid, string $charset = 'UTF-8'): UntaggedResponse
     {
-        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", Str::literal($charset), ...$criteria], tag: $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", $charset, ...$criteria], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
