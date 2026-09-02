@@ -75,6 +75,36 @@ class MessageQuery implements MessageQueryInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges
+    {
+        $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';
+
+        $mailbox = $this->folder->mailbox();
+
+        $supported = $mailbox->hasCapability($capability)
+            || ($capability === 'CONDSTORE' && $mailbox->hasCapability('QRESYNC'));
+
+        if (! $supported) {
+            throw new ImapCapabilityException(
+                "Unable to fetch message changes. IMAP server does not support $capability capability."
+            );
+        }
+
+        $items = array_map(
+            fn (FetchItem $item) => $item->toImap(),
+            $this->fetchItems,
+        );
+
+        if (empty($items)) {
+            $items[] = MessageData::flags()->toImap();
+        }
+
+        return $this->connection()->fetchChanges($items, $uids, $modSequence, $vanished);
+    }
+
+    /**
      * Append a new message to the folder.
      */
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
@@ -356,7 +386,7 @@ class MessageQuery implements MessageQueryInterface
 
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
-                $uid => new FetchedMessageData((int) $uid),
+                $uid => new FetchedMessageData(['UID' => (int) $uid]),
             ])->all();
         }
 

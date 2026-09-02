@@ -95,6 +95,11 @@ interface MessageQueryInterface
     public function get(): MessageCollection;
 
     /**
+     * Get messages changed after the given modification sequence.
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges;
+
+    /**
      * Append a new message to the folder.
      */
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult;

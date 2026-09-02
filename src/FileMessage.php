@@ -35,6 +35,14 @@ class FileMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
+    public function modSequence(): ?int
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
         throw new BadMethodCallException('FileMessage does not support flagging');

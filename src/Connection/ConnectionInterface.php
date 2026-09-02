@@ -9,6 +9,10 @@ use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\ImapSort;
+use DirectoryTree\ImapEngine\MessageChanges;
+use DirectoryTree\ImapEngine\SelectionOption;
+use DirectoryTree\ImapEngine\SelectionResult;
+use DirectoryTree\ImapEngine\StoreResult;
 use Generator;
 
 interface ConnectionInterface
@@ -86,6 +90,13 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-noop-command
      */
     public function noop(): TaggedResponse;
+
+    /**
+     * Send an "ENABLE" command.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc5161
+     */
+    public function enable(string ...$capabilities): ResponseCollection;
 
     /**
      * Send a "EXPUNGE" command.
@@ -196,6 +207,11 @@ interface ConnectionInterface
     public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection;
 
     /**
+     * Fetch messages changed after the given modification sequence.
+     */
+    public function fetchChanges(array|string $items, array|int $uids, int $modSequence, bool $vanished = false): MessageChanges;
+
+    /**
      * Send a "RFC822.SIZE" command.
      *
      * Fetch message sizes for one or more messages.
@@ -216,7 +232,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-select-command
      */
-    public function select(string $folder): ResponseCollection;
+    public function select(string $folder, SelectionOption ...$options): SelectionResult;
 
     /**
      * Send a "EXAMINE" command.
@@ -225,7 +241,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-examine-command
      */
-    public function examine(string $folder): ResponseCollection;
+    public function examine(string $folder, SelectionOption ...$options): SelectionResult;
 
     /**
      * Send a "LIST" command.
@@ -253,6 +269,11 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
      */
     public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection;
+
+    /**
+     * Store flags only when messages have not changed after the given modification sequence.
+     */
+    public function storeConditionally(array|string $flags, array|int $uids, int $unchangedSince, ?string $mode = null, bool $silent = true): StoreResult;
 
     /**
      * Send a "APPEND" command.

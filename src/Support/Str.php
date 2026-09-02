@@ -99,6 +99,32 @@ class Str
     }
 
     /**
+     * Expand an IMAP sequence set into its individual values.
+     *
+     * @return int[]
+     */
+    public static function parseSequenceSet(string $set): array
+    {
+        $values = [];
+
+        foreach (explode(',', $set) as $sequence) {
+            if (! str_contains($sequence, ':')) {
+                $values[] = (int) $sequence;
+
+                continue;
+            }
+
+            [$start, $end] = array_map('intval', explode(':', $sequence, 2));
+
+            foreach (range($start, $end) as $value) {
+                $values[] = $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
      * Convert the values into an IMAP sequence set.
      *
      * @param  array<int, int|string>  $values

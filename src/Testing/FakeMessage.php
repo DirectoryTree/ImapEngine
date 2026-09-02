@@ -23,6 +23,7 @@ class FakeMessage implements MessageInterface
         protected string $contents = '',
         protected ?int $size = null,
         protected ?BodyStructureCollection $bodyStructure = null,
+        protected ?int $modSequence = null,
     ) {}
 
     /**
@@ -39,6 +40,14 @@ class FakeMessage implements MessageInterface
     public function size(): int
     {
         return $this->size ?? strlen($this->contents);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function modSequence(): ?int
+    {
+        return $this->modSequence;
     }
 
     /**

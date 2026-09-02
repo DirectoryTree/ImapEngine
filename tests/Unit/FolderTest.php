@@ -5,6 +5,24 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
+test('it examines a folder using the typed selection result', function () {
+    $mailbox = Mailbox::make();
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 3 EXISTS',
+        '* OK [UIDVALIDITY 777] UIDs valid',
+        'TAG2 OK EXAMINE completed',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX');
+
+    expect($folder->examine())->toBe([
+        ['*', '3', 'EXISTS'],
+        ['*', 'OK', ['UIDVALIDITY', '777'], 'UIDs', 'valid'],
+    ]);
+});
+
 test('it properly decodes name from UTF-7', function () {
     $mailbox = Mailbox::make();
 

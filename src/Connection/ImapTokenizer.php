@@ -122,6 +122,17 @@ class ImapTokenizer
             return $this->readLiteral();
         }
 
+        // BINARY fetch responses use the same literal framing with a "~" prefix.
+        if ($char === '~') {
+            $this->ensureBuffer(2);
+
+            if (substr($this->buffer, $this->position, 2) === '~{') {
+                $this->advance();
+
+                return $this->readLiteral();
+            }
+        }
+
         // Otherwise, parse a number or atom.
         return $this->readNumberOrAtom();
     }

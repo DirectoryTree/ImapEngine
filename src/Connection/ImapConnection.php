@@ -23,6 +23,10 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\ImapSort;
+use DirectoryTree\ImapEngine\MessageChanges;
+use DirectoryTree\ImapEngine\SelectionOption;
+use DirectoryTree\ImapEngine\SelectionResult;
+use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
@@ -224,29 +228,52 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function select(string $folder = 'INBOX'): ResponseCollection
+    public function enable(string ...$capabilities): ResponseCollection
     {
-        return $this->examineOrSelect('SELECT', $folder);
+        $this->send('ENABLE', $capabilities, $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        return $this->result->responses()->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('ENABLED')
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function examine(string $folder = 'INBOX'): ResponseCollection
+    public function select(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult
     {
-        return $this->examineOrSelect('EXAMINE', $folder);
+        return $this->examineOrSelect('SELECT', $folder, $options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function examine(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult
+    {
+        return $this->examineOrSelect('EXAMINE', $folder, $options);
     }
 
     /**
      * Examine and select have the same response.
      */
-    protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX'): ResponseCollection
+    protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX', array $options = []): SelectionResult
     {
-        $this->send($command, [Str::literal($folder)], $tag);
+        $tokens = [Str::literal($folder)];
+
+        if ($options) {
+            $tokens[] = Str::list(array_map(
+                fn (SelectionOption $option) => $option->toImap(),
+                $options,
+            ));
+        }
+
+        $this->send($command, $tokens, $tag);
 
         $this->assertTaggedResponse($tag);
 
-        return $this->result->responses()->untagged();
+        return SelectionResult::fromResponses($this->result->responses());
     }
 
     /**
@@ -439,6 +466,30 @@ class ImapConnection implements ConnectionInterface
         return $silent ? new ResponseCollection : $this->result->responses()->untagged()->filter(
             fn (UntaggedResponse $response) => $response->type()->is('FETCH')
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function storeConditionally(array|string $flags, array|int $uids, int $unchangedSince, ?string $mode = null, bool $silent = true): StoreResult
+    {
+        $item = ($mode === '-' ? '-' : '+').'FLAGS'.($silent ? '.SILENT' : '');
+
+        $this->send('UID STORE', [
+            Str::set($uids),
+            Str::list(['UNCHANGEDSINCE', $unchangedSince]),
+            $item,
+            Str::list((array) $flags),
+        ], $tag);
+
+        $response = $this->taggedResponse($tag);
+        $result = StoreResult::fromResponses($this->result->responses(), $response);
+
+        if ($response->status()->is('BAD') || ($response->failed() && empty($result->modified()))) {
+            throw ImapCommandException::make($this->result->command(), $response);
+        }
+
+        return $result;
     }
 
     /**
@@ -707,6 +758,28 @@ class ImapConnection implements ConnectionInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function fetchChanges(array|string $items, array|int $uids, int $modSequence, bool $vanished = false): MessageChanges
+    {
+        $modifiers = ['CHANGEDSINCE', $modSequence];
+
+        if ($vanished) {
+            $modifiers[] = 'VANISHED';
+        }
+
+        $this->send('UID FETCH', [
+            Str::set($uids),
+            Str::list((array) $items),
+            Str::list($modifiers),
+        ], $tag);
+
+        $this->assertTaggedResponse($tag);
+
+        return MessageChanges::fromResponses($this->result->responses());
+    }
+
+    /**
      * Set the current result instance.
      */
     protected function setResult(Result $result): void
@@ -754,6 +827,21 @@ class ImapConnection implements ConnectionInterface
             $exception ?? fn (TaggedResponse $response) => (
                 ImapCommandException::make($this->result->command(), $response)
             ),
+        );
+
+        return $response;
+    }
+
+    /**
+     * Get the tagged response for the given command without asserting its status.
+     */
+    protected function taggedResponse(string $tag): TaggedResponse
+    {
+        /** @var TaggedResponse $response */
+        $response = $this->assertNextResponse(
+            fn (Response $response) => $response instanceof TaggedResponse && $response->tag()->is($tag),
+            fn (TaggedResponse $response) => true,
+            fn (TaggedResponse $response) => ImapCommandException::make($this->result->command(), $response),
         );
 
         return $response;

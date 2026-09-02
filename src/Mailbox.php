@@ -2,12 +2,14 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Loggers\EchoLogger;
 use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use Exception;
 
 class Mailbox implements MailboxInterface
@@ -48,6 +50,16 @@ class Mailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
+     * The result from the currently selected folder.
+     */
+    protected ?SelectionResult $selection = null;
+
+    /**
+     * The capabilities enabled for the current connection.
+     */
+    protected array $enabled = [];
+
+    /**
      * The mailbox connection.
      */
     protected ?ConnectionInterface $connection = null;
@@ -66,6 +78,9 @@ class Mailbox implements MailboxInterface
     public function __clone(): void
     {
         $this->connection = null;
+        $this->selected = null;
+        $this->selection = null;
+        $this->enabled = [];
     }
 
     /**
@@ -177,6 +192,9 @@ class Mailbox implements MailboxInterface
             // Do nothing.
         } finally {
             $this->connection = null;
+            $this->selected = null;
+            $this->selection = null;
+            $this->enabled = [];
         }
     }
 
@@ -215,13 +233,52 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function select(FolderInterface $folder, bool $force = false): void
+    public function enable(string ...$capabilities): ResponseCollection
     {
-        if (! $this->selected($folder) || $force) {
-            $this->connection()->select($folder->path());
+        foreach ($capabilities as $capability) {
+            if (! $this->hasCapability($capability)) {
+                throw new ImapCapabilityException(
+                    "Unable to enable capability [$capability]. IMAP server does not support it."
+                );
+            }
+        }
+
+        $capabilities = array_values(array_diff($capabilities, $this->enabled));
+
+        if (empty($capabilities)) {
+            return new ResponseCollection;
+        }
+
+        $responses = $this->connection()->enable(...$capabilities);
+        $this->enabled = array_unique([...$this->enabled, ...$capabilities]);
+
+        return $responses;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult
+    {
+        foreach ($options as $option) {
+            if (! $this->hasCapability($option->capability())) {
+                throw new ImapCapabilityException(
+                    "Unable to select folder with [{$option->capability()}]. IMAP server does not support it."
+                );
+            }
+
+            if ($option->capability() === 'QRESYNC') {
+                $this->enable('QRESYNC');
+            }
+        }
+
+        if (! $this->selected($folder) || $force || $options) {
+            $this->selection = $this->connection()->select($folder->path(), ...$options);
         }
 
         $this->selected = $folder;
+
+        return $this->selection ?? new SelectionResult;
     }
 
     /**

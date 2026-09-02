@@ -2,12 +2,15 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\HasCapabilities;
 use DirectoryTree\ImapEngine\MailboxInterface;
+use DirectoryTree\ImapEngine\SelectionOption;
+use DirectoryTree\ImapEngine\SelectionResult;
 
 class FakeMailbox implements MailboxInterface
 {
@@ -111,9 +114,19 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function select(FolderInterface $folder, bool $force = false): void
+    public function enable(string ...$capabilities): ResponseCollection
+    {
+        return new ResponseCollection;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult
     {
         $this->selected = $folder;
+
+        return new SelectionResult;
     }
 
     /**

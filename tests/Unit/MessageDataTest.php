@@ -10,6 +10,7 @@ test('it creates fixed message data items', function (FetchItem $item, string $c
     [MessageData::flags(), 'FLAGS'],
     [MessageData::size(), 'RFC822.SIZE'],
     [MessageData::bodyStructure(), 'BODYSTRUCTURE'],
+    [MessageData::modSequence(), 'MODSEQ'],
 ]);
 
 test('it creates body section data items', function (FetchItem $item, string $command) {

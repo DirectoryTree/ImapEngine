@@ -10,6 +10,8 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\FetchedMessageData;
+use DirectoryTree\ImapEngine\MessageChanges;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -38,6 +40,27 @@ class FakeMessageQuery implements MessageQueryInterface
         return $this->applyOrdering(new MessageCollection(
             $this->folder->getMessages()
         ));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges
+    {
+        $uids = (array) $uids;
+
+        $messages = collect($this->folder->getMessages())
+            ->filter(fn (FakeMessage $message) => in_array($message->uid(), $uids, true))
+            ->filter(fn (FakeMessage $message) => ($message->modSequence() ?? 0) > $modSequence)
+            ->map(fn (FakeMessage $message) => new FetchedMessageData([
+                'UID' => $message->uid(),
+                'FLAGS' => $message->flags(),
+                'MODSEQ' => [$message->modSequence()],
+            ]))
+            ->values()
+            ->all();
+
+        return new MessageChanges($messages);
     }
 
     /**

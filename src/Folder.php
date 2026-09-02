@@ -85,7 +85,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function messages(): MessageQuery
     {
         // Ensure the folder is selected.
-        $this->select(true);
+        $this->select();
 
         return new MessageQuery($this, new ImapQueryBuilder);
     }
@@ -173,9 +173,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false): void
+    public function select(bool $force = false, SelectionOption ...$options): SelectionResult
     {
-        $this->mailbox->select($this, $force);
+        return $this->mailbox->select($this, $force, ...$options);
     }
 
     /**
@@ -233,7 +233,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()->examine($this->path)->map(
+        return $this->mailbox->connection()->examine($this->path)->responses()->untagged()->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }

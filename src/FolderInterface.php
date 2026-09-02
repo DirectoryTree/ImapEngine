@@ -59,7 +59,7 @@ interface FolderInterface
     /**
      * Select the current folder.
      */
-    public function select(bool $force = false): void;
+    public function select(bool $force = false, SelectionOption ...$options): SelectionResult;
 
     /**
      * Get the folder's quotas.

@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 
 interface MailboxInterface
@@ -57,9 +58,14 @@ interface MailboxInterface
     public function hasCapability(string $capability): bool;
 
     /**
+     * Enable the given mailbox capabilities for the current connection.
+     */
+    public function enable(string ...$capabilities): ResponseCollection;
+
+    /**
      * Select the given folder.
      */
-    public function select(FolderInterface $folder, bool $force = false): void;
+    public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult;
 
     /**
      * Determine if the given folder is selected.
