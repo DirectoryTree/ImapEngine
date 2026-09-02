@@ -468,7 +468,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         $response = $this->folder->mailbox()
             ->connection()
-            ->bodyPart($partNumber, $this->uid(), $peek);
+            ->fetch($peek ? "BODY.PEEK[$partNumber]" : "BODY[$partNumber]", $this->uid());
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;
@@ -538,7 +538,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->bodyHeader($this->uid());
+            ->fetch('BODY.PEEK[HEADER]', $this->uid());
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;
@@ -557,7 +557,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->bodyStructure($this->uid());
+            ->fetch('BODYSTRUCTURE', $this->uid());
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;

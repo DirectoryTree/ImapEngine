@@ -569,7 +569,7 @@ test('uid fetch with uid', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->uid(1, ImapFetchIdentifier::Uid);
+    $responses = $connection->fetch('UID', 1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (UID)');
 
@@ -590,7 +590,7 @@ test('uid fetch with message number', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->uid(1, ImapFetchIdentifier::MessageNumber);
+    $responses = $connection->fetch('UID', 1, identifier: ImapFetchIdentifier::MessageNumber);
 
     $stream->assertWritten('TAG1 FETCH 1 (UID)');
 
@@ -613,7 +613,7 @@ test('text fetch with peek', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->bodyText(1);
+    $responses = $connection->fetch('BODY.PEEK[TEXT]', 1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[TEXT])');
 
@@ -634,7 +634,7 @@ test('header fetch with peek', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->bodyHeader(1);
+    $responses = $connection->fetch('BODY.PEEK[HEADER]', 1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[HEADER])');
 
@@ -654,7 +654,7 @@ test('flags fetch', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->flags(1);
+    $responses = $connection->fetch('FLAGS', 1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (FLAGS)');
 
@@ -674,7 +674,7 @@ test('sizes fetch', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->size(1);
+    $responses = $connection->fetch('RFC822.SIZE', 1);
 
     $stream->assertWritten('TAG1 UID FETCH 1 (RFC822.SIZE)');
 

@@ -204,6 +204,36 @@ test('partial body sections are not treated as complete cached parts', function 
     $stream->assertWritten('TAG2 UID FETCH 7 (BODY.PEEK[1.2])');
 });
 
+test('body structure is fetched lazily and cached on the message', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (UID 7 BODYSTRUCTURE ("text" "plain" NIL NIL NIL "7bit" 7 1))',
+        'TAG2 OK FETCH completed',
+    ]);
+
+    $mailbox = new Mailbox;
+    $mailbox->connect(new ImapConnection($stream));
+    $message = new Message(new Folder($mailbox, 'INBOX'), new FetchedMessageData([
+        'UID' => 7,
+        'FLAGS' => ['\\Seen'],
+    ]));
+
+    expect($message->bodyStructure())->toBeNull();
+    $stream->assertNotWritten('TAG2');
+
+    $structure = $message->bodyStructure(fetch: true);
+
+    expect($structure)->not->toBeNull();
+    expect($message->hasBodyStructure())->toBeTrue();
+    expect($message->flags())->toBe(['\\Seen']);
+    expect($message->bodyStructure(fetch: true))->toBe($structure);
+    $stream->assertWritten('TAG2 UID FETCH 7 (BODYSTRUCTURE)');
+    $stream->assertNotWritten('TAG3');
+});
+
 test('empty fetched headers do not trigger repeated fetches', function () {
     $stream = new FakeStream;
     $stream->open();

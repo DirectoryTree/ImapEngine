@@ -145,60 +145,6 @@ interface ConnectionInterface
     public function id(?array $ids = null): UntaggedResponse;
 
     /**
-     * Send a "FETCH UID" command.
-     *
-     * Fetch message UIDs using the given message numbers.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#name-uid-command
-     */
-    public function uid(int|array $ids, ImapFetchIdentifier $identifier): FetchResult;
-
-    /**
-     * Send a "FETCH BODY[TEXT]" command.
-     *
-     * Fetch message text contents.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
-     */
-    public function bodyText(int|array $ids, bool $peek = true): FetchResult;
-
-    /**
-     * Send a "FETCH BODY[HEADER]" command.
-     *
-     * Fetch message headers.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
-     */
-    public function bodyHeader(int|array $ids, bool $peek = true): FetchResult;
-
-    /**
-     * Send a "FETCH BODYSTRUCTURE" command.
-     *
-     * Fetch message body structure.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
-     */
-    public function bodyStructure(int|array $ids): FetchResult;
-
-    /**
-     * Send a "FETCH BODY[i]" command.
-     *
-     * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
-     */
-    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): FetchResult;
-
-    /**
-     * Send a "FETCH FLAGS" command.
-     *
-     * Fetch a message flags.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.17
-     */
-    public function flags(int|array $ids): FetchResult;
-
-    /**
      * Send a "FETCH" command.
      *
      * Fetch one or more items for one or more messages.
@@ -207,15 +153,6 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
      */
     public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
-
-    /**
-     * Send a "RFC822.SIZE" command.
-     *
-     * Fetch message sizes for one or more messages.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
-     */
-    public function size(int|array $ids): FetchResult;
 
     /**
      * Send an IMAP command.

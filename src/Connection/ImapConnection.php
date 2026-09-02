@@ -496,64 +496,6 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function uid(int|array $ids, ImapFetchIdentifier $identifier): FetchResult
-    {
-        return $this->fetch(['UID'], (array) $ids, null, $identifier);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function bodyText(int|array $ids, bool $peek = true): FetchResult
-    {
-        return $this->fetch([$peek ? 'BODY.PEEK[TEXT]' : 'BODY[TEXT]'], (array) $ids);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function bodyHeader(int|array $ids, bool $peek = true): FetchResult
-    {
-        return $this->fetch([$peek ? 'BODY.PEEK[HEADER]' : 'BODY[HEADER]'], (array) $ids);
-    }
-
-    /**
-     * Fetch the BODYSTRUCTURE for the given message(s).
-     */
-    public function bodyStructure(int|array $ids): FetchResult
-    {
-        return $this->fetch(['BODYSTRUCTURE'], (array) $ids);
-    }
-
-    /**
-     * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
-     */
-    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): FetchResult
-    {
-        $part = $peek ? "BODY.PEEK[$partIndex]" : "BODY[$partIndex]";
-
-        return $this->fetch([$part], (array) $ids);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function flags(int|array $ids): FetchResult
-    {
-        return $this->fetch(['FLAGS'], (array) $ids);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function size(int|array $ids): FetchResult
-    {
-        return $this->fetch(['RFC822.SIZE'], (array) $ids);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function search(array $params): UntaggedResponse
     {
         $this->send('UID SEARCH', $params, tag: $tag);

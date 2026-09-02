@@ -454,7 +454,7 @@ class MessageQuery implements MessageQueryInterface
     protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?FetchedMessageData
     {
         try {
-            return $this->connection()->uid([$id], $identifier)->messages()[0] ?? null;
+            return $this->connection()->fetch('UID', $id, identifier: $identifier)->messages()[0] ?? null;
         } catch (ImapCommandException $e) {
             // IMAP servers may return an error if the message number is not found.
             // If the identifier being used is a message number, and the message
