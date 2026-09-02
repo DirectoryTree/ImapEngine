@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+
 interface FolderRepositoryInterface
 {
     /**
