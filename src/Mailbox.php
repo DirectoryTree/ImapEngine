@@ -250,6 +250,7 @@ class Mailbox implements MailboxInterface
         }
 
         $responses = $this->connection()->enable(...$capabilities);
+
         $this->enabled = array_unique([...$this->enabled, ...$capabilities]);
 
         return $responses;
