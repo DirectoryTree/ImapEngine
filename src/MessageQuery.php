@@ -419,10 +419,9 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->sort(
-            $sort,
-            [$this->query->toImap()]
-        );
+        $response = $this->connection()->sort($sort, [
+            $this->query->toImap(),
+        ]);
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
