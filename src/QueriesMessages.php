@@ -7,6 +7,7 @@ use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Traits\Conditionable;
 
 trait QueriesMessages
@@ -150,9 +151,7 @@ trait QueriesMessages
         SortDirection|string $direction = SortDirection::Ascending,
     ): static {
         $this->ordering = new UidOrder(
-            is_string($direction)
-                ? SortDirection::from(strtolower($direction))
-                : $direction,
+            SortDirection::from(strtolower(Str::enum($direction))),
         );
 
         return $this;
@@ -165,13 +164,9 @@ trait QueriesMessages
         ImapSortKey|string $key,
         SortDirection|string $direction = SortDirection::Ascending,
     ): static {
-        $key = is_string($key)
-            ? ImapSortKey::from(strtoupper($key))
-            : $key;
+        $key = ImapSortKey::from(strtoupper(Str::enum($key)));
 
-        $direction = is_string($direction)
-            ? SortDirection::from(strtolower($direction))
-            : $direction;
+        $direction = SortDirection::from(strtolower(Str::enum($direction)));
 
         $criterion = new SortCriterion($key, $direction);
 
