@@ -58,7 +58,11 @@ class Str
             return ['()'];
         }
 
-        $tokens = array_map(fn (?string $value) => $value === null ? 'NIL' : static::literal($value), array_values($values));
+        $tokens = array_map(
+            fn (?string $value) => is_null($value) ? 'NIL' : static::literal($value),
+            array_values($values)
+        );
+
         $last = count($tokens) - 1;
 
         if (is_array($tokens[0])) {

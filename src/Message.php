@@ -159,7 +159,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function hasBodyStructure(): bool
     {
-        return $this->data->bodyStructure() !== null;
+        return ! is_null($this->data->bodyStructure());
     }
 
     /**

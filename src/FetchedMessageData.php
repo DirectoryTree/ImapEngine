@@ -17,8 +17,9 @@ class FetchedMessageData implements Arrayable
     /**
      * Constructor.
      */
-    public function __construct(protected array $attributes = [])
-    {
+    public function __construct(
+        protected array $attributes = []
+    ) {
         $this->attributes = array_change_key_case($attributes, CASE_UPPER);
     }
 
@@ -38,6 +39,7 @@ class FetchedMessageData implements Arrayable
         }
 
         $tokens = $data->tokens();
+
         $attributes = [];
 
         for ($index = 0; $index < count($tokens);) {
@@ -130,7 +132,9 @@ class FetchedMessageData implements Arrayable
      */
     public function size(): ?int
     {
-        return ($size = $this->get('RFC822.SIZE')) !== null ? (int) $size : null;
+        $size = $this->get('RFC822.SIZE');
+
+        return is_null($size) ? null : (int) $size;
     }
 
     /**
@@ -150,7 +154,7 @@ class FetchedMessageData implements Arrayable
     {
         $sequence = $this->get('MODSEQ')[0] ?? null;
 
-        return $sequence !== null ? (int) $sequence : null;
+        return is_null($sequence) ? null : (int) $sequence;
     }
 
     /**

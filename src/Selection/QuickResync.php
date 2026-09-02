@@ -40,7 +40,7 @@ class QuickResync implements SelectionOption
             $parameters[] = Str::set($this->knownUids);
         }
 
-        if ($this->sequenceMatch !== null) {
+        if (! is_null($this->sequenceMatch)) {
             $parameters[] = Str::list(array_map([Str::class, 'set'], $this->sequenceMatch));
         }
 

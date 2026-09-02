@@ -14,7 +14,9 @@ class UnchangedSince implements StoreModifier
     /**
      * Constructor.
      */
-    public function __construct(protected int $modSequence) {}
+    public function __construct(
+        protected int $modSequence
+    ) {}
 
     /**
      * {@inheritDoc}
