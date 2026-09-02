@@ -17,8 +17,8 @@ class FolderCollection extends Collection
     public function findBySpecialUse(ImapSpecialUse $specialUse): ?FolderInterface
     {
         return $this->first(function (FolderInterface $folder) use ($specialUse) {
-            foreach ($folder->flags() as $flag) {
-                if (strcasecmp($flag, $specialUse->value) === 0) {
+            foreach ($folder->attributes() as $attribute) {
+                if (strcasecmp($attribute, $specialUse->value) === 0) {
                     return true;
                 }
             }

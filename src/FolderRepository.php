@@ -90,7 +90,7 @@ class FolderRepository implements FolderRepositoryInterface
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,
-                flags: $response->tokenAt(2)->values(),
+                attributes: $response->tokenAt(2)->values(),
                 delimiter: $response->tokenAt(3)->value,
             )
         )->pipeInto(FolderCollection::class);

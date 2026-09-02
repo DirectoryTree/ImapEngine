@@ -16,7 +16,7 @@ test('it can be created with basic properties', function () {
 
     expect($folder)->toBeInstanceOf(FakeFolder::class);
     expect($folder->path())->toBe('INBOX');
-    expect($folder->flags())->toBe(['\\HasNoChildren']);
+    expect($folder->attributes())->toBe(['\\HasNoChildren']);
     expect($folder->delimiter())->toBe('/');
 });
 
@@ -61,12 +61,12 @@ test('it can set path', function () {
     expect($folder->path())->toBe('Sent');
 });
 
-test('it can set flags', function () {
+test('it can set attributes', function () {
     $folder = new FakeFolder('INBOX');
 
-    $folder->setFlags(['\\Seen', '\\HasNoChildren']);
+    $folder->setAttributes(['\\Seen', '\\HasNoChildren']);
 
-    expect($folder->flags())->toBe(['\\Seen', '\\HasNoChildren']);
+    expect($folder->attributes())->toBe(['\\Seen', '\\HasNoChildren']);
 });
 
 test('it can set mailbox', function () {

@@ -15,11 +15,11 @@ interface FolderInterface
     public function path(): string;
 
     /**
-     * Get the folder flags.
+     * Get the folder attributes.
      *
      * @return string[]
      */
-    public function flags(): array;
+    public function attributes(): array;
 
     /**
      * Get the folder delimiter.

@@ -113,7 +113,7 @@ test('folders', function () {
 
     expect($folders)->toHaveCount(1);
     expect($folders[0]->path())->toBe('INBOX');
-    expect($folders[0]->flags())->toBe(['\\HasNoChildren']);
+    expect($folders[0]->attributes())->toBe(['\\HasNoChildren']);
 });
 
 test('inbox', function () {
@@ -131,7 +131,7 @@ test('inbox', function () {
     expect($folder)->toBeInstanceOf(Folder::class);
 
     expect($folder->path())->toBe('INBOX');
-    expect($folder->flags())->toBe(['\\HasNoChildren']);
+    expect($folder->attributes())->toBe(['\\HasNoChildren']);
 });
 
 test('capabilities', function () {
