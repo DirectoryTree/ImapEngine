@@ -15,7 +15,7 @@ use JsonSerializable;
 
 class Folder implements Arrayable, FolderInterface, JsonSerializable
 {
-    use ComparesFolders, HasSpecialUses;
+    use ComparesFolders;
 
     /**
      * Constructor.

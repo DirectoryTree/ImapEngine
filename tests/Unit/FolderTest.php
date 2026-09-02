@@ -1,7 +1,6 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -52,21 +51,6 @@ test('it preserves existing UTF-8 characters in folder names', function () {
 
     // The name should remain unchanged.
     expect($mixedFolder->name())->toBe($mixedUtf8FolderName);
-});
-
-test('it resolves special uses from folder flags', function () {
-    $folder = new Folder(
-        mailbox: Mailbox::make(),
-        path: 'Sent',
-        flags: ['\\HasNoChildren', '\\sent', '\\Archive'],
-    );
-
-    expect($folder->specialUses())->toBe([
-        ImapSpecialUse::Archive,
-        ImapSpecialUse::Sent,
-    ]);
-    expect($folder->hasSpecialUse(ImapSpecialUse::Sent))->toBeTrue();
-    expect($folder->hasSpecialUse(ImapSpecialUse::Trash))->toBeFalse();
 });
 
 test('it returns quota data for the mailbox', function () {

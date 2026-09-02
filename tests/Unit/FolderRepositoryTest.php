@@ -14,7 +14,7 @@ test('it requests special-use attributes when supported', function () {
         'TAG1 OK Logged in',
         '* CAPABILITY IMAP4rev1 SPECIAL-USE',
         'TAG2 OK CAPABILITY completed',
-        '* LIST (\\Sent \\HasNoChildren) "/" "Outgoing"',
+        '* LIST (\\sent \\HasNoChildren) "/" "Outgoing"',
         'TAG3 OK LIST completed',
     ]);
 
