@@ -9,11 +9,16 @@ class QuickResync implements SelectionOption
 {
     /**
      * Constructor.
+     *
+     * Sequence matches pair ascending message numbers with their corresponding UIDs.
+     *
+     * @param  array{0: array|int|string, 1: array|int|string}|null  $sequenceMatch
      */
     public function __construct(
         protected int $uidValidity,
         protected int $highestModSequence,
-        protected array $knownUids = [],
+        protected array|int|string $knownUids = [],
+        protected ?array $sequenceMatch = null,
     ) {}
 
     /**
@@ -33,6 +38,10 @@ class QuickResync implements SelectionOption
 
         if ($this->knownUids) {
             $parameters[] = Str::set($this->knownUids);
+        }
+
+        if ($this->sequenceMatch !== null) {
+            $parameters[] = Str::list(array_map([Str::class, 'set'], $this->sequenceMatch));
         }
 
         return 'QRESYNC '.Str::list($parameters);

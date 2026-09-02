@@ -86,7 +86,9 @@ class FolderRepository implements FolderRepositoryInterface
             return $item->toImap();
         }, $this->dataItems);
 
-        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match), $return)->map(
+        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match), return: $return)->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('LIST')
+        )->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,

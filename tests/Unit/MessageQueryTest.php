@@ -359,6 +359,7 @@ test('append with single flag converts to array', function (mixed $flag) {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
+        '+ Ready',
         'TAG2 OK [APPENDUID 1234567890 1] APPEND completed',
     ]);
 
@@ -370,9 +371,10 @@ test('append with single flag converts to array', function (mixed $flag) {
 
     $result = $query->append('Hello world', $flag);
 
-    expect($result->uidValidity())->toBe(1234567890)
-        ->and($result->uid())->toBe(1);
-    $stream->assertWritten('TAG2 APPEND "INBOX" (\\Seen) "Hello world"');
+    expect($result->uidValidity())->toBe(1234567890);
+    expect($result->uid())->toBe(1);
+    $stream->assertWritten('TAG2 APPEND "INBOX" (\\Seen) {11}');
+    $stream->assertWritten('Hello world');
 })->with([ImapFlag::Seen, '\\Seen']);
 
 test('flag adds flag to all matching messages', function () {
@@ -703,7 +705,7 @@ test('sortBy sends correct sort command with ascending order', function () {
         ->map(fn ($message) => $message->uid())
         ->all();
 
-    $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (DATE) "UTF-8" ALL');
 
     expect($uids)->toBe([3, 1, 2]);
 });
@@ -726,7 +728,7 @@ test('sortBy recognizes extended SORT capabilities', function () {
 
     query($mailbox)->sortBy('date')->get();
 
-    $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (DATE) "UTF-8" ALL');
 });
 
 test('sortBy sends correct sort command with descending order', function () {
@@ -747,7 +749,7 @@ test('sortBy sends correct sort command with descending order', function () {
 
     query($mailbox)->sortBy('date', SortDirection::Descending)->get();
 
-    $stream->assertWritten('TAG3 UID SORT (REVERSE DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (REVERSE DATE) "UTF-8" ALL');
 });
 
 test('sortBy sends multiple sort criteria in priority order', function () {
@@ -771,7 +773,7 @@ test('sortBy sends multiple sort criteria in priority order', function () {
         ->sortBy('date', SortDirection::Descending)
         ->get();
 
-    $stream->assertWritten('TAG3 UID SORT (SUBJECT REVERSE DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (SUBJECT REVERSE DATE) "UTF-8" ALL');
 });
 
 test('orderByUid replaces server sorting', function () {
@@ -816,7 +818,7 @@ test('sortBy works with ImapSortKey enum', function () {
 
     query($mailbox)->sortBy(ImapSortKey::Subject)->get();
 
-    $stream->assertWritten('TAG3 UID SORT (SUBJECT) UTF-8 ALL');
+    $stream->assertWritten('TAG3 UID SORT (SUBJECT) "UTF-8" ALL');
 });
 
 test('sortBy combined with search criteria', function () {
@@ -837,7 +839,7 @@ test('sortBy combined with search criteria', function () {
 
     query($mailbox)->unseen()->sortBy('arrival', SortDirection::Descending)->get();
 
-    $stream->assertWritten('TAG3 UID SORT (REVERSE ARRIVAL) UTF-8 UNSEEN');
+    $stream->assertWritten('TAG3 UID SORT (REVERSE ARRIVAL) "UTF-8" UNSEEN');
 });
 
 test('sortBy throws exception when SORT capability is not available', function () {

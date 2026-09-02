@@ -18,6 +18,8 @@ class FetchResult
 
     /**
      * Create a fetch result from IMAP responses, optionally filtering fetched messages.
+     *
+     * @param  (callable(FetchedMessageData): bool)|null  $filter
      */
     public static function fromResponses(ResponseCollection $responses, ?callable $filter = null): static
     {
@@ -29,9 +31,12 @@ class FetchResult
                 $vanished[] = Vanished::fromResponse($response);
             } elseif (
                 ($type = $response->tokenAt(2)) instanceof Token && $type->is('FETCH')
-                && (! $filter || $filter($response))
             ) {
-                $messages[] = FetchedMessageData::fromResponse($response);
+                $message = FetchedMessageData::fromResponse($response);
+
+                if (! $filter || $filter($message)) {
+                    $messages[] = $message;
+                }
             }
         }
 

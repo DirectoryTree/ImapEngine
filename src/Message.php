@@ -181,7 +181,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         $this->folder->mailbox()
             ->connection()
-            ->store($flag, $this->uid(), mode: $operation);
+            ->store($this->uid(), $flag, mode: $operation);
 
         if ($expunge) {
             $this->folder->expunge($this->uid());
@@ -208,7 +208,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             );
         }
 
-        $response = $mailbox->connection()->copy($folder, $this->uid());
+        $response = $mailbox->connection()->copy($this->uid(), $folder);
 
         return MessageResponseParser::getUidFromCopy($response);
     }
@@ -224,7 +224,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         switch (true) {
             case $mailbox->hasCapability('MOVE'):
-                $response = $mailbox->connection()->move($folder, $this->uid());
+                $response = $mailbox->connection()->move($this->uid(), $folder);
 
                 return MessageResponseParser::getUidFromCopy($response);
 
@@ -468,7 +468,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
 
         $response = $this->folder->mailbox()
             ->connection()
-            ->fetch($peek ? "BODY.PEEK[$partNumber]" : "BODY[$partNumber]", $this->uid());
+            ->fetch($this->uid(), $peek ? "BODY.PEEK[$partNumber]" : "BODY[$partNumber]");
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;
@@ -538,7 +538,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->fetch('BODY.PEEK[HEADER]', $this->uid());
+            ->fetch($this->uid(), 'BODY.PEEK[HEADER]');
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;
@@ -557,7 +557,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->fetch('BODYSTRUCTURE', $this->uid());
+            ->fetch($this->uid(), 'BODYSTRUCTURE');
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;

@@ -74,7 +74,6 @@ test('status', function () {
 
     expect($folder->status())->toHaveKeys([
         'MESSAGES',
-        'RECENT',
         'UIDNEXT',
         'UIDVALIDITY',
         'UNSEEN',
@@ -86,7 +85,6 @@ test('examine', function () {
 
     expect($folder->status())->toHaveKeys([
         'MESSAGES',
-        'RECENT',
         'UIDNEXT',
         'UIDVALIDITY',
         'UNSEEN',

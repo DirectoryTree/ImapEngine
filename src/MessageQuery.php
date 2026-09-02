@@ -100,9 +100,7 @@ class MessageQuery implements MessageQueryInterface
             $items[] = MessageData::flags()->toImap();
         }
 
-        return $this->connection()->fetch(
-            $items, $uids, modifiers: new ChangedSince($modSequence, $vanished),
-        );
+        return $this->connection()->fetch($uids, $items, modifiers: new ChangedSince($modSequence, $vanished));
     }
 
     /**
@@ -226,7 +224,7 @@ class MessageQuery implements MessageQueryInterface
 
         $this->folder->mailbox()
             ->connection()
-            ->store([ImapFlag::Deleted->value], $uids, mode: '+');
+            ->store($uids, [ImapFlag::Deleted->value], mode: '+');
 
         if ($expunge) {
             $this->folder->expunge($uids);
@@ -244,11 +242,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->store(
-            (array) Str::enums($flag),
-            $uids,
-            mode: $operation
-        );
+        $this->connection()->store($uids, (array) Str::enums($flag), mode: $operation);
 
         if ($expunge) {
             $this->folder->expunge($uids);
@@ -308,7 +302,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->move($folder, $uids);
+        $this->connection()->move($uids, $folder);
 
         return count($uids);
     }
@@ -324,7 +318,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->copy($folder, $uids);
+        $this->connection()->copy($uids, $folder);
 
         return count($uids);
     }
@@ -382,7 +376,7 @@ class MessageQuery implements MessageQueryInterface
             ])->all();
         }
 
-        $fetched = (new Collection($this->connection()->fetch($fetch, $uids->all())->messages()))
+        $fetched = (new Collection($this->connection()->fetch($uids->all(), $fetch)->messages()))
             ->keyBy(fn (FetchedMessageData $data) => $data->uid());
 
         return $uids
@@ -454,7 +448,7 @@ class MessageQuery implements MessageQueryInterface
     protected function id(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?FetchedMessageData
     {
         try {
-            return $this->connection()->fetch('UID', $id, identifier: $identifier)->messages()[0] ?? null;
+            return $this->connection()->fetch($id, 'UID', identifier: $identifier)->messages()[0] ?? null;
         } catch (ImapCommandException $e) {
             // IMAP servers may return an error if the message number is not found.
             // If the identifier being used is a message number, and the message

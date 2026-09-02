@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
+use DirectoryTree\ImapEngine\Authenticator;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
@@ -57,11 +58,12 @@ interface ConnectionInterface
     /**
      * Send an "AUTHENTICATE" command.
      *
-     * Authenticate the current session.
+     * Authenticate using a SASL mechanism. Initial responses require SASL-IR support.
      *
+     * @see https://datatracker.ietf.org/doc/html/rfc4959
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-authenticate-command
      */
-    public function authenticate(string $user, string $token): TaggedResponse;
+    public function authenticate(Authenticator $authenticator, bool $initialResponse = false): TaggedResponse;
 
     /**
      * Send a "STARTTLS" command.
@@ -107,7 +109,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-expunge-command
      */
-    public function expunge(array|int|null $uids = null): ResponseCollection;
+    public function expunge(array|int|string|null $uids = null): ResponseCollection;
 
     /**
      * Send a "CAPABILITY" command.
@@ -122,10 +124,11 @@ interface ConnectionInterface
      * Send a "SEARCH" command.
      *
      * Execute a search request, returning UIDs by default.
+     * The charset is omitted by default and must remain omitted after enabling UTF8=ACCEPT.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
-    public function search(array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
+    public function search(array $criteria, ImapIdentifier $identifier = ImapIdentifier::Uid, ?string $charset = null): UntaggedResponse;
 
     /**
      * Send a "SORT" command.
@@ -134,26 +137,29 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc5256
      */
-    public function sort(ImapSort $sort, array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
+    public function sort(ImapSort $sort, array $criteria, ImapIdentifier $identifier = ImapIdentifier::Uid, string $charset = 'UTF-8'): UntaggedResponse;
 
     /**
      * Send an "ID" command.
      *
      * Exchange identification information.
      *
+     * @param  array<string, string|null>|null  $parameters
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc2971.
      */
-    public function id(?array $ids = null): UntaggedResponse;
+    public function id(?array $parameters = null): UntaggedResponse;
 
     /**
      * Send a "FETCH" command.
      *
-     * Fetch one or more items for one or more messages.
+     * Fetch one or more items or an ALL, FAST, or FULL macro.
+     * Message sets accept an ID, an array of IDs, or a sequence string such as '1:*'.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-fetch-command
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
+    public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
 
     /**
      * Send an IMAP command.
@@ -167,7 +173,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-select-command
      */
-    public function select(string $folder, SelectionOption ...$options): SelectionResult;
+    public function select(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult;
 
     /**
      * Send a "EXAMINE" command.
@@ -176,16 +182,19 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-examine-command
      */
-    public function examine(string $folder, SelectionOption ...$options): SelectionResult;
+    public function examine(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult;
 
     /**
      * Send a "LIST" command.
      *
-     * Get a list of available folders.
+     * Get folders and any additional responses requested by return options.
+     * Selection options and multiple patterns require LIST-EXTENDED support.
      *
+     * @see https://datatracker.ietf.org/doc/html/rfc5258
+     * @see https://datatracker.ietf.org/doc/html/rfc5819
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-list-command
      */
-    public function list(string $reference = '', string $folder = '*', array $return = []): ResponseCollection;
+    public function list(string $reference = '', array|string $pattern = '*', array $selection = [], array $return = []): ResponseCollection;
 
     /**
      * Send a "STATUS" command.
@@ -194,7 +203,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-status-command
      */
-    public function status(string $folder, array $arguments = ['MESSAGES', 'UNSEEN', 'RECENT', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse;
+    public function status(string $folder = 'INBOX', array $items = ['MESSAGES', 'UNSEEN', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse;
 
     /**
      * Send a "STORE" command.
@@ -204,7 +213,7 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.3
      */
-    public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = '+', bool $silent = true, ?string $item = null, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult;
+    public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult;
 
     /**
      * Send a "APPEND" command.
@@ -222,7 +231,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-copy-command
      */
-    public function copy(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
+    public function copy(array|int|string $set, string $folder, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
 
     /**
      * Send a "MOVE" or "UID MOVE" command.
@@ -231,7 +240,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-move-command
      */
-    public function move(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
+    public function move(array|int|string $set, string $folder, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
 
     /**
      * Send a "CREATE" command.

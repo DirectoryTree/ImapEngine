@@ -40,11 +40,40 @@ class Str
             return $result;
         }
 
-        if (str_contains($string, "\n")) {
+        if (str_contains($string, "\r") || str_contains($string, "\n")) {
             return ['{'.strlen($string).'}', $string];
         }
 
         return '"'.static::escape($string).'"';
+    }
+
+    /**
+     * Make a parenthesized list of strings or NIL values, preserving literal boundaries.
+     *
+     * @param  array<string|null>  $values
+     */
+    public static function literalList(array $values): array
+    {
+        if (! $values) {
+            return ['()'];
+        }
+
+        $tokens = array_map(fn (?string $value) => $value === null ? 'NIL' : static::literal($value), array_values($values));
+        $last = count($tokens) - 1;
+
+        if (is_array($tokens[0])) {
+            $tokens[0][0] = '('.$tokens[0][0];
+        } else {
+            $tokens[0] = '('.$tokens[0];
+        }
+
+        if (is_array($tokens[$last])) {
+            $tokens[$last][1] .= ')';
+        } else {
+            $tokens[$last] .= ')';
+        }
+
+        return $tokens;
     }
 
     /**

@@ -22,7 +22,7 @@ test('store supports adding removing and replacing flags', function (?string $mo
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->store('\\Seen', [1, 2, 4], mode: $mode, silent: $silent);
+    $result = $connection->store([1, 2, 4], '\\Seen', mode: $mode, silent: $silent);
 
     $stream->assertWritten("TAG1 UID STORE 1:2,4 $item (\\Seen)");
     expect($result)->toBeInstanceOf(StoreResult::class);
@@ -47,7 +47,7 @@ test('non silent store retains fetched messages and raw responses', function () 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->store('\\Seen', 7, silent: false);
+    $result = $connection->store(7, '\\Seen', silent: false);
 
     $stream->assertWritten('TAG1 UID STORE 7 +FLAGS (\\Seen)');
     expect($result->messages())->toHaveCount(1);
@@ -68,7 +68,7 @@ test('silent store retains returned modification sequences', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->store('\\Seen', 7);
+    $result = $connection->store(7, '\\Seen');
 
     $stream->assertWritten('TAG1 UID STORE 7 +FLAGS.SILENT (\\Seen)');
     expect($result->messages()[0]->modSequence())->toBe(44);
@@ -86,7 +86,7 @@ test('conditional store returns conflicting message numbers', function (string $
     $connection->connect('imap.example.com');
 
     $result = $connection->store(
-        '\\Seen', 1, 3, mode: null, silent: false,
+        '1:3', '\\Seen', mode: null, silent: false,
         identifier: ImapIdentifier::MessageNumber,
         modifiers: new UnchangedSince(43),
     );
@@ -108,7 +108,7 @@ test('store rejects failures that are not conditional conflicts', function (stri
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    expect(fn () => $connection->store('\\Seen', 7))
+    expect(fn () => $connection->store(7, '\\Seen'))
         ->toThrow(ImapCommandException::class);
 })->with([
     'TAG1 NO Permission denied',
@@ -134,10 +134,7 @@ test('store combines modifiers in one list and preserves a zero checkpoint', fun
         }
     };
 
-    $result = $connection->store(
-        '\\Seen', 7, null, '+', true, null, ImapIdentifier::Uid,
-        new UnchangedSince(0), $custom,
-    );
+    $result = $connection->store(7, '\\Seen', '+', true, ImapIdentifier::Uid, new UnchangedSince(0), $custom);
 
     $stream->assertWritten('TAG1 UID STORE 7 (UNCHANGEDSINCE 0 X-CUSTOM) +FLAGS.SILENT (\\Seen)');
     expect($result->modified())->toBe([7]);
@@ -177,7 +174,7 @@ test('sort supports both identifier types', function (ImapIdentifier $identifier
 
     $response = $connection->sort($sort, ['ALL'], identifier: $identifier);
 
-    $stream->assertWritten("TAG1 $command (ARRIVAL) UTF-8 ALL");
+    $stream->assertWritten("TAG1 $command (ARRIVAL) \"UTF-8\" ALL");
     expect((string) $response)->toBe('* SORT 3 2');
 })->with([
     [ImapIdentifier::Uid, 'UID SORT'],
@@ -194,7 +191,7 @@ test('copy and move support both identifier types', function (string $method, Im
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $response = $connection->{$method}('Archive', 1, 3, identifier: $identifier);
+    $response = $connection->{$method}('1:3', 'Archive', identifier: $identifier);
 
     $stream->assertWritten("TAG1 $command 1:3 \"Archive\"");
     expect($response->successful())->toBeTrue();

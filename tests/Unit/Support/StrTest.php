@@ -57,11 +57,10 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
 
-test('literal returns a literal indicator and the original string if it contains a newline', function () {
-    $input = "hello\nworld";
+test('literal preserves carriage returns and newlines using literals', function (string $input) {
     $expected = ['{'.strlen($input).'}', $input];
     expect(Str::literal($input))->toBe($expected);
-});
+})->with(["hello\nworld", "hello\rworld", "hello\r\nworld"]);
 
 test('literal handles an array of literals', function () {
     expect(Str::literal(['first', 'second']))->toBe(['"first"', '"second"']);

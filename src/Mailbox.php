@@ -168,10 +168,10 @@ class Mailbox implements MailboxInterface
     protected function authenticate(): void
     {
         if ($this->config('authentication') === 'oauth') {
-            $this->connection->authenticate(
+            $this->connection->authenticate(new Authentication\XOAuth2(
                 $this->config('username'),
-                $this->config('password')
-            );
+                $this->config('password'),
+            ));
         } else {
             $this->connection->login(
                 $this->config('username'),

@@ -109,7 +109,7 @@ test('fetch changes returns changed and vanished messages', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $changes = $connection->fetch('FLAGS', [1, 2, 3, 4, 6, 7], modifiers: new ChangedSince(42, vanished: true));
+    $changes = $connection->fetch([1, 2, 3, 4, 6, 7], 'FLAGS', modifiers: new ChangedSince(42, vanished: true));
 
     $stream->assertWritten('TAG1 UID FETCH 1:4,6:7 (FLAGS) (CHANGEDSINCE 42 VANISHED)');
     expect($changes->messages())->toHaveCount(1);
@@ -134,7 +134,7 @@ test('conditional store returns updated messages', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->store('\\Flagged', 7, modifiers: new UnchangedSince(43));
+    $result = $connection->store(7, '\\Flagged', modifiers: new UnchangedSince(43));
 
     $stream->assertWritten('TAG1 UID STORE 7 (UNCHANGEDSINCE 43) +FLAGS.SILENT (\\Flagged)');
     expect($result->successful())->toBeTrue();
@@ -154,7 +154,7 @@ test('conditional store returns conflicting message uids', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->store('\\Seen', [7, 8, 9], modifiers: new UnchangedSince(43));
+    $result = $connection->store([7, 8, 9], '\\Seen', modifiers: new UnchangedSince(43));
 
     expect($result->successful())->toBeFalse();
     expect($result->modified())->toBe([8, 9]);
