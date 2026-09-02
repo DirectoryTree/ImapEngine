@@ -12,7 +12,7 @@ test('it properly decodes name from UTF-7', function () {
     $folder = new Folder(
         mailbox: $mailbox,
         path: '[Gmail]/&BBoEPgRABDcEOAQ9BDA-',
-        flags: ['\\HasNoChildren'],
+        attributes: ['\\HasNoChildren'],
         delimiter: '/'
     );
 
@@ -32,7 +32,7 @@ test('it preserves existing UTF-8 characters in folder names', function () {
     $folder = new Folder(
         mailbox: $mailbox,
         path: '[Gmail]/'.$utf8FolderName,
-        flags: ['\\HasNoChildren'],
+        attributes: ['\\HasNoChildren'],
         delimiter: '/'
     );
 
@@ -45,7 +45,7 @@ test('it preserves existing UTF-8 characters in folder names', function () {
     $mixedFolder = new Folder(
         mailbox: $mailbox,
         path: '[Gmail]/'.$mixedUtf8FolderName,
-        flags: ['\\HasNoChildren'],
+        attributes: ['\\HasNoChildren'],
         delimiter: '/'
     );
 

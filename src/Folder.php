@@ -23,7 +23,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function __construct(
         protected Mailbox $mailbox,
         protected string $path,
-        protected array $flags = [],
+        protected array $attributes = [],
         protected string $delimiter = '/',
     ) {}
 
@@ -44,13 +44,13 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     }
 
     /**
-     * Get the folder flags.
+     * Get the folder attributes.
      *
      * @return string[]
      */
-    public function flags(): array
+    public function attributes(): array
     {
-        return $this->flags;
+        return $this->attributes;
     }
 
     /**
@@ -263,7 +263,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     {
         return [
             'path' => $this->path,
-            'flags' => $this->flags,
+            'attributes' => $this->attributes,
             'delimiter' => $this->delimiter,
         ];
     }

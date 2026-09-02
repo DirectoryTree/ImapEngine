@@ -375,6 +375,26 @@ test('list folders', function () {
     expect($responses->count())->toBeGreaterThan(0);
 });
 
+test('list folders with return options', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* LIST (\\Sent) "/" "Sent"',
+        'TAG1 OK LIST completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $responses = $connection->list('', '*', ['SPECIAL-USE']);
+
+    $stream->assertWritten('TAG1 LIST "" "*" RETURN (SPECIAL-USE)');
+
+    expect($responses)->toHaveCount(1);
+});
+
 test('append message', function () {
     $stream = new FakeStream;
     $stream->open();

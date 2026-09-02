@@ -234,7 +234,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-list-command
      */
-    public function list(string $reference = '', string $folder = '*'): ResponseCollection;
+    public function list(string $reference = '', string $folder = '*', array $return = []): ResponseCollection;
 
     /**
      * Send a "STATUS" command.

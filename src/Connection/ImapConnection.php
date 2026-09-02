@@ -351,9 +351,16 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function list(string $reference = '', string $folder = '*'): ResponseCollection
+    public function list(string $reference = '', string $folder = '*', array $return = []): ResponseCollection
     {
-        $this->send('LIST', Str::literal([$reference, $folder]), $tag);
+        $tokens = Str::literal([$reference, $folder]);
+
+        if ($return) {
+            $tokens[] = 'RETURN';
+            $tokens[] = Str::list($return);
+        }
+
+        $this->send('LIST', $tokens, $tag);
 
         $this->assertTaggedResponse($tag);
 

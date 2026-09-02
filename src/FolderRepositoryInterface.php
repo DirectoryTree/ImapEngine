@@ -7,6 +7,11 @@ use DirectoryTree\ImapEngine\Collections\FolderCollection;
 interface FolderRepositoryInterface
 {
     /**
+     * Add items to the folder LIST request.
+     */
+    public function with(FolderDataItem ...$items): static;
+
+    /**
      * Find a folder.
      */
     public function find(string $path): ?FolderInterface;

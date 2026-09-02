@@ -18,7 +18,7 @@ class FakeFolder implements FolderInterface
      */
     public function __construct(
         protected string $path = '',
-        protected array $flags = [],
+        protected array $attributes = [],
         /** @var FakeMessage[] */
         protected array $messages = [],
         protected string $delimiter = '/',
@@ -44,9 +44,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function flags(): array
+    public function attributes(): array
     {
-        return $this->flags;
+        return $this->attributes;
     }
 
     /**
@@ -184,11 +184,11 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the folder's flags.
+     * Set the folder's attributes.
      */
-    public function setFlags(array $flags): FakeFolder
+    public function setAttributes(array $attributes): FakeFolder
     {
-        $this->flags = $flags;
+        $this->attributes = $attributes;
 
         return $this;
     }

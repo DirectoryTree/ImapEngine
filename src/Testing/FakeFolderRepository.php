@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine\Testing;
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\FolderDataItem;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
@@ -12,6 +13,13 @@ use Illuminate\Support\ItemNotFoundException;
 class FakeFolderRepository implements FolderRepositoryInterface
 {
     /**
+     * The requested folder data items.
+     *
+     * @var array<string, FolderDataItem>
+     */
+    protected array $dataItems = [];
+
+    /**
      * Constructor.
      */
     public function __construct(
@@ -19,6 +27,18 @@ class FakeFolderRepository implements FolderRepositoryInterface
         /** @var FolderInterface[] */
         protected array $folders = []
     ) {}
+
+    /**
+     * {@inheritDoc}
+     */
+    public function with(FolderDataItem ...$items): static
+    {
+        foreach ($items as $item) {
+            $this->dataItems[$item->key()] = $item;
+        }
+
+        return $this;
+    }
 
     /**
      * {@inheritDoc}

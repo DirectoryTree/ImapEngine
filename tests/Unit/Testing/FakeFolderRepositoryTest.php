@@ -1,6 +1,8 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
+use DirectoryTree\ImapEngine\FolderData;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -98,4 +100,33 @@ test('it can get folders with pattern matching', function () {
     // Test with a pattern that should match nothing
     $noMatches = $repository->get('nonexistent*');
     expect($noMatches)->toBeEmpty();
+});
+
+test('it resolves special-use folders from the collection', function () {
+    $mailbox = new FakeMailbox;
+    $sentByName = new FakeFolder('Sent');
+    $sentByAttribute = new FakeFolder('Outgoing', [ImapSpecialUse::Sent->value]);
+
+    $repository = new FakeFolderRepository($mailbox, [
+        $sentByName,
+        $sentByAttribute,
+        new FakeFolder('Drafts', [ImapSpecialUse::Drafts->value]),
+        new FakeFolder('Starred', [ImapSpecialUse::Flagged->value]),
+        new FakeFolder('Junk Email', [ImapSpecialUse::Junk->value]),
+        new FakeFolder('Deleted Items', [ImapSpecialUse::Trash->value]),
+        new FakeFolder('Archive', [ImapSpecialUse::Archive->value]),
+        new FakeFolder('[Gmail]/All Mail', [ImapSpecialUse::All->value]),
+    ]);
+
+    $folders = $repository
+        ->with(FolderData::SpecialUse)
+        ->get();
+
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent))->toBe($sentByAttribute);
+    expect($folders->findBySpecialUse(ImapSpecialUse::Drafts)?->name())->toBe('Drafts');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Flagged)?->name())->toBe('Starred');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Junk)?->name())->toBe('Junk Email');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Trash)?->name())->toBe('Deleted Items');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Archive)?->name())->toBe('Archive');
+    expect($folders->findBySpecialUse(ImapSpecialUse::All)?->name())->toBe('All Mail');
 });
