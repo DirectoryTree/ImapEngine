@@ -5,13 +5,14 @@ namespace DirectoryTree\ImapEngine\Testing;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
+use DirectoryTree\ImapEngine\HasSpecialUses;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
 {
-    use ComparesFolders;
+    use ComparesFolders, HasSpecialUses;
 
     /**
      * Constructor.

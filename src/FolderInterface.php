@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
+
 interface FolderInterface
 {
     /**
@@ -20,6 +22,18 @@ interface FolderInterface
      * @return string[]
      */
     public function flags(): array;
+
+    /**
+     * Get the folder's special uses.
+     *
+     * @return ImapSpecialUse[]
+     */
+    public function specialUses(): array;
+
+    /**
+     * Determine if the folder has the given special use.
+     */
+    public function hasSpecialUse(ImapSpecialUse $specialUse): bool;
 
     /**
      * Get the folder delimiter.

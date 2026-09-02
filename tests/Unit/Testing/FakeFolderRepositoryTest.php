@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -98,4 +99,29 @@ test('it can get folders with pattern matching', function () {
     // Test with a pattern that should match nothing
     $noMatches = $repository->get('nonexistent*');
     expect($noMatches)->toBeEmpty();
+});
+
+test('it resolves special-use folders', function () {
+    $mailbox = new FakeMailbox;
+    $sentByName = new FakeFolder('Sent');
+    $sentByAttribute = new FakeFolder('Outgoing', [ImapSpecialUse::Sent->value]);
+
+    $repository = new FakeFolderRepository($mailbox, [
+        $sentByName,
+        $sentByAttribute,
+        new FakeFolder('Drafts'),
+        new FakeFolder('Starred'),
+        new FakeFolder('Junk Email'),
+        new FakeFolder('Deleted Items'),
+        new FakeFolder('Archive'),
+        new FakeFolder('[Gmail]/All Mail'),
+    ]);
+
+    expect($repository->sent())->toBe($sentByAttribute);
+    expect($repository->drafts()?->name())->toBe('Drafts');
+    expect($repository->flagged()?->name())->toBe('Starred');
+    expect($repository->junk()?->name())->toBe('Junk Email');
+    expect($repository->trash()?->name())->toBe('Deleted Items');
+    expect($repository->archive()?->name())->toBe('Archive');
+    expect($repository->allMail()?->name())->toBe('All Mail');
 });

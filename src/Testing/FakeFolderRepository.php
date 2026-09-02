@@ -6,11 +6,14 @@ use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
+use DirectoryTree\ImapEngine\ResolvesSpecialUseFolders;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\ItemNotFoundException;
 
 class FakeFolderRepository implements FolderRepositoryInterface
 {
+    use ResolvesSpecialUseFolders;
+
     /**
      * Constructor.
      */
@@ -61,7 +64,7 @@ class FakeFolderRepository implements FolderRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function get(?string $match = '*', ?string $reference = ''): FolderCollection
+    public function get(?string $match = '*', ?string $reference = '', array $return = []): FolderCollection
     {
         $folders = FolderCollection::make($this->folders);
 
@@ -73,5 +76,13 @@ class FakeFolderRepository implements FolderRepositoryInterface
         }
 
         return $folders;
+    }
+
+    /**
+     * Get the folders used to resolve special uses.
+     */
+    protected function foldersForSpecialUse(): FolderCollection
+    {
+        return $this->get();
     }
 }

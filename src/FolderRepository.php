@@ -8,6 +8,8 @@ use DirectoryTree\ImapEngine\Support\Str;
 
 class FolderRepository implements FolderRepositoryInterface
 {
+    use ResolvesSpecialUseFolders;
+
     /**
      * Constructor.
      */
@@ -54,9 +56,9 @@ class FolderRepository implements FolderRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function get(?string $match = '*', ?string $reference = ''): FolderCollection
+    public function get(?string $match = '*', ?string $reference = '', array $return = []): FolderCollection
     {
-        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match))->map(
+        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match), $return)->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,
@@ -64,5 +66,17 @@ class FolderRepository implements FolderRepositoryInterface
                 delimiter: $response->tokenAt(3)->value,
             )
         )->pipeInto(FolderCollection::class);
+    }
+
+    /**
+     * Get folders with their special-use attributes when supported.
+     */
+    protected function foldersForSpecialUse(): FolderCollection
+    {
+        $return = $this->mailbox->hasCapability('SPECIAL-USE')
+            ? ['SPECIAL-USE']
+            : [];
+
+        return $this->get(return: $return);
     }
 }
