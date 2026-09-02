@@ -470,11 +470,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->bodyPart($partNumber, $this->uid(), $peek);
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()[0] ?? null) {
             return null;
         }
-
-        $data = FetchedMessageData::fromResponse($response->first());
 
         $this->data = $this->data->merge($data);
 
@@ -542,11 +540,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->bodyHeader($this->uid());
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()[0] ?? null) {
             return null;
         }
-
-        $data = FetchedMessageData::fromResponse($response->first());
 
         $this->data = $this->data->merge($data);
 
@@ -563,11 +559,9 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->bodyStructure($this->uid());
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()[0] ?? null) {
             return null;
         }
-
-        $data = FetchedMessageData::fromResponse($response->first());
 
         $this->data = $this->data->merge($data);
 

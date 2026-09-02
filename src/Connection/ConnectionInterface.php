@@ -8,8 +8,9 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
-use DirectoryTree\ImapEngine\MessageChanges;
 use DirectoryTree\ImapEngine\SelectionOption;
 use DirectoryTree\ImapEngine\SelectionResult;
 use DirectoryTree\ImapEngine\StoreResult;
@@ -150,7 +151,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-uid-command
      */
-    public function uid(int|array $ids, ImapFetchIdentifier $identifier): ResponseCollection;
+    public function uid(int|array $ids, ImapFetchIdentifier $identifier): FetchResult;
 
     /**
      * Send a "FETCH BODY[TEXT]" command.
@@ -159,7 +160,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyText(int|array $ids, bool $peek = true): ResponseCollection;
+    public function bodyText(int|array $ids, bool $peek = true): FetchResult;
 
     /**
      * Send a "FETCH BODY[HEADER]" command.
@@ -168,7 +169,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyHeader(int|array $ids, bool $peek = true): ResponseCollection;
+    public function bodyHeader(int|array $ids, bool $peek = true): FetchResult;
 
     /**
      * Send a "FETCH BODYSTRUCTURE" command.
@@ -177,7 +178,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyStructure(int|array $ids): ResponseCollection;
+    public function bodyStructure(int|array $ids): FetchResult;
 
     /**
      * Send a "FETCH BODY[i]" command.
@@ -186,7 +187,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
-    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): ResponseCollection;
+    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): FetchResult;
 
     /**
      * Send a "FETCH FLAGS" command.
@@ -195,7 +196,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.17
      */
-    public function flags(int|array $ids): ResponseCollection;
+    public function flags(int|array $ids): FetchResult;
 
     /**
      * Send a "FETCH" command.
@@ -203,13 +204,9 @@ interface ConnectionInterface
      * Fetch one or more items for one or more messages.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-fetch-command
+     * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection;
-
-    /**
-     * Fetch messages changed after the given modification sequence.
-     */
-    public function fetchChanges(array|string $items, array|int $uids, int $modSequence, bool $vanished = false): MessageChanges;
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
 
     /**
      * Send a "RFC822.SIZE" command.
@@ -218,7 +215,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
      */
-    public function size(int|array $ids): ResponseCollection;
+    public function size(int|array $ids): FetchResult;
 
     /**
      * Send an IMAP command.

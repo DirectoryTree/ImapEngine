@@ -11,7 +11,7 @@ use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\FetchedMessageData;
-use DirectoryTree\ImapEngine\MessageChanges;
+use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -45,7 +45,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
     {
         $uids = (array) $uids;
 
@@ -60,7 +60,7 @@ class FakeMessageQuery implements MessageQueryInterface
             ->values()
             ->all();
 
-        return new MessageChanges($messages);
+        return new FetchResult($messages);
     }
 
     /**

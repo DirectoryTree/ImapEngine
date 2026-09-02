@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
-class MessageChanges
+class FetchResult
 {
     /**
      * Constructor.
@@ -17,9 +17,9 @@ class MessageChanges
     ) {}
 
     /**
-     * Create message changes from IMAP responses.
+     * Create a fetch result from IMAP responses, optionally filtering fetched messages.
      */
-    public static function fromResponses(ResponseCollection $responses): static
+    public static function fromResponses(ResponseCollection $responses, ?callable $filter = null): static
     {
         $messages = [];
         $vanished = [];
@@ -27,7 +27,10 @@ class MessageChanges
         foreach ($responses->untagged() as $response) {
             if ($response->type()->is('VANISHED')) {
                 $vanished[] = Vanished::fromResponse($response);
-            } elseif (($type = $response->tokenAt(2)) instanceof Token && $type->is('FETCH')) {
+            } elseif (
+                ($type = $response->tokenAt(2)) instanceof Token && $type->is('FETCH')
+                && (! $filter || $filter($response))
+            ) {
                 $messages[] = FetchedMessageData::fromResponse($response);
             }
         }
@@ -36,7 +39,7 @@ class MessageChanges
     }
 
     /**
-     * Get the changed messages.
+     * Get the fetched messages.
      *
      * @return FetchedMessageData[]
      */

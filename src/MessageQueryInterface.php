@@ -97,7 +97,7 @@ interface MessageQueryInterface
     /**
      * Get messages changed after the given modification sequence.
      */
-    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges;
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult;
 
     /**
      * Append a new message to the folder.

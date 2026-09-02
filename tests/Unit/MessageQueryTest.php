@@ -3,6 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
@@ -11,6 +12,7 @@ use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\MessageQuery;
+use Illuminate\Support\ItemNotFoundException;
 
 function query(?Mailbox $mailbox = null): MessageQuery
 {
@@ -19,6 +21,60 @@ function query(?Mailbox $mailbox = null): MessageQuery
         new ImapQueryBuilder
     );
 }
+
+test('find resolves the uid from fetched attributes regardless of their order', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (FLAGS (\\Seen) UID 42)',
+        'TAG2 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
+    $message = $query->find(1, ImapFetchIdentifier::MessageNumber);
+
+    $stream->assertWritten('TAG2 FETCH 1 (UID)');
+    expect($message->uid())->toBe(42);
+});
+
+test('find returns null when fetch returns no messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect($query->find(42))->toBeNull();
+});
+
+test('find or fail throws when fetch returns no messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect(fn () => $query->findOrFail(42))->toThrow(ItemNotFoundException::class);
+});
 
 test('passthru', function () {
     $query = query();

@@ -22,8 +22,9 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
+use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
-use DirectoryTree\ImapEngine\MessageChanges;
 use DirectoryTree\ImapEngine\SelectionOption;
 use DirectoryTree\ImapEngine\SelectionResult;
 use DirectoryTree\ImapEngine\StoreResult;
@@ -495,7 +496,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function uid(int|array $ids, ImapFetchIdentifier $identifier): ResponseCollection
+    public function uid(int|array $ids, ImapFetchIdentifier $identifier): FetchResult
     {
         return $this->fetch(['UID'], (array) $ids, null, $identifier);
     }
@@ -503,7 +504,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyText(int|array $ids, bool $peek = true): ResponseCollection
+    public function bodyText(int|array $ids, bool $peek = true): FetchResult
     {
         return $this->fetch([$peek ? 'BODY.PEEK[TEXT]' : 'BODY[TEXT]'], (array) $ids);
     }
@@ -511,7 +512,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyHeader(int|array $ids, bool $peek = true): ResponseCollection
+    public function bodyHeader(int|array $ids, bool $peek = true): FetchResult
     {
         return $this->fetch([$peek ? 'BODY.PEEK[HEADER]' : 'BODY[HEADER]'], (array) $ids);
     }
@@ -519,7 +520,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch the BODYSTRUCTURE for the given message(s).
      */
-    public function bodyStructure(int|array $ids): ResponseCollection
+    public function bodyStructure(int|array $ids): FetchResult
     {
         return $this->fetch(['BODYSTRUCTURE'], (array) $ids);
     }
@@ -527,7 +528,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
      */
-    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): ResponseCollection
+    public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): FetchResult
     {
         $part = $peek ? "BODY.PEEK[$partIndex]" : "BODY[$partIndex]";
 
@@ -537,7 +538,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function flags(int|array $ids): ResponseCollection
+    public function flags(int|array $ids): FetchResult
     {
         return $this->fetch(['FLAGS'], (array) $ids);
     }
@@ -545,7 +546,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function size(int|array $ids): ResponseCollection
+    public function size(int|array $ids): FetchResult
     {
         return $this->fetch(['RFC822.SIZE'], (array) $ids);
     }
@@ -723,14 +724,23 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch one or more items for one or more messages.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, FetchModifier ...$modifiers): FetchResult
     {
         $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
 
-        $this->send(trim($prefix.' FETCH'), [
+        $tokens = [
             Str::set($from, $to),
             Str::list((array) $items),
-        ], $tag);
+        ];
+
+        if ($modifiers) {
+            $tokens[] = Str::list(array_map(
+                fn (FetchModifier $modifier) => $modifier->toImap(),
+                $modifiers,
+            ));
+        }
+
+        $this->send(trim($prefix.' FETCH'), $tokens, $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -740,7 +750,7 @@ class ImapConnection implements ConnectionInterface
         // >> TAG123 FETCH (UID 456 BODY[TEXT])
         // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
-        return $this->result->responses()->untagged()->filter(function (UntaggedResponse $response) use ($items, $identifier) {
+        return FetchResult::fromResponses($this->result->responses(), function (UntaggedResponse $response) use ($items, $identifier) {
             // Skip over any untagged responses that are not FETCH responses.
             // The third token should always be the list of data items.
             if (! ($data = $response->tokenAt(3)) instanceof ListData) {
@@ -755,28 +765,6 @@ class ImapConnection implements ConnectionInterface
                 ImapFetchIdentifier::MessageNumber => $data->contains($items),
             };
         });
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function fetchChanges(array|string $items, array|int $uids, int $modSequence, bool $vanished = false): MessageChanges
-    {
-        $modifiers = ['CHANGEDSINCE', $modSequence];
-
-        if ($vanished) {
-            $modifiers[] = 'VANISHED';
-        }
-
-        $this->send('UID FETCH', [
-            Str::set($uids),
-            Str::list((array) $items),
-            Str::list($modifiers),
-        ], $tag);
-
-        $this->assertTaggedResponse($tag);
-
-        return MessageChanges::fromResponses($this->result->responses());
     }
 
     /**

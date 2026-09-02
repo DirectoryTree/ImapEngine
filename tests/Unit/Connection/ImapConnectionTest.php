@@ -8,6 +8,9 @@ use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
+use DirectoryTree\ImapEngine\Fetch\ChangedSince;
+use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\Support\Str;
 
 test('connect success', function () {
@@ -570,7 +573,8 @@ test('uid fetch with uid', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (UID)');
 
-    expect((string) $responses->first())->toBe('* 1 FETCH (UID 123)');
+    expect($responses)->toBeInstanceOf(FetchResult::class);
+    expect($responses->messages()[0]->uid())->toBe(123);
 });
 
 test('uid fetch with message number', function () {
@@ -590,7 +594,8 @@ test('uid fetch with message number', function () {
 
     $stream->assertWritten('TAG1 FETCH 1 (UID)');
 
-    expect((string) $responses->first())->toBe('* 1 FETCH (UID 123)');
+    expect($responses)->toBeInstanceOf(FetchResult::class);
+    expect($responses->messages()[0]->uid())->toBe(123);
 });
 
 test('text fetch with peek', function () {
@@ -612,7 +617,7 @@ test('text fetch with peek', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[TEXT])');
 
-    expect((string) $responses->first())->toBe("* 1 FETCH (UID 1 BODY [TEXT] {14}\r\nHello World!\r\n)");
+    expect($responses->messages()[0]->body())->toBe("Hello World!\r\n");
 });
 
 test('header fetch with peek', function () {
@@ -633,7 +638,7 @@ test('header fetch with peek', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (BODY.PEEK[HEADER])');
 
-    expect((string) $responses->first())->toBe("* 1 FETCH (UID 1 BODY [HEADER] {14}\r\nHello World!\r\n)");
+    expect($responses->messages()[0]->head())->toBe("Hello World!\r\n");
 });
 
 test('flags fetch', function () {
@@ -653,7 +658,7 @@ test('flags fetch', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (FLAGS)');
 
-    expect((string) $responses->first())->toBe('* 1 FETCH (UID 1 FLAGS (\\Seen))');
+    expect($responses->messages()[0]->flags())->toBe(['\\Seen']);
 });
 
 test('sizes fetch', function () {
@@ -673,7 +678,7 @@ test('sizes fetch', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (RFC822.SIZE)');
 
-    expect((string) $responses->first())->toBe('* 1 FETCH (UID 1 RFC822.SIZE 1024)');
+    expect($responses->messages()[0]->size())->toBe(1024);
 });
 
 test('search', function () {
@@ -877,5 +882,142 @@ test('fetch', function () {
 
     $stream->assertWritten('TAG1 UID FETCH 1 (FLAGS)');
 
-    expect((string) $responses->first())->toBe("* 1 FETCH (UID 123 FLAGS (\Seen))");
+    expect($responses)->toBeInstanceOf(FetchResult::class);
+    expect($responses->messages()[0]->uid())->toBe(123);
+    expect($responses->messages()[0]->flags())->toBe(['\\Seen']);
+    expect($responses->vanished())->toBe([]);
+    expect($responses->vanishedUids())->toBe([]);
+    expect($responses->responses())->toHaveCount(2);
+});
+
+test('fetch supports changed since with uid ranges', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* 2 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (43))',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->fetch('FLAGS', 1, INF, modifiers: new ChangedSince(42));
+
+    $stream->assertWritten('TAG1 UID FETCH 1:* (FLAGS) (CHANGEDSINCE 42)');
+    expect($result)->toBeInstanceOf(FetchResult::class);
+    expect($result->messages()[0]->modSequence())->toBe(43);
+    expect($result->vanishedUids())->toBe([]);
+});
+
+test('fetch supports changed since with message numbers and a zero checkpoint', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* 2 FETCH (FLAGS (\\Seen) MODSEQ (43))',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->fetch(
+        'FLAGS', [1, 2], identifier: ImapFetchIdentifier::MessageNumber,
+        modifiers: new ChangedSince(0),
+    );
+
+    $stream->assertWritten('TAG1 FETCH 1:2 (FLAGS) (CHANGEDSINCE 0)');
+    expect($result->messages())->toHaveCount(1);
+    expect($result->messages()[0]->flags())->toBe(['\\Seen']);
+    expect($result->messages()[0]->modSequence())->toBe(43);
+});
+
+test('fetch preserves raw responses while filtering unsolicited message data', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* 4 EXISTS',
+        '* 2 FETCH (FLAGS (\\Seen))',
+        '* 3 FETCH (UID 7 FLAGS () MODSEQ (43))',
+        '* VANISHED (EARLIER) 1:2',
+        '* VANISHED 2,4',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->fetch('FLAGS', [1, 2, 4, 7], modifiers: new ChangedSince(42, vanished: true));
+
+    expect($result->messages())->toHaveCount(1);
+    expect($result->messages()[0]->uid())->toBe(7);
+    expect($result->vanished())->toHaveCount(2);
+    expect($result->vanished()[0]->earlier())->toBeTrue();
+    expect($result->vanished()[1]->earlier())->toBeFalse();
+    expect($result->vanishedUids())->toBe([1, 2, 4]);
+    expect($result->responses())->toHaveCount(6);
+    expect((string) $result->responses()->untagged()->first())->toBe('* 4 EXISTS');
+});
+
+test('fetch can return vanished uids without fetched messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* VANISHED (EARLIER) 1:2',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->fetch('FLAGS', [1, 2], modifiers: new ChangedSince(42, vanished: true));
+
+    expect($result->messages())->toBe([]);
+    expect($result->vanishedUids())->toBe([1, 2]);
+});
+
+test('fetch combines custom modifiers into one modifier list', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $custom = new class implements FetchModifier
+    {
+        public function toImap(): string
+        {
+            return 'X-CUSTOM';
+        }
+    };
+
+    $result = $connection->fetch(
+        'FLAGS', [1, 2], null, ImapFetchIdentifier::Uid, new ChangedSince(42), $custom,
+    );
+
+    $stream->assertWritten('TAG1 UID FETCH 1:2 (FLAGS) (CHANGEDSINCE 42 X-CUSTOM)');
+    expect($result->messages())->toBe([]);
+    expect($result->vanishedUids())->toBe([]);
+});
+
+test('fetch throws when the server rejects a modifier', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 BAD Unsupported FETCH modifier',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->fetch('FLAGS', 1, modifiers: new ChangedSince(42)))
+        ->toThrow(ImapCommandException::class);
 });

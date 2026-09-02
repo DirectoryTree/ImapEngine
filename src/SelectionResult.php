@@ -21,7 +21,7 @@ class SelectionResult implements Countable
         protected ?int $highestModSequence = null,
         protected array $permanentFlags = [],
         protected bool $supportsModSequences = true,
-        protected ?MessageChanges $changes = null,
+        protected ?FetchResult $changes = null,
         protected ?ResponseCollection $responses = null,
     ) {}
 
@@ -74,7 +74,7 @@ class SelectionResult implements Countable
             $highestModSequence,
             $permanentFlags,
             $supportsModSequences,
-            MessageChanges::fromResponses($responses),
+            FetchResult::fromResponses($responses),
             $responses,
         );
     }
@@ -138,9 +138,9 @@ class SelectionResult implements Countable
     /**
      * Get changes returned while selecting the folder.
      */
-    public function changes(): MessageChanges
+    public function changes(): FetchResult
     {
-        return $this->changes ?? new MessageChanges;
+        return $this->changes ?? new FetchResult;
     }
 
     /**

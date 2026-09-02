@@ -5,16 +5,15 @@ namespace DirectoryTree\ImapEngine;
 use BackedEnum;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
-use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -77,7 +76,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): MessageChanges
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
     {
         $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';
 
@@ -101,7 +100,9 @@ class MessageQuery implements MessageQueryInterface
             $items[] = MessageData::flags()->toImap();
         }
 
-        return $this->connection()->fetchChanges($items, $uids, $modSequence, $vanished);
+        return $this->connection()->fetch(
+            $items, $uids, modifiers: new ChangedSince($modSequence, $vanished),
+        );
     }
 
     /**
@@ -197,14 +198,9 @@ class MessageQuery implements MessageQueryInterface
      */
     public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
     {
-        /** @var UntaggedResponse $response */
-        $response = $this->id($id, $identifier)->firstOrFail();
+        $data = $this->id($id, $identifier) ?? throw new ItemNotFoundException;
 
-        $uid = $response->tokenAt(3) // ListData
-            ->tokenAt(1) // Atom
-            ->value; // UID
-
-        return $this->process(new MessageCollection([$uid]))->firstOrFail();
+        return $this->process(new MessageCollection([$data->uid()]))->firstOrFail();
     }
 
     /**
@@ -212,17 +208,13 @@ class MessageQuery implements MessageQueryInterface
      */
     public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
     {
-        $response = $this->id($id, $identifier)->first();
+        $data = $this->id($id, $identifier);
 
-        if (! $response instanceof UntaggedResponse) {
+        if (! $data) {
             return null;
         }
 
-        $uid = $response->tokenAt(3) // ListData
-            ->tokenAt(1) // Atom
-            ->value; // UID
-
-        return $this->process(new MessageCollection([$uid]))->first();
+        return $this->process(new MessageCollection([$data->uid()]))->first();
     }
 
     /**
@@ -390,11 +382,8 @@ class MessageQuery implements MessageQueryInterface
             ])->all();
         }
 
-        $fetched = $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
-            $data = FetchedMessageData::fromResponse($response);
-
-            return [$data->uid() => $data];
-        });
+        $fetched = (new Collection($this->connection()->fetch($fetch, $uids->all())->messages()))
+            ->keyBy(fn (FetchedMessageData $data) => $data->uid());
 
         return $uids
             ->map(fn (string|int $uid) => $fetched->get($uid))
@@ -462,20 +451,20 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Get the UID for the given identifier.
      */
-    protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?FetchedMessageData
     {
         try {
-            return $this->connection()->uid([$id], $identifier);
+            return $this->connection()->uid([$id], $identifier)->messages()[0] ?? null;
         } catch (ImapCommandException $e) {
             // IMAP servers may return an error if the message number is not found.
             // If the identifier being used is a message number, and the message
             // number is in the command tokens, we can assume this has occurred
-            // and safely ignore the error and return an empty collection.
+            // and safely ignore the error and return null.
             if (
                 $identifier === ImapFetchIdentifier::MessageNumber
                 && in_array($id, $e->command()->tokens())
             ) {
-                return ResponseCollection::make();
+                return null;
             }
 
             // Otherwise, re-throw the exception.

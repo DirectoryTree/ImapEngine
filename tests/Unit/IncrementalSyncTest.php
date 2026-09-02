@@ -2,6 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Selection\CondStore;
@@ -107,7 +108,7 @@ test('fetch changes returns changed and vanished messages', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $changes = $connection->fetchChanges('FLAGS', [1, 2, 3, 4, 6, 7], 42, true);
+    $changes = $connection->fetch('FLAGS', [1, 2, 3, 4, 6, 7], modifiers: new ChangedSince(42, vanished: true));
 
     $stream->assertWritten('TAG1 UID FETCH 1:4,6:7 (FLAGS) (CHANGEDSINCE 42 VANISHED)');
     expect($changes->messages())->toHaveCount(1);
