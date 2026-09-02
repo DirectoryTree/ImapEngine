@@ -56,17 +56,9 @@ class StoreResult
     }
 
     /**
-     * Get the UIDs rejected because they were modified after the checkpoint.
+     * Get the UIDs or message numbers rejected because they changed after the checkpoint.
      */
     public function modified(): array
-    {
-        return $this->modified;
-    }
-
-    /**
-     * Get the UIDs rejected because they were modified after the checkpoint.
-     */
-    public function modifiedUids(): array
     {
         return $this->modified;
     }

@@ -7,12 +7,13 @@ use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\FetchModifier;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\SelectionOption;
 use DirectoryTree\ImapEngine\SelectionResult;
+use DirectoryTree\ImapEngine\StoreModifier;
 use DirectoryTree\ImapEngine\StoreResult;
 use Generator;
 
@@ -79,7 +80,7 @@ interface ConnectionInterface
     public function idle(int $timeout): Generator;
 
     /**
-     * Send a "DONE" command.
+     * Send the DONE continuation to finish the current IDLE command.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.3.13
      */
@@ -100,9 +101,9 @@ interface ConnectionInterface
     public function enable(string ...$capabilities): ResponseCollection;
 
     /**
-     * Send a "EXPUNGE" command.
+     * Send an "EXPUNGE" or "UID EXPUNGE" command.
      *
-     * Apply session saved changes to the server.
+     * Permanently remove deleted messages, optionally restricted to the given UIDs.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-expunge-command
      */
@@ -120,23 +121,23 @@ interface ConnectionInterface
     /**
      * Send a "SEARCH" command.
      *
-     * Execute a search request.
+     * Execute a search request, returning UIDs by default.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
-    public function search(array $params): UntaggedResponse;
+    public function search(array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
 
     /**
      * Send a "SORT" command.
      *
-     * Execute a sort request using RFC 5256.
+     * Execute a sort request using RFC 5256, returning UIDs by default.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc5256
      */
-    public function sort(ImapSort $sort, array $params): UntaggedResponse;
+    public function sort(ImapSort $sort, array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
 
     /**
-     * Send a "FETCH" command.
+     * Send an "ID" command.
      *
      * Exchange identification information.
      *
@@ -152,7 +153,7 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-fetch-command
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
 
     /**
      * Send an IMAP command.
@@ -198,16 +199,12 @@ interface ConnectionInterface
     /**
      * Send a "STORE" command.
      *
-     * Set message flags.
+     * Add, remove, or replace message flags using '+', '-', or null as the mode.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
+     * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.3
      */
-    public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection;
-
-    /**
-     * Store flags only when messages have not changed after the given modification sequence.
-     */
-    public function storeConditionally(array|string $flags, array|int $uids, int $unchangedSince, ?string $mode = null, bool $silent = true): StoreResult;
+    public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = '+', bool $silent = true, ?string $item = null, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult;
 
     /**
      * Send a "APPEND" command.
@@ -219,22 +216,22 @@ interface ConnectionInterface
     public function append(string $folder, string $message, ?array $flags = null, ?DateTimeInterface $date = null): AppendResult;
 
     /**
-     * Send a "UID COPY" command.
+     * Send a "COPY" or "UID COPY" command.
      *
      * Copy message set from current folder to other folder.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-copy-command
      */
-    public function copy(string $folder, array|int $from, ?int $to = null): TaggedResponse;
+    public function copy(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
 
     /**
-     * Send a "UID MOVE" command.
+     * Send a "MOVE" or "UID MOVE" command.
      *
      * Move a message set from current folder to another folder.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-move-command
      */
-    public function move(string $folder, array|int $from, ?int $to = null): TaggedResponse;
+    public function move(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse;
 
     /**
      * Send a "CREATE" command.
@@ -288,7 +285,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquota
      */
-    public function quota(string $root): UntaggedResponse;
+    public function getQuota(string $root): UntaggedResponse;
 
     /**
      * Send a "GETQUOTAROOT" command.
@@ -297,5 +294,5 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquotaroot
      */
-    public function quotaRoot(string $mailbox): ResponseCollection;
+    public function getQuotaRoot(string $mailbox): ResponseCollection;
 }

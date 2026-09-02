@@ -7,6 +7,7 @@ use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Selection\CondStore;
 use DirectoryTree\ImapEngine\Selection\QuickResync;
+use DirectoryTree\ImapEngine\Store\UnchangedSince;
 
 test('select returns typed condstore metadata', function () {
     $stream = new FakeStream;
@@ -133,7 +134,7 @@ test('conditional store returns updated messages', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->storeConditionally('\\Flagged', 7, 43);
+    $result = $connection->store('\\Flagged', 7, modifiers: new UnchangedSince(43));
 
     $stream->assertWritten('TAG1 UID STORE 7 (UNCHANGEDSINCE 43) +FLAGS.SILENT (\\Flagged)');
     expect($result->successful())->toBeTrue();
@@ -153,11 +154,10 @@ test('conditional store returns conflicting message uids', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $result = $connection->storeConditionally('\\Seen', [7, 8, 9], 43);
+    $result = $connection->store('\\Seen', [7, 8, 9], modifiers: new UnchangedSince(43));
 
     expect($result->successful())->toBeFalse();
     expect($result->modified())->toBe([8, 9]);
-    expect($result->modifiedUids())->toBe([8, 9]);
 });
 
 test('mailbox enables qresync before selecting and keeps the folder selected', function () {

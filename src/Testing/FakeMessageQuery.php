@@ -7,7 +7,7 @@ use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\FetchedMessageData;
@@ -191,7 +191,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface
     {
         return $this->get()->findOrFail($id);
     }
@@ -199,7 +199,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface
     {
         return $this->get()->find($id);
     }

@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -109,7 +109,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
 
         // Fetch the message by message number.
         $fetch = fn (int $msgn) => (
-            $query($this->messages())->findOrFail($msgn, ImapFetchIdentifier::MessageNumber)
+            $query($this->messages())->findOrFail($msgn, ImapIdentifier::MessageNumber)
         );
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
@@ -189,7 +189,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
             );
         }
 
-        $responses = $this->mailbox->connection()->quotaRoot($this->path);
+        $responses = $this->mailbox->connection()->getQuotaRoot($this->path)->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+        );
 
         $values = [];
 

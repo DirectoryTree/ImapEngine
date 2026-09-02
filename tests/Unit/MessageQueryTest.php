@@ -3,8 +3,8 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
@@ -36,7 +36,7 @@ test('find resolves the uid from fetched attributes regardless of their order', 
     $mailbox->connect(new ImapConnection($stream));
 
     $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
-    $message = $query->find(1, ImapFetchIdentifier::MessageNumber);
+    $message = $query->find(1, ImapIdentifier::MessageNumber);
 
     $stream->assertWritten('TAG2 FETCH 1 (UID)');
     expect($message->uid())->toBe(42);

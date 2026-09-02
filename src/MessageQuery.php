@@ -8,8 +8,8 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
@@ -196,7 +196,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface
     {
         $data = $this->id($id, $identifier) ?? throw new ItemNotFoundException;
 
@@ -206,7 +206,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface
     {
         $data = $this->id($id, $identifier);
 
@@ -451,7 +451,7 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Get the UID for the given identifier.
      */
-    protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?FetchedMessageData
+    protected function id(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?FetchedMessageData
     {
         try {
             return $this->connection()->fetch('UID', $id, identifier: $identifier)->messages()[0] ?? null;
@@ -461,7 +461,7 @@ class MessageQuery implements MessageQueryInterface
             // number is in the command tokens, we can assume this has occurred
             // and safely ignore the error and return null.
             if (
-                $identifier === ImapFetchIdentifier::MessageNumber
+                $identifier === ImapIdentifier::MessageNumber
                 && in_array($id, $e->command()->tokens())
             ) {
                 return null;

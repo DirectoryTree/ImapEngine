@@ -15,7 +15,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
@@ -27,6 +27,7 @@ use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\SelectionOption;
 use DirectoryTree\ImapEngine\SelectionResult;
+use DirectoryTree\ImapEngine\StoreModifier;
 use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
@@ -199,7 +200,13 @@ class ImapConnection implements ConnectionInterface
      */
     public function logout(): void
     {
-        $this->send('LOGOUT', tag: $tag);
+        try {
+            $this->send('LOGOUT', tag: $tag);
+
+            $this->assertTaggedResponse($tag);
+        } finally {
+            $this->disconnect();
+        }
     }
 
     /**
@@ -351,7 +358,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function quota(string $root): UntaggedResponse
+    public function getQuota(string $root): UntaggedResponse
     {
         $this->send('GETQUOTA', [Str::literal($root)], tag: $tag);
 
@@ -365,14 +372,14 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function quotaRoot(string $mailbox): ResponseCollection
+    public function getQuotaRoot(string $mailbox): ResponseCollection
     {
         $this->send('GETQUOTAROOT', [Str::literal($mailbox)], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
         return $this->result->responses()->untagged()->filter(
-            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTAROOT') || $response->type()->is('QUOTA')
         );
     }
 
@@ -426,9 +433,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function copy(string $folder, array|int $from, ?int $to = null): TaggedResponse
+    public function copy(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse
     {
-        $this->send('UID COPY', [
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID COPY' : 'COPY', [
             Str::set($from, $to),
             Str::literal($folder),
         ], $tag);
@@ -439,9 +446,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function move(string $folder, array|int $from, ?int $to = null): TaggedResponse
+    public function move(string $folder, array|int $from, ?int $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse
     {
-        $this->send('UID MOVE', [
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID MOVE' : 'MOVE', [
             Str::set($from, $to),
             Str::literal($folder),
         ], $tag);
@@ -452,36 +459,21 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = null, bool $silent = true, ?string $item = null): ResponseCollection
+    public function store(array|string $flags, array|int $from, ?int $to = null, ?string $mode = '+', bool $silent = true, ?string $item = null, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult
     {
-        $set = Str::set($from, $to);
+        $tokens = [Str::set($from, $to)];
 
-        $flags = Str::list((array) $flags);
+        if ($modifiers) {
+            $tokens[] = Str::list(array_map(
+                fn (StoreModifier $modifier) => $modifier->toImap(),
+                $modifiers,
+            ));
+        }
 
-        $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
+        $tokens[] = $mode.($item ?? 'FLAGS').($silent ? '.SILENT' : '');
+        $tokens[] = Str::list((array) $flags);
 
-        $this->send('UID STORE', [$set, $item, $flags], tag: $tag);
-
-        $this->assertTaggedResponse($tag);
-
-        return $silent ? new ResponseCollection : $this->result->responses()->untagged()->filter(
-            fn (UntaggedResponse $response) => $response->type()->is('FETCH')
-        );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function storeConditionally(array|string $flags, array|int $uids, int $unchangedSince, ?string $mode = null, bool $silent = true): StoreResult
-    {
-        $item = ($mode === '-' ? '-' : '+').'FLAGS'.($silent ? '.SILENT' : '');
-
-        $this->send('UID STORE', [
-            Str::set($uids),
-            Str::list(['UNCHANGEDSINCE', $unchangedSince]),
-            $item,
-            Str::list((array) $flags),
-        ], $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID STORE' : 'STORE', $tokens, $tag);
 
         $response = $this->taggedResponse($tag);
         $result = StoreResult::fromResponses($this->result->responses(), $response);
@@ -496,9 +488,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function search(array $params): UntaggedResponse
+    public function search(array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
-        $this->send('UID SEARCH', $params, tag: $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID SEARCH' : 'SEARCH', $params, tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -510,9 +502,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function sort(ImapSort $sort, array $params): UntaggedResponse
+    public function sort(ImapSort $sort, array $params, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
-        $this->send('UID SORT', ["({$sort->toImap()})", 'UTF-8', ...$params], tag: $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", 'UTF-8', ...$params], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -614,7 +606,7 @@ class ImapConnection implements ConnectionInterface
     {
         $this->write('DONE');
 
-        // After issuing a "DONE" command, the server must eventually respond with a
+        // After sending the DONE continuation, the server must respond with a
         // tagged response to indicate that the IDLE command has been successfully
         // terminated and the server is ready to accept further commands.
         $this->assertNextResponse(
@@ -666,9 +658,9 @@ class ImapConnection implements ConnectionInterface
     /**
      * Fetch one or more items for one or more messages.
      */
-    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid, FetchModifier ...$modifiers): FetchResult
+    public function fetch(array|string $items, array|int $from, mixed $to = null, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult
     {
-        $prefix = ($identifier === ImapFetchIdentifier::Uid) ? 'UID' : '';
+        $prefix = ($identifier === ImapIdentifier::Uid) ? 'UID' : '';
 
         $tokens = [
             Str::set($from, $to),
@@ -701,10 +693,10 @@ class ImapConnection implements ConnectionInterface
 
             return match ($identifier) {
                 // If we're fetching UIDs, we can check if a UID token is contained in the list.
-                ImapFetchIdentifier::Uid => $data->contains('UID'),
+                ImapIdentifier::Uid => $data->contains('UID'),
 
                 // If we're fetching message numbers, we can check if the requested items are all contained in the list.
-                ImapFetchIdentifier::MessageNumber => $data->contains($items),
+                ImapIdentifier::MessageNumber => $data->contains($items),
             };
         });
     }

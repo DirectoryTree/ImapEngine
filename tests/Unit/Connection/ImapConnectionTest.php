@@ -1,16 +1,16 @@
 <?php
 
 use DirectoryTree\ImapEngine\AppendResult;
-use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\FetchModifier;
 use DirectoryTree\ImapEngine\FetchResult;
+use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
 
 test('connect success', function () {
@@ -76,6 +76,7 @@ test('logout success', function () {
 
     $stream->feed([
         '* OK Welcome to IMAP',
+        '* BYE Logging out',
         'TAG1 OK Logged out',
     ]);
 
@@ -85,6 +86,7 @@ test('logout success', function () {
     $connection->logout();
 
     $stream->assertWritten('TAG1 LOGOUT');
+    expect($connection->connected())->toBeFalse();
 });
 
 test('logout failure', function () {
@@ -99,9 +101,10 @@ test('logout failure', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->logout();
+    expect(fn () => $connection->logout())->toThrow(ImapCommandException::class);
 
     $stream->assertWritten('TAG1 LOGOUT');
+    expect($connection->connected())->toBeFalse();
 });
 
 test('authenticate success', function () {
@@ -549,11 +552,14 @@ test('store flags', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $response = $connection->store(['\\Seen'], 1, 3, '+FLAGS');
+    $response = $connection->store(['\\Seen'], 1, 3);
 
     $stream->assertWritten('TAG1 UID STORE 1:3 +FLAGS.SILENT (\\Seen)');
 
-    expect($response)->toBeInstanceOf(ResponseCollection::class);
+    expect($response)->toBeInstanceOf(StoreResult::class);
+    expect($response->successful())->toBeTrue();
+    expect($response->messages())->toBe([]);
+    expect($response->modified())->toBe([]);
 });
 
 test('uid fetch with uid', function () {
@@ -590,7 +596,7 @@ test('uid fetch with message number', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->fetch('UID', 1, identifier: ImapFetchIdentifier::MessageNumber);
+    $responses = $connection->fetch('UID', 1, identifier: ImapIdentifier::MessageNumber);
 
     $stream->assertWritten('TAG1 FETCH 1 (UID)');
 
@@ -923,7 +929,7 @@ test('fetch supports changed since with message numbers and a zero checkpoint', 
     $connection->connect('imap.example.com');
 
     $result = $connection->fetch(
-        'FLAGS', [1, 2], identifier: ImapFetchIdentifier::MessageNumber,
+        'FLAGS', [1, 2], identifier: ImapIdentifier::MessageNumber,
         modifiers: new ChangedSince(0),
     );
 
@@ -999,7 +1005,7 @@ test('fetch combines custom modifiers into one modifier list', function () {
     };
 
     $result = $connection->fetch(
-        'FLAGS', [1, 2], null, ImapFetchIdentifier::Uid, new ChangedSince(42), $custom,
+        'FLAGS', [1, 2], null, ImapIdentifier::Uid, new ChangedSince(42), $custom,
     );
 
     $stream->assertWritten('TAG1 UID FETCH 1:2 (FLAGS) (CHANGEDSINCE 42 X-CUSTOM)');
