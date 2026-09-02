@@ -52,6 +52,11 @@ interface MailboxInterface
     public function capabilities(): array;
 
     /**
+     * Determine if the mailbox supports the given capability.
+     */
+    public function hasCapability(string $capability): bool;
+
+    /**
      * Select the given folder.
      */
     public function select(FolderInterface $folder, bool $force = false): void;

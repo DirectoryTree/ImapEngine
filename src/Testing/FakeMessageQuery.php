@@ -8,10 +8,13 @@ use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
+use DirectoryTree\ImapEngine\UidOrder;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -23,16 +26,18 @@ class FakeMessageQuery implements MessageQueryInterface
     public function __construct(
         protected FakeFolder $folder,
         protected ImapQueryBuilder $query = new ImapQueryBuilder
-    ) {}
+    ) {
+        $this->ordering = new UidOrder(SortDirection::Descending);
+    }
 
     /**
      * {@inheritDoc}
      */
     public function get(): MessageCollection
     {
-        return new MessageCollection(
+        return $this->applyOrdering(new MessageCollection(
             $this->folder->getMessages()
-        );
+        ));
     }
 
     /**
@@ -66,17 +71,53 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
-        $uid = 1;
-
-        if ($lastMessage = $this->get()->last()) {
-            $uid = $lastMessage->uid() + 1;
-        }
+        $uid = (int) collect($this->folder->getMessages())->max(
+            fn (FakeMessage $message) => $message->uid()
+        ) + 1;
 
         $this->folder->addMessage(
             new FakeMessage($uid, $flags === null ? [] : $flags, $message)
         );
 
         return new AppendResult(uid: $uid);
+    }
+
+    /**
+     * Apply the selected ordering strategy.
+     */
+    protected function applyOrdering(MessageCollection $messages): MessageCollection
+    {
+        if ($this->ordering instanceof UidOrder) {
+            return $messages->sortBy(
+                fn (MessageInterface $message) => $message->uid(),
+                descending: $this->ordering->direction === SortDirection::Descending,
+            )->values();
+        }
+
+        foreach (array_reverse($this->ordering->criteria) as $criterion) {
+            $messages = $messages->sortBy(
+                fn (MessageInterface $message) => $this->sortValue($message, $criterion->key),
+                descending: $criterion->direction === SortDirection::Descending,
+            );
+        }
+
+        return $messages->values();
+    }
+
+    /**
+     * Get a message's value for the given sort key.
+     */
+    protected function sortValue(MessageInterface $message, ImapSortKey $key): mixed
+    {
+        return match ($key) {
+            ImapSortKey::Cc => head($message->cc())?->email() ?? '',
+            ImapSortKey::To => head($message->to())?->email() ?? '',
+            ImapSortKey::Date => $message->date()?->getTimestamp() ?? 0,
+            ImapSortKey::From => $message->from()?->email() ?? '',
+            ImapSortKey::Size => $message->size(),
+            ImapSortKey::Arrival => $message->uid(),
+            ImapSortKey::Subject => $message->subject() ?? '',
+        };
     }
 
     /**

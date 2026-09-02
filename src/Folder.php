@@ -95,7 +95,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
     {
-        if (! in_array('IDLE', $this->mailbox->capabilities())) {
+        if (! $this->mailbox->hasCapability('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
@@ -183,7 +183,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
-        if (! in_array('QUOTA', $this->mailbox->capabilities())) {
+        if (! $this->mailbox->hasCapability('QUOTA')) {
             throw new ImapCapabilityException(
                 'Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.'
             );

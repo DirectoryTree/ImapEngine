@@ -4,8 +4,10 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageData\FetchItem;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
+use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Traits\Conditionable;
 
 trait QueriesMessages
@@ -35,28 +37,14 @@ trait QueriesMessages
     protected array $fetchItems = [];
 
     /**
-     * The fetch order.
-     *
-     * @var 'asc'|'desc'
+     * The message ordering strategy.
      */
-    protected string $fetchOrder = 'desc';
+    protected UidOrder|ImapSort $ordering;
 
     /**
      * The methods that should be returned from query builder.
      */
     protected array $passthru = ['toimap', 'isempty'];
-
-    /**
-     * The sort key for server-side sorting (RFC 5256).
-     */
-    protected ?ImapSortKey $sortKey = null;
-
-    /**
-     * The sort direction for server-side sorting.
-     *
-     * @var 'asc'|'desc'
-     */
-    protected string $sortDirection = 'asc';
 
     /**
      * Handle dynamic method calls into the query builder.
@@ -156,14 +144,15 @@ trait QueriesMessages
         return $this->with(...$items);
     }
 
-    /** {@inheritDoc} */
-    public function setFetchOrder(string $fetchOrder): MessageQueryInterface
-    {
-        $fetchOrder = strtolower($fetchOrder);
-
-        if (in_array($fetchOrder, ['asc', 'desc'])) {
-            $this->fetchOrder = $fetchOrder;
-        }
+    /**
+     * {@inheritDoc}
+     */
+    public function orderByUid(
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static {
+        $this->ordering = new UidOrder(
+            SortDirection::from(strtolower(Str::enum($direction))),
+        );
 
         return $this;
     }
@@ -171,100 +160,22 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function getFetchOrder(): string
-    {
-        return $this->fetchOrder;
-    }
+    public function sortBy(
+        ImapSortKey|string $key,
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static {
+        $key = ImapSortKey::from(strtoupper(Str::enum($key)));
 
-    /**
-     * {@inheritDoc}
-     */
-    public function setFetchOrderAsc(): MessageQueryInterface
-    {
-        return $this->setFetchOrder('asc');
-    }
+        $direction = SortDirection::from(strtolower(Str::enum($direction)));
 
-    /**
-     * {@inheritDoc}
-     */
-    public function setFetchOrderDesc(): MessageQueryInterface
-    {
-        return $this->setFetchOrder('desc');
-    }
+        $criterion = new SortCriterion($key, $direction);
 
-    /**
-     * {@inheritDoc}
-     */
-    public function oldest(): MessageQueryInterface
-    {
-        return $this->setFetchOrder('asc');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function newest(): MessageQueryInterface
-    {
-        return $this->setFetchOrder('desc');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function setSortKey(ImapSortKey|string|null $key): MessageQueryInterface
-    {
-        if (is_string($key)) {
-            $key = ImapSortKey::from(strtoupper($key));
-        }
-
-        $this->sortKey = $key;
-
-        return $this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getSortKey(): ?ImapSortKey
-    {
-        return $this->sortKey;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function setSortDirection(string $direction): MessageQueryInterface
-    {
-        $direction = strtolower($direction);
-
-        if (in_array($direction, ['asc', 'desc'])) {
-            $this->sortDirection = $direction;
+        if ($this->ordering instanceof ImapSort) {
+            $this->ordering->add($criterion);
+        } else {
+            $this->ordering = new ImapSort($criterion);
         }
 
         return $this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getSortDirection(): string
-    {
-        return $this->sortDirection;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): MessageQueryInterface
-    {
-        return $this->setSortKey($key)->setSortDirection($direction);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function sortByDesc(ImapSortKey|string $key): MessageQueryInterface
-    {
-        return $this->sortBy($key, 'desc');
     }
 }

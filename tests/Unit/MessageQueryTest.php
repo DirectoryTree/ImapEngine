@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -152,28 +153,57 @@ test('destroy with expunge only expunges the given messages', function () {
     $stream->assertWritten('TAG3 UID EXPUNGE 1:3');
 });
 
-test('oldest sets fetch order to asc', function () {
-    $query = query();
+test('orderByUid returns messages in ascending UID order', function () {
+    $stream = new FakeStream;
+    $stream->open();
 
-    $query->oldest();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 3 1 2',
+        'TAG2 OK UID SEARCH completed',
+    ]);
 
-    expect($query->getFetchOrder())->toBe('asc');
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $uids = query($mailbox)->orderByUid()->get()->map(
+        fn ($message) => $message->uid()
+    )->all();
+
+    expect($uids)->toBe([1, 2, 3]);
 });
 
-test('newest sets fetch order to desc', function () {
-    $query = query();
+test('orderByUid returns messages in descending UID order', function () {
+    $stream = new FakeStream;
+    $stream->open();
 
-    $query->newest();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 2 3 1',
+        'TAG2 OK UID SEARCH completed',
+    ]);
 
-    expect($query->getFetchOrder())->toBe('desc');
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $uids = query($mailbox)->orderByUid(SortDirection::Descending)->get()->map(
+        fn ($message) => $message->uid()
+    )->all();
+
+    expect($uids)->toBe([3, 2, 1]);
 });
 
-test('oldest and newest return query instance for chaining', function () {
+test('orderByUid returns query instance for chaining', function () {
     $query = query();
 
-    expect($query->oldest())->toBe($query);
-    expect($query->newest())->toBe($query);
+    expect($query->orderByUid())->toBe($query);
 });
+
+test('orderByUid fails with incorrect string direction', function () {
+    query()->orderByUid('invalid');
+})->throws(ValueError::class);
 
 test('each breaks when callback returns false', function () {
     $stream = new FakeStream;
@@ -585,6 +615,10 @@ test('sortBy fails with incorrect string key', function () {
     query()->sortBy('invalid');
 })->throws(ValueError::class);
 
+test('sortBy fails with incorrect string direction', function () {
+    query()->sortBy('date', 'invalid');
+})->throws(ValueError::class);
+
 test('sortBy sends correct sort command with ascending order', function () {
     $stream = new FakeStream;
     $stream->open();
@@ -595,6 +629,39 @@ test('sortBy sends correct sort command with ascending order', function () {
         '* CAPABILITY IMAP4rev1 SORT',
         'TAG2 OK CAPABILITY completed',
         '* SORT 3 1 2',
+        'TAG3 OK SORT completed',
+        '* 1 FETCH (UID 1 FLAGS ())',
+        '* 2 FETCH (UID 2 FLAGS ())',
+        '* 3 FETCH (UID 3 FLAGS ())',
+        'TAG4 OK UID FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $uids = query($mailbox)
+        ->orderByUid(SortDirection::Descending)
+        ->sortBy('date')
+        ->with(MessageData::flags())
+        ->get()
+        ->map(fn ($message) => $message->uid())
+        ->all();
+
+    $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
+
+    expect($uids)->toBe([3, 1, 2]);
+});
+
+test('sortBy recognizes extended SORT capabilities', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT=DISPLAY',
+        'TAG2 OK CAPABILITY completed',
+        '* SORT 1',
         'TAG3 OK SORT completed',
     ]);
 
@@ -622,9 +689,57 @@ test('sortBy sends correct sort command with descending order', function () {
     $mailbox = Mailbox::make();
     $mailbox->connect(new ImapConnection($stream));
 
-    query($mailbox)->sortBy('date', 'desc')->get();
+    query($mailbox)->sortBy('date', SortDirection::Descending)->get();
 
     $stream->assertWritten('TAG3 UID SORT (REVERSE DATE) UTF-8 ALL');
+});
+
+test('sortBy sends multiple sort criteria in priority order', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
+        '* SORT 2 1 3',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    query($mailbox)
+        ->sortBy('subject')
+        ->sortBy('date', SortDirection::Descending)
+        ->get();
+
+    $stream->assertWritten('TAG3 UID SORT (SUBJECT REVERSE DATE) UTF-8 ALL');
+});
+
+test('orderByUid replaces server sorting', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 3 1 2',
+        'TAG2 OK UID SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $uids = query($mailbox)
+        ->sortBy('date')
+        ->orderByUid()
+        ->get()
+        ->map(fn ($message) => $message->uid())
+        ->all();
+
+    expect($uids)->toBe([1, 2, 3]);
 });
 
 test('sortBy works with ImapSortKey enum', function () {
@@ -664,7 +779,7 @@ test('sortBy combined with search criteria', function () {
     $mailbox = Mailbox::make();
     $mailbox->connect(new ImapConnection($stream));
 
-    query($mailbox)->unseen()->sortBy('arrival', 'desc')->get();
+    query($mailbox)->unseen()->sortBy('arrival', SortDirection::Descending)->get();
 
     $stream->assertWritten('TAG3 UID SORT (REVERSE ARRIVAL) UTF-8 UNSEEN');
 });

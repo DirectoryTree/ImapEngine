@@ -1,6 +1,8 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeMessage;
 use DirectoryTree\ImapEngine\Testing\FakeMessageQuery;
@@ -30,6 +32,48 @@ test('it returns message collection', function () {
     expect($collection)->toHaveCount(2);
 });
 
+test('it orders messages by uid', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(2),
+        new FakeMessage(1),
+        new FakeMessage(3),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+
+    $ascending = $query
+        ->orderByUid()
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    $descending = $query
+        ->orderByUid(SortDirection::Descending)
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    expect($ascending)->toBe([1, 2, 3])
+        ->and($descending)->toBe([3, 2, 1]);
+});
+
+test('it applies server sort criteria', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(1, contents: "Subject: Zebra\r\n\r\n"),
+        new FakeMessage(2, contents: "Subject: Apple\r\n\r\n"),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+
+    $uids = $query
+        ->sortBy(ImapSortKey::Subject)
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    expect($uids)->toBe([2, 1]);
+});
+
 test('it counts messages correctly', function () {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
@@ -53,7 +97,7 @@ test('it returns first message', function () {
     $first = $query->first();
 
     expect($first)->toBeInstanceOf(FakeMessage::class);
-    expect($first->uid())->toBe(1);
+    expect($first->uid())->toBe(2);
 });
 
 test('it returns null when no messages exist for first()', function () {
@@ -195,8 +239,8 @@ test('each breaks when callback returns false', function () {
         }
     }, 2); // Use chunk size of 2
 
-    // Should process messages 1, 2, and 3, then break
-    expect($processedUids)->toBe([1, 2, 3]);
+    // Should process messages 5, 4, and 3, then break
+    expect($processedUids)->toBe([5, 4, 3]);
 });
 
 test('chunk breaks when callback returns false', function () {
@@ -240,7 +284,7 @@ test('each processes all messages when callback never returns false', function (
     });
 
     // Should process all messages
-    expect($processedUids)->toBe([1, 2, 3]);
+    expect($processedUids)->toBe([3, 2, 1]);
 });
 
 test('chunk processes all chunks when callback never returns false', function () {
