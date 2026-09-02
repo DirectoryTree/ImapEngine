@@ -18,12 +18,6 @@ class FolderCollection extends Collection
     {
         return $this->first(
             fn (FolderInterface $folder) => $folder->hasSpecialUse($specialUse)
-        ) ?? $this->first(
-            fn (FolderInterface $folder) => in_array(
-                strtolower($folder->name()),
-                $specialUse->fallbackNames(),
-                true
-            )
         );
     }
 }

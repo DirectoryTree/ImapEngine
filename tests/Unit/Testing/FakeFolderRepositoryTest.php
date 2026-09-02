@@ -109,12 +109,12 @@ test('it resolves special-use folders', function () {
     $repository = new FakeFolderRepository($mailbox, [
         $sentByName,
         $sentByAttribute,
-        new FakeFolder('Drafts'),
-        new FakeFolder('Starred'),
-        new FakeFolder('Junk Email'),
-        new FakeFolder('Deleted Items'),
-        new FakeFolder('Archive'),
-        new FakeFolder('[Gmail]/All Mail'),
+        new FakeFolder('Drafts', [ImapSpecialUse::Drafts->value]),
+        new FakeFolder('Starred', [ImapSpecialUse::Flagged->value]),
+        new FakeFolder('Junk Email', [ImapSpecialUse::Junk->value]),
+        new FakeFolder('Deleted Items', [ImapSpecialUse::Trash->value]),
+        new FakeFolder('Archive', [ImapSpecialUse::Archive->value]),
+        new FakeFolder('[Gmail]/All Mail', [ImapSpecialUse::All->value]),
     ]);
 
     expect($repository->sent())->toBe($sentByAttribute);

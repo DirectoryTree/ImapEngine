@@ -28,7 +28,7 @@ test('it requests special-use attributes when supported', function () {
     $stream->assertWritten('TAG3 LIST "" "*" RETURN (SPECIAL-USE)');
 });
 
-test('it falls back to conventional folder names', function () {
+test('it does not infer special uses from folder names', function () {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Welcome to IMAP',
@@ -47,7 +47,7 @@ test('it falls back to conventional folder names', function () {
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->sent()?->path())->toBe('Sent Items');
+    expect($mailbox->folders()->sent())->toBeNull();
 
     $stream->assertWritten('TAG3 LIST "" "*"');
     $stream->assertNotWritten('TAG3 LIST "" "*" RETURN (SPECIAL-USE)');
@@ -77,7 +77,7 @@ test('it resolves special-use attributes from an ordinary list response', functi
     $stream->assertWritten('TAG3 LIST "" "*"');
 });
 
-test('it prefers special-use attributes over folder names', function () {
+test('it resolves special-use attributes instead of matching folder names', function () {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Welcome to IMAP',
