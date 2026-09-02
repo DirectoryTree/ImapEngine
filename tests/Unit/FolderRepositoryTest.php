@@ -2,6 +2,9 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\FolderData;
 use DirectoryTree\ImapEngine\Mailbox;
 
 test('it requests special-use attributes when supported', function () {
@@ -23,7 +26,11 @@ test('it requests special-use attributes when supported', function () {
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->sent()?->path())->toBe('Outgoing');
+    $folders = $mailbox->folders()
+        ->with(FolderData::SpecialUse)
+        ->get();
+
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent)?->path())->toBe('Outgoing');
 
     $stream->assertWritten('TAG3 LIST "" "*" RETURN (SPECIAL-USE)');
 });
@@ -33,10 +40,8 @@ test('it does not infer special uses from folder names', function () {
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
-        '* CAPABILITY IMAP4rev1',
-        'TAG2 OK CAPABILITY completed',
         '* LIST (\\HasNoChildren) "/" "Sent Items"',
-        'TAG3 OK LIST completed',
+        'TAG2 OK LIST completed',
     ]);
 
     $mailbox = Mailbox::make([
@@ -47,10 +52,12 @@ test('it does not infer special uses from folder names', function () {
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->sent())->toBeNull();
+    $folders = $mailbox->folders()->get();
 
-    $stream->assertWritten('TAG3 LIST "" "*"');
-    $stream->assertNotWritten('TAG3 LIST "" "*" RETURN (SPECIAL-USE)');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent))->toBeNull();
+
+    $stream->assertWritten('TAG2 LIST "" "*"');
+    $stream->assertNotWritten('TAG2 LIST "" "*" RETURN (SPECIAL-USE)');
 });
 
 test('it resolves special-use attributes from an ordinary list response', function () {
@@ -58,10 +65,8 @@ test('it resolves special-use attributes from an ordinary list response', functi
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
-        '* CAPABILITY IMAP4rev1',
-        'TAG2 OK CAPABILITY completed',
         '* LIST (\\Sent \\HasNoChildren) "/" "Outgoing"',
-        'TAG3 OK LIST completed',
+        'TAG2 OK LIST completed',
     ]);
 
     $mailbox = Mailbox::make([
@@ -72,9 +77,11 @@ test('it resolves special-use attributes from an ordinary list response', functi
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->sent()?->path())->toBe('Outgoing');
+    $folders = $mailbox->folders()->get();
 
-    $stream->assertWritten('TAG3 LIST "" "*"');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent)?->path())->toBe('Outgoing');
+
+    $stream->assertWritten('TAG2 LIST "" "*"');
 });
 
 test('it resolves special-use attributes instead of matching folder names', function () {
@@ -97,7 +104,11 @@ test('it resolves special-use attributes instead of matching folder names', func
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->sent()?->path())->toBe('Outgoing');
+    $folders = $mailbox->folders()
+        ->with(FolderData::SpecialUse)
+        ->get();
+
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent)?->path())->toBe('Outgoing');
 });
 
 test('it returns null when a special-use folder cannot be resolved', function () {
@@ -105,10 +116,8 @@ test('it returns null when a special-use folder cannot be resolved', function ()
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
-        '* CAPABILITY IMAP4rev1',
-        'TAG2 OK CAPABILITY completed',
         '* LIST (\\HasNoChildren) "/" "INBOX"',
-        'TAG3 OK LIST completed',
+        'TAG2 OK LIST completed',
     ]);
 
     $mailbox = Mailbox::make([
@@ -119,5 +128,30 @@ test('it returns null when a special-use folder cannot be resolved', function ()
 
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->folders()->archive())->toBeNull();
+    $folders = $mailbox->folders()->get();
+
+    expect($folders->findBySpecialUse(ImapSpecialUse::Archive))->toBeNull();
+});
+
+test('it throws when requested folder data is not supported', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1',
+        'TAG2 OK CAPABILITY completed',
+    ]);
+
+    $mailbox = Mailbox::make([
+        'host' => 'imap.example.com',
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    expect(fn () => $mailbox->folders()
+        ->with(FolderData::SpecialUse)
+        ->get()
+    )->toThrow(ImapCapabilityException::class);
 });
