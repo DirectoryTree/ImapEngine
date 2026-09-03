@@ -128,7 +128,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
-    public function search(array $criteria, ImapIdentifier $identifier = ImapIdentifier::Uid, ?string $charset = null): UntaggedResponse;
+    public function search(array $criteria, ?string $charset = null, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
 
     /**
      * Send a "SORT" command.
@@ -137,7 +137,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc5256
      */
-    public function sort(ImapSort $sort, array $criteria, ImapIdentifier $identifier = ImapIdentifier::Uid, string $charset = 'UTF-8'): UntaggedResponse;
+    public function sort(ImapSort $sort, array $criteria, string $charset = 'UTF-8', ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse;
 
     /**
      * Send an "ID" command.

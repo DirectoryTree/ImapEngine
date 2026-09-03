@@ -131,7 +131,7 @@ test('message operations accept raw sequence sets', function (string $method, ar
     ['expunge', [], 'UID EXPUNGE 1:3,7:*'],
 ]);
 
-test('search accepts an explicit charset separately from criteria', function () {
+test('search accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Ready',
@@ -141,12 +141,15 @@ test('search accepts an explicit charset separately from criteria', function () 
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
-    $connection->search(['SUBJECT', '"été"'], charset: 'UTF-8');
+    $connection->search(['SUBJECT', '"été"'], 'UTF-8', $identifier);
 
-    $stream->assertWritten('TAG1 UID SEARCH CHARSET "UTF-8" SUBJECT "été"');
-});
+    $stream->assertWritten('TAG1 '.$command.' CHARSET "UTF-8" SUBJECT "été"');
+})->with([
+    [ImapIdentifier::Uid, 'UID SEARCH'],
+    [ImapIdentifier::MessageNumber, 'SEARCH'],
+]);
 
-test('sort accepts an explicit charset separately from criteria', function () {
+test('sort accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Ready',
@@ -156,10 +159,13 @@ test('sort accepts an explicit charset separately from criteria', function () {
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
-    $connection->sort(new ImapSort(new SortCriterion(ImapSortKey::Arrival)), ['ALL'], charset: 'US-ASCII');
+    $connection->sort(new ImapSort(new SortCriterion(ImapSortKey::Arrival)), ['ALL'], 'US-ASCII', $identifier);
 
-    $stream->assertWritten('TAG1 UID SORT (ARRIVAL) US-ASCII ALL');
-});
+    $stream->assertWritten('TAG1 '.$command.' (ARRIVAL) US-ASCII ALL');
+})->with([
+    [ImapIdentifier::Uid, 'UID SORT'],
+    [ImapIdentifier::MessageNumber, 'SORT'],
+]);
 
 test('list supports selection options multiple patterns and status return data', function () {
     $stream = new FakeStream;
