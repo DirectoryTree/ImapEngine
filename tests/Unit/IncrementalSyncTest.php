@@ -2,6 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -212,6 +213,107 @@ test('message query fetches changes without searching first', function () {
     $stream->assertWritten('TAG4 UID FETCH 1:2,7 (FLAGS) (CHANGEDSINCE 42)');
     $stream->assertNotWritten('UID SEARCH');
     expect($changes->messages()[0]->uid())->toBe(7);
+});
+
+test('vanished synchronization requires qresync to be enabled before selection', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG3 OK CAPABILITY completed',
+    ]);
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = (new Folder($mailbox, 'INBOX'))->messages();
+
+    expect(fn () => $query->changesSince(42, [7], vanished: true))->toThrow(
+        ImapCapabilityException::class,
+        'Enable QRESYNC before selecting a folder to request vanished messages.',
+    );
+    $stream->assertNotWritten('ENABLE QRESYNC');
+    $stream->assertNotWritten('UID FETCH');
+});
+
+test('vanished synchronization reuses qresync enabled before selection', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG2 OK CAPABILITY completed',
+        '* ENABLED QRESYNC',
+        'TAG3 OK ENABLE completed',
+        'TAG4 OK SELECT completed',
+        '* VANISHED (EARLIER) 7',
+        'TAG5 OK FETCH completed',
+        'TAG6 OK FETCH completed',
+    ]);
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $mailbox->enable('qresync');
+    $mailbox->enable('QRESYNC');
+    $query = (new Folder($mailbox, 'INBOX'))->messages();
+
+    $result = $query->changesSince(42, [7], vanished: true);
+    $query->changesSince(42, [7], vanished: true);
+
+    expect($result->vanishedUids())->toBe([7]);
+    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeTrue();
+    $stream->assertWritten('TAG3 ENABLE QRESYNC');
+    $stream->assertWritten('TAG4 SELECT "INBOX"');
+    $stream->assertWritten('TAG5 UID FETCH 7 (FLAGS) (CHANGEDSINCE 42 VANISHED)');
+    $stream->assertWritten('TAG6 UID FETCH 7 (FLAGS) (CHANGEDSINCE 42 VANISHED)');
+});
+
+test('advertised qresync is not treated as enabled when the server does not acknowledge it', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG2 OK CAPABILITY completed',
+        '* ENABLED',
+        'TAG3 OK ENABLE completed',
+        'TAG4 OK SELECT completed',
+    ]);
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $mailbox->enable('QRESYNC');
+    $query = (new Folder($mailbox, 'INBOX'))->messages();
+
+    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeFalse();
+    expect(fn () => $query->changesSince(42, [7], vanished: true))->toThrow(ImapCapabilityException::class);
+    $stream->assertNotWritten('UID FETCH');
+});
+
+test('the maximum rfc7162 checkpoint round trips without losing precision', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        '* ENABLED QRESYNC',
+        'TAG1 OK ENABLE completed',
+        '* OK [HIGHESTMODSEQ 9223372036854775807] Highest',
+        'TAG2 OK SELECT completed',
+        '* 1 FETCH (UID 7 FLAGS () MODSEQ (9223372036854775807))',
+        'TAG3 OK FETCH completed',
+        'TAG4 OK STORE completed',
+        'TAG5 OK SELECT completed',
+    ]);
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+    $connection->enable('QRESYNC');
+    $checkpoint = $connection->select('INBOX', new CondStore)->highestModSequence();
+    $result = $connection->fetch(7, 'FLAGS', modifiers: new ChangedSince($checkpoint));
+    $connection->store(7, '\\Seen', modifiers: new UnchangedSince($result->messages()[0]->modSequence()));
+    $connection->select('INBOX', new QuickResync(777, $checkpoint));
+
+    expect($checkpoint)->toBe(9223372036854775807);
+    expect($result->messages()[0]->modSequence())->toBe($checkpoint);
+    $stream->assertWritten('TAG3 UID FETCH 7 (FLAGS) (CHANGEDSINCE 9223372036854775807)');
+    $stream->assertWritten('TAG4 UID STORE 7 (UNCHANGEDSINCE 9223372036854775807) +FLAGS.SILENT (\\Seen)');
+    $stream->assertWritten('TAG5 SELECT "INBOX" (QRESYNC (777 9223372036854775807))');
 });
 
 test('empty synchronization sets return without capability checks or fetch commands', function (bool $vanished) {

@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 
 class FetchResult
@@ -19,7 +20,7 @@ class FetchResult
     /**
      * Create a fetch result from IMAP responses, optionally filtering fetched messages.
      *
-     * @param  (callable(FetchedMessageData): bool)|null  $filter
+     * @param  (callable(FetchedMessageData, UntaggedResponse): bool)|null  $filter
      */
     public static function fromResponses(ResponseCollection $responses, ?callable $filter = null): static
     {
@@ -34,7 +35,7 @@ class FetchResult
             ) {
                 $message = FetchedMessageData::fromResponse($response);
 
-                if (! $filter || $filter($message)) {
+                if (! $filter || $filter($message, $response)) {
                     $messages[] = $message;
                 }
             }

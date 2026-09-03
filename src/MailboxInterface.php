@@ -23,9 +23,12 @@ interface MailboxInterface
     public function connected(): bool;
 
     /**
-     * Force a reconnection to the server.
+     * Reconnect to the same account, optionally replacing the stored password or token.
+     *
+     * A null password retains the current credentials. A replacement is retained
+     * for subsequent connections, even if authentication fails.
      */
-    public function reconnect(): void;
+    public function reconnect(?string $password = null): void;
 
     /**
      * Connect to the server.
@@ -58,7 +61,14 @@ interface MailboxInterface
     public function hasCapability(string $capability): bool;
 
     /**
+     * Determine if a capability has been enabled for the current connection.
+     */
+    public function hasEnabledCapability(string $capability): bool;
+
+    /**
      * Enable the given mailbox capabilities for the current connection.
+     *
+     * Call this before selecting or examining any folder.
      */
     public function enable(string ...$capabilities): ResponseCollection;
 

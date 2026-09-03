@@ -95,6 +95,12 @@ class MessageQuery implements MessageQueryInterface
             );
         }
 
+        if ($vanished && ! $mailbox->hasEnabledCapability('QRESYNC')) {
+            throw new ImapCapabilityException(
+                'Enable QRESYNC before selecting a folder to request vanished messages.'
+            );
+        }
+
         $items = array_map(
             fn (FetchItem $item) => $item->toImap(),
             $this->fetchItems,

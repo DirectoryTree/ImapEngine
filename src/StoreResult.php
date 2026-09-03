@@ -6,7 +6,6 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class StoreResult
@@ -23,14 +22,12 @@ class StoreResult
 
     /**
      * Create a store result from IMAP responses.
+     *
+     * @param  (callable(FetchedMessageData, UntaggedResponse): bool)|null  $filter
      */
-    public static function fromResponses(ResponseCollection $responses, TaggedResponse $response): static
+    public static function fromResponses(ResponseCollection $responses, TaggedResponse $response, ?callable $filter = null): static
     {
-        $messages = $responses->untagged()
-            ->filter(fn (UntaggedResponse $response) => ($type = $response->tokenAt(2)) instanceof Token && $type->is('FETCH'))
-            ->map(fn (UntaggedResponse $response) => FetchedMessageData::fromResponse($response))
-            ->values()
-            ->all();
+        $messages = FetchResult::fromResponses($responses, $filter)->messages();
 
         $code = $response->tokenAt(2);
         $modified = $code instanceof ResponseCodeData && strtoupper($code->first()?->value ?? '') === 'MODIFIED'

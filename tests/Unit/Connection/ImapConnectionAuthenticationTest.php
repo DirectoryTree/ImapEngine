@@ -219,7 +219,7 @@ test('authenticator exceptions disconnect an unfinished authentication exchange'
     expect($connection->connected())->toBeFalse();
 });
 
-test('mailbox oauth configuration uses challenge based authentication', function () {
+test('mailbox xoauth2 configuration uses challenge based authentication', function () {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Ready',
@@ -230,7 +230,7 @@ test('mailbox oauth configuration uses challenge based authentication', function
     $mailbox = Mailbox::make([
         'username' => 'foo',
         'password' => 'secret',
-        'authentication' => 'oauth',
+        'authentication' => 'xoauth2',
     ]);
     $mailbox->connect(new ImapConnection($stream));
 

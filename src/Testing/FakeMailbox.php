@@ -22,6 +22,11 @@ class FakeMailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
+     * The capabilities enabled for the current connection.
+     */
+    protected array $enabled = [];
+
+    /**
      * Constructor.
      */
     public function __construct(
@@ -40,10 +45,6 @@ class FakeMailbox implements MailboxInterface
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
-        if (is_null($key)) {
-            return $this->config;
-        }
-
         return data_get($this->config, $key, $default);
     }
 
@@ -66,9 +67,14 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function reconnect(): void
+    public function reconnect(?string $password = null): void
     {
-        // Do nothing.
+        if ($password !== null) {
+            $this->config['password'] = $password;
+        }
+
+        $this->selected = null;
+        $this->enabled = [];
     }
 
     /**
@@ -114,8 +120,18 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
+    public function hasEnabledCapability(string $capability): bool
+    {
+        return in_array(strtoupper($capability), $this->enabled, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function enable(string ...$capabilities): ResponseCollection
     {
+        $this->enabled = array_unique([...$this->enabled, ...array_map('strtoupper', $capabilities)]);
+
         return new ResponseCollection;
     }
 

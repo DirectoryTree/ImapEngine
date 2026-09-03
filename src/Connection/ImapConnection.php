@@ -506,7 +506,11 @@ class ImapConnection implements ConnectionInterface
         $this->send($identifier === ImapIdentifier::Uid ? 'UID STORE' : 'STORE', $tokens, $tag);
 
         $response = $this->taggedResponse($tag);
-        $result = StoreResult::fromResponses($this->result->responses(), $response);
+        $result = StoreResult::fromResponses(
+            $this->result->responses(),
+            $response,
+            fn (FetchedMessageData $data, UntaggedResponse $response) => $this->matchesMessageSet($data, $response, $tokens[0], $identifier),
+        );
 
         if ($response->status()->is('BAD') || ($response->failed() && empty($result->modified()))) {
             throw ImapCommandException::make($this->result->command(), $response);
@@ -718,8 +722,8 @@ class ImapConnection implements ConnectionInterface
         // >> TAG123 FETCH 123 (UID BODY[TEXT])
         // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
-        return FetchResult::fromResponses($this->result->responses(), function (FetchedMessageData $data) use ($items, $identifier) {
-            if ($identifier === ImapIdentifier::Uid && ! $data->has('UID')) {
+        return FetchResult::fromResponses($this->result->responses(), function (FetchedMessageData $data, UntaggedResponse $response) use ($items, $identifier, $tokens) {
+            if (! $this->matchesMessageSet($data, $response, $tokens[0], $identifier)) {
                 return false;
             }
 
@@ -734,6 +738,36 @@ class ImapConnection implements ConnectionInterface
 
             return true;
         });
+    }
+
+    /**
+     * Determine whether a fetched message belongs to the command's message set.
+     */
+    protected function matchesMessageSet(FetchedMessageData $data, UntaggedResponse $response, string $set, ImapIdentifier $identifier): bool
+    {
+        if ($identifier === ImapIdentifier::Uid && ! $data->has('UID')) {
+            return false;
+        }
+
+        // Wildcards and saved searches require server state we do not have.
+        // Do not discard potentially requested messages by guessing their bounds.
+        if (str_contains($set, '*') || $set === '$') {
+            return true;
+        }
+
+        $number = $identifier === ImapIdentifier::Uid ? $data->uid() : (int) $response->type()->value;
+
+        foreach (explode(',', $set) as $sequence) {
+            [$start, $end] = array_pad(explode(':', $sequence, 2), 2, $sequence);
+            $start = (int) $start;
+            $end = (int) $end;
+
+            if ($number >= min($start, $end) && $number <= max($start, $end)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

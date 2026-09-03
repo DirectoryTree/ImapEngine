@@ -11,6 +11,7 @@ use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use Exception;
+use InvalidArgumentException;
 
 class Mailbox implements MailboxInterface
 {
@@ -28,7 +29,7 @@ class Mailbox implements MailboxInterface
         'password' => '',
         'encryption' => 'ssl',
         'validate_cert' => true,
-        'authentication' => 'plain',
+        'authentication' => 'login',
         'proxy' => [
             'socket' => null,
             'username' => null,
@@ -78,6 +79,7 @@ class Mailbox implements MailboxInterface
     public function __clone(): void
     {
         $this->connection = null;
+        $this->capabilities = null;
         $this->selected = null;
         $this->selection = null;
         $this->enabled = [];
@@ -96,10 +98,6 @@ class Mailbox implements MailboxInterface
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
-        if (is_null($key)) {
-            return $this->config;
-        }
-
         return data_get($this->config, $key, $default);
     }
 
@@ -126,9 +124,13 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function reconnect(): void
+    public function reconnect(?string $password = null): void
     {
         $this->disconnect();
+
+        if ($password !== null) {
+            $this->config['password'] = $password;
+        }
 
         $this->connect();
     }
@@ -167,17 +169,16 @@ class Mailbox implements MailboxInterface
      */
     protected function authenticate(): void
     {
-        if ($this->config('authentication') === 'oauth') {
-            $this->connection->authenticate(new Authentication\XOAuth2(
-                $this->config('username'),
-                $this->config('password'),
-            ));
-        } else {
-            $this->connection->login(
-                $this->config('username'),
-                $this->config('password'),
-            );
-        }
+        $username = $this->config('username');
+        $password = $this->config('password');
+
+        match ($this->config('authentication')) {
+            'login' => $this->connection->login($username, $password),
+            'xoauth2' => $this->connection->authenticate(
+                new Authentication\XOAuth2($username, $password),
+            ),
+            default => throw new InvalidArgumentException('Unsupported authentication mechanism.'),
+        };
     }
 
     /**
@@ -192,6 +193,7 @@ class Mailbox implements MailboxInterface
             // Do nothing.
         } finally {
             $this->connection = null;
+            $this->capabilities = null;
             $this->selected = null;
             $this->selection = null;
             $this->enabled = [];
@@ -233,8 +235,18 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
+    public function hasEnabledCapability(string $capability): bool
+    {
+        return in_array(strtoupper($capability), $this->enabled, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function enable(string ...$capabilities): ResponseCollection
     {
+        $capabilities = array_map('strtoupper', $capabilities);
+
         foreach ($capabilities as $capability) {
             if (! $this->hasCapability($capability)) {
                 throw new ImapCapabilityException(
@@ -251,7 +263,14 @@ class Mailbox implements MailboxInterface
 
         $responses = $this->connection()->enable(...$capabilities);
 
-        $this->enabled = array_unique([...$this->enabled, ...$capabilities]);
+        foreach ($responses as $response) {
+            if ($response->type()->is('ENABLED')) {
+                $this->enabled = array_unique([
+                    ...$this->enabled,
+                    ...array_map(fn (Token $token) => strtoupper($token->value), $response->tokensAfter(2)),
+                ]);
+            }
+        }
 
         return $responses;
     }

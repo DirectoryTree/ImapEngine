@@ -96,6 +96,8 @@ interface MessageQueryInterface
 
     /**
      * Get messages changed after the given modification sequence.
+     *
+     * Requesting vanished messages requires enabling QRESYNC before selecting a folder.
      */
     public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult;
 

@@ -582,9 +582,9 @@ test('uid fetch with uid', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->fetch(1, 'UID');
+    $responses = $connection->fetch(123, 'UID');
 
-    $stream->assertWritten('TAG1 UID FETCH 1 (UID)');
+    $stream->assertWritten('TAG1 UID FETCH 123 (UID)');
 
     expect($responses)->toBeInstanceOf(FetchResult::class);
     expect($responses->messages()[0]->uid())->toBe(123);
@@ -893,9 +893,9 @@ test('fetch', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->fetch(1, 'FLAGS');
+    $responses = $connection->fetch(123, 'FLAGS');
 
-    $stream->assertWritten('TAG1 UID FETCH 1 (FLAGS)');
+    $stream->assertWritten('TAG1 UID FETCH 123 (FLAGS)');
 
     expect($responses)->toBeInstanceOf(FetchResult::class);
     expect($responses->messages()[0]->uid())->toBe(123);
