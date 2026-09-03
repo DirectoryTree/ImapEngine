@@ -136,7 +136,7 @@ class Str
      *
      * @return int[]
      */
-    public static function parseSequenceSet(string $set): array
+    public static function fromSequenceSet(string $set): array
     {
         $values = [];
 

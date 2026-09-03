@@ -34,7 +34,7 @@ class StoreResult
 
         $code = $response->tokenAt(2);
         $modified = $code instanceof ResponseCodeData && strtoupper($code->first()?->value ?? '') === 'MODIFIED'
-            ? Str::parseSequenceSet($code->tokenAt(1)->value)
+            ? Str::fromSequenceSet($code->tokenAt(1)->value)
             : [];
 
         return new static($response, $messages, $modified, $responses);

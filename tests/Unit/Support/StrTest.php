@@ -24,7 +24,7 @@ test('set converts consecutive values into sequence ranges', function () {
 });
 
 test('parse sequence set expands values and ranges', function () {
-    expect(Str::parseSequenceSet('1:3,7,10:8'))->toBe([1, 2, 3, 7, 10, 9, 8]);
+    expect(Str::fromSequenceSet('1:3,7,10:8'))->toBe([1, 2, 3, 7, 10, 9, 8]);
 });
 
 test('credentials', function () {
@@ -188,12 +188,12 @@ test('toImapUtf7 encodes mixed content correctly', function () {
 });
 
 test('sequence expansion preserves ascending descending and single value ranges', function () {
-    expect(Str::parseSequenceSet('1:3,9:7,5:5,4294967294:4294967295'))
+    expect(Str::fromSequenceSet('1:3,9:7,5:5,4294967294:4294967295'))
         ->toBe([1, 2, 3, 9, 8, 7, 5, 4294967294, 4294967295]);
 });
 
 test('sequence expansion handles large compact ranges', function () {
-    $values = Str::parseSequenceSet('1:100000');
+    $values = Str::fromSequenceSet('1:100000');
 
     expect($values)->toHaveCount(100000);
     expect($values[0])->toBe(1);

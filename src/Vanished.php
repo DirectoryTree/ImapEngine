@@ -26,7 +26,7 @@ class Vanished
         $sequenceSet = $response->tokenAt($earlier ? 3 : 2);
 
         return new static(
-            Str::parseSequenceSet($sequenceSet->value),
+            Str::fromSequenceSet($sequenceSet->value),
             $earlier,
         );
     }
