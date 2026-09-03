@@ -235,7 +235,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()->examine($this->path)->responses()->untagged()->map(
+        return $this->mailbox->examine($this)->responses()->untagged()->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }

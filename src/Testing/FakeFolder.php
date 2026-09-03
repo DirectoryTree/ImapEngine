@@ -137,6 +137,8 @@ class FakeFolder implements FolderInterface
      */
     public function examine(): array
     {
+        $this->mailbox?->examine($this);
+
         return [];
     }
 

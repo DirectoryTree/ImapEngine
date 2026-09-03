@@ -68,6 +68,11 @@ interface MailboxInterface
     public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult;
 
     /**
+     * Examine the given folder, invalidating the cached writable selection.
+     */
+    public function examine(FolderInterface $folder): SelectionResult;
+
+    /**
      * Determine if the given folder is selected.
      */
     public function selected(FolderInterface $folder): bool;

@@ -128,3 +128,18 @@ test('it returns stub quota values', function () {
         ],
     ]);
 });
+
+test('fake examination invalidates the previous selection', function (string $path) {
+    $mailbox = new FakeMailbox;
+    $inbox = new FakeFolder('INBOX', mailbox: $mailbox);
+    $examined = new FakeFolder($path, mailbox: $mailbox);
+
+    $inbox->select();
+    expect($mailbox->selected($inbox))->toBeTrue();
+    expect($examined->examine())->toBe([]);
+    expect($mailbox->selected($inbox))->toBeFalse();
+    expect($mailbox->selected($examined))->toBeFalse();
+
+    $inbox->select();
+    expect($mailbox->selected($inbox))->toBeTrue();
+})->with(['Archive', 'INBOX']);

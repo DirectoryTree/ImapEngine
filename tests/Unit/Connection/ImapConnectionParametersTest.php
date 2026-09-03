@@ -234,3 +234,27 @@ test('quick resync includes paired sequence matches', function (array|int|string
     [[5, 6, 9], ' 5:6,9'],
     ['5:6,9', ' 5:6,9'],
 ]);
+
+test('uid fetch requires both uid and requested attributes while preserving raw updates', function (string $request, string $attribute) {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        '* 1 FETCH (UID 7 MODSEQ (43))',
+        '* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (44))',
+        '* 1 FETCH ('.$attribute.' "missing uid")',
+        '* 1 FETCH (UID 7 '.$attribute.' "content" MODSEQ (45))',
+        'TAG1 OK FETCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+    $result = $connection->fetch(7, $request);
+
+    expect($result->messages())->toHaveCount(1);
+    expect($result->messages()[0]->get($attribute))->toBe('content');
+    expect($result->responses()->untagged())->toHaveCount(4);
+})->with([
+    ['BODY.PEEK[1.2]', 'BODY[1.2]'],
+    ['BODY.PEEK[TEXT]<0.7>', 'BODY[TEXT]<0>'],
+    ['BINARY.PEEK[1]<10.7>', 'BINARY[1]<10>'],
+]);

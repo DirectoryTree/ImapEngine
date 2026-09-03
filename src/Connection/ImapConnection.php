@@ -719,8 +719,8 @@ class ImapConnection implements ConnectionInterface
         // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
         return FetchResult::fromResponses($this->result->responses(), function (FetchedMessageData $data) use ($items, $identifier) {
-            if ($identifier === ImapIdentifier::Uid) {
-                return $data->has('UID');
+            if ($identifier === ImapIdentifier::Uid && ! $data->has('UID')) {
+                return false;
             }
 
             foreach ($items as $item) {

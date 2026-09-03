@@ -213,3 +213,24 @@ test('message query fetches changes without searching first', function () {
     $stream->assertNotWritten('UID SEARCH');
     expect($changes->messages()[0]->uid())->toBe(7);
 });
+
+test('empty synchronization sets return without capability checks or fetch commands', function (bool $vanished) {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $folder = new Folder($mailbox, 'INBOX');
+
+    $result = $folder->messages()->changesSince(0, [], vanished: $vanished);
+
+    expect($result->messages())->toBe([]);
+    expect($result->vanishedUids())->toBe([]);
+    expect($result->responses())->toBeEmpty();
+    $stream->assertNotWritten('CAPABILITY');
+    $stream->assertNotWritten('FETCH');
+})->with([false, true]);

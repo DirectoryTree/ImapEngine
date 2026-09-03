@@ -132,6 +132,16 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
+    public function examine(FolderInterface $folder): SelectionResult
+    {
+        $this->selected = null;
+
+        return new SelectionResult;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function selected(FolderInterface $folder): bool
     {
         return $this->selected?->is($folder) ?? false;

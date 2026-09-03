@@ -307,3 +307,12 @@ test('chunk processes all chunks when callback never returns false', function ()
     // Should process all chunks (1, 2, 3)
     expect($processedChunks)->toBe([1, 2, 3]);
 });
+
+test('fake synchronization also returns no changes for an empty uid set', function () {
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(7)]);
+
+    $result = $folder->messages()->changesSince(0, [], vanished: true);
+
+    expect($result->messages())->toBe([]);
+    expect($result->vanishedUids())->toBe([]);
+});

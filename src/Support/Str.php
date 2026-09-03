@@ -149,8 +149,14 @@ class Str
 
             [$start, $end] = array_map('intval', explode(':', $sequence, 2));
 
-            foreach (range($start, $end) as $value) {
+            $step = $start <= $end ? 1 : -1;
+
+            for ($value = $start; ; $value += $step) {
                 $values[] = $value;
+
+                if ($value === $end) {
+                    break;
+                }
             }
         }
 

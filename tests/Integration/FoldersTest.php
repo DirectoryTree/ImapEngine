@@ -106,3 +106,17 @@ test('quota', function () {
 
     expect($folder->quota())->toBeArray();
 });
+
+test('queries reselect the correct folder after examination', function () {
+    $mailbox = mailbox();
+    $selected = $mailbox->folders()->create('selected');
+    $examined = $mailbox->folders()->create('examined');
+
+    $selected->messages()->append("Subject: selection test\r\n\r\nbody");
+    expect($selected->messages()->count())->toBe(1);
+
+    $examined->examine();
+
+    expect($selected->messages()->count())->toBe(1);
+    expect($examined->messages()->count())->toBe(0);
+});

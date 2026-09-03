@@ -78,6 +78,10 @@ class MessageQuery implements MessageQueryInterface
      */
     public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
     {
+        if ($uids === []) {
+            return new FetchResult;
+        }
+
         $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';
 
         $mailbox = $this->folder->mailbox();

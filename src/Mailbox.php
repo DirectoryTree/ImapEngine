@@ -285,6 +285,19 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
+    public function examine(FolderInterface $folder): SelectionResult
+    {
+        // EXAMINE replaces the server selection with a read-only one, even
+        // for the same folder. The next query must select it again.
+        $this->selected = null;
+        $this->selection = null;
+
+        return $this->connection()->examine($folder->path());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function selected(FolderInterface $folder): bool
     {
         return $this->selected?->is($folder) ?? false;

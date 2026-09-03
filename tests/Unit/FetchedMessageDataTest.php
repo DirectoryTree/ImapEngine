@@ -255,3 +255,23 @@ test('empty fetched headers do not trigger repeated fetches', function () {
     $stream->assertWritten('TAG2 UID FETCH 7 (BODY.PEEK[HEADER])');
     $stream->assertNotWritten('TAG3');
 });
+
+test('lazy body loading ignores unsolicited uid updates before the requested response', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (UID 7 FLAGS (\\Seen) MODSEQ (43))',
+        '* 1 FETCH (UID 7 BODY[1.2] "content")',
+        'TAG2 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $message = new Message(new Folder($mailbox, 'INBOX'), new FetchedMessageData(['UID' => 7]));
+
+    expect($message->bodyPart('1.2'))->toBe('content');
+    expect($message->bodyPart('1.2'))->toBe('content');
+    $stream->assertWritten('TAG2 UID FETCH 7 (BODY.PEEK[1.2])');
+    $stream->assertNotWritten('TAG3 UID FETCH');
+});
