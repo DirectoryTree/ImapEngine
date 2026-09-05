@@ -5,9 +5,11 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\ItemNotFoundException;
@@ -85,7 +87,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function messages(): MessageQuery
     {
         // Ensure the folder is selected.
-        $this->select(true);
+        $this->select();
 
         return new MessageQuery($this, new ImapQueryBuilder);
     }
@@ -95,7 +97,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
     {
-        if (! $this->mailbox->hasCapability('IDLE')) {
+        if (! $this->mailbox->capabilities()->supports('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
@@ -109,7 +111,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
 
         // Fetch the message by message number.
         $fetch = fn (int $msgn) => (
-            $query($this->messages())->findOrFail($msgn, ImapFetchIdentifier::MessageNumber)
+            $query($this->messages())->findOrFail($msgn, ImapIdentifier::MessageNumber)
         );
 
         (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
@@ -173,9 +175,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false): void
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
-        $this->mailbox->select($this, $force);
+        return $this->mailbox->select($this, $force, ...$options);
     }
 
     /**
@@ -183,13 +185,15 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
-        if (! $this->mailbox->hasCapability('QUOTA')) {
+        if (! $this->mailbox->capabilities()->supports('QUOTA')) {
             throw new ImapCapabilityException(
                 'Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.'
             );
         }
 
-        $responses = $this->mailbox->connection()->quotaRoot($this->path);
+        $responses = $this->mailbox->connection()->getQuotaRoot($this->path)->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+        );
 
         $values = [];
 
@@ -233,7 +237,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()->examine($this->path)->map(
+        return $this->mailbox->examine($this)->responses()->untagged()->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }

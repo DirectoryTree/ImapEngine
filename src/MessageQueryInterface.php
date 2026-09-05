@@ -6,10 +6,10 @@ use BackedEnum;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
-use DirectoryTree\ImapEngine\MessageData\FetchItem;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -45,17 +45,17 @@ interface MessageQueryInterface
     /**
      * Add items to the message FETCH request.
      */
-    public function with(FetchItem ...$items): static;
+    public function with(FetchItemInterface ...$items): static;
 
     /**
      * Remove items from the message FETCH request.
      */
-    public function without(FetchItem ...$items): static;
+    public function without(FetchItemInterface ...$items): static;
 
     /**
      * Replace the items in the message FETCH request.
      */
-    public function only(FetchItem ...$items): static;
+    public function only(FetchItemInterface ...$items): static;
 
     /**
      * Order messages locally by UID, replacing any server-side sort criteria.
@@ -95,6 +95,13 @@ interface MessageQueryInterface
     public function get(): MessageCollection;
 
     /**
+     * Get messages changed after the given modification sequence.
+     *
+     * Requesting vanished messages requires enabling QRESYNC before selecting a folder.
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult;
+
+    /**
      * Append a new message to the folder.
      */
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult;
@@ -117,12 +124,12 @@ interface MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface;
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface;
 
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface;
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface;
 
     /**
      * Destroy the given messages.

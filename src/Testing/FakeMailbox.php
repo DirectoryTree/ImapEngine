@@ -2,21 +2,28 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\Capabilities;
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
-use DirectoryTree\ImapEngine\HasCapabilities;
 use DirectoryTree\ImapEngine\MailboxInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 class FakeMailbox implements MailboxInterface
 {
-    use HasCapabilities;
-
     /**
      * The currently selected folder.
      */
     protected ?FolderInterface $selected = null;
+
+    /**
+     * The mailbox capabilities.
+     */
+    protected Capabilities $capabilities;
 
     /**
      * Constructor.
@@ -25,8 +32,10 @@ class FakeMailbox implements MailboxInterface
         protected array $config = [],
         /** @var FakeFolder[] */
         protected array $folders = [],
-        protected array $capabilities = [],
+        array $capabilities = [],
     ) {
+        $this->capabilities = Capabilities::from($capabilities);
+
         foreach ($folders as $folder) {
             $folder->setMailbox($this);
         }
@@ -37,10 +46,6 @@ class FakeMailbox implements MailboxInterface
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
-        if (is_null($key)) {
-            return $this->config;
-        }
-
         return data_get($this->config, $key, $default);
     }
 
@@ -63,9 +68,14 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function reconnect(): void
+    public function reconnect(?string $password = null): void
     {
-        // Do nothing.
+        if ($password !== null) {
+            $this->config['password'] = $password;
+        }
+
+        $this->selected = null;
+        $this->capabilities = Capabilities::from($this->capabilities->all());
     }
 
     /**
@@ -103,7 +113,7 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function capabilities(): array
+    public function capabilities(): Capabilities
     {
         return $this->capabilities;
     }
@@ -111,9 +121,41 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function select(FolderInterface $folder, bool $force = false): void
+    public function enable(string ...$capabilities): ResponseCollection
+    {
+        $capabilities = Capabilities::from($capabilities);
+
+        foreach ($capabilities->all() as $capability) {
+            if (! $this->capabilities->supports($capability)) {
+                throw new ImapCapabilityException(
+                    "Unable to enable capability [$capability]. IMAP server does not support it."
+                );
+            }
+        }
+
+        $this->capabilities->enable(...$capabilities->all());
+
+        return new ResponseCollection;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
     {
         $this->selected = $folder;
+
+        return new Result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function examine(FolderInterface $folder): Result
+    {
+        $this->selected = null;
+
+        return new Result;
     }
 
     /**

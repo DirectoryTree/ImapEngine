@@ -23,6 +23,10 @@ test('set converts consecutive values into sequence ranges', function () {
     expect(Str::set([1, '*']))->toBe('1,*');
 });
 
+test('parse sequence set expands values and ranges', function () {
+    expect(Str::fromSequenceSet('1:3,7,10:8'))->toBe([1, 2, 3, 7, 10, 9, 8]);
+});
+
 test('credentials', function () {
     expect(Str::credentials('foo', 'bar'))->toBe('dXNlcj1mb28BYXV0aD1CZWFyZXIgYmFyAQE=');
 });
@@ -53,11 +57,10 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
 
-test('literal returns a literal indicator and the original string if it contains a newline', function () {
-    $input = "hello\nworld";
+test('literal preserves carriage returns and newlines using literals', function (string $input) {
     $expected = ['{'.strlen($input).'}', $input];
     expect(Str::literal($input))->toBe($expected);
-});
+})->with(["hello\nworld", "hello\rworld", "hello\r\nworld"]);
 
 test('literal handles an array of literals', function () {
     expect(Str::literal(['first', 'second']))->toBe(['"first"', '"second"']);
@@ -182,4 +185,17 @@ test('toImapUtf7 encodes mixed content correctly', function () {
     $expected = 'Work &BBoEPgRABDcEOAQ9BDA- &- Stuff';
 
     expect(Str::toImapUtf7($input))->toBe($expected);
+});
+
+test('sequence expansion preserves ascending descending and single value ranges', function () {
+    expect(Str::fromSequenceSet('1:3,9:7,5:5,4294967294:4294967295'))
+        ->toBe([1, 2, 3, 9, 8, 7, 5, 4294967294, 4294967295]);
+});
+
+test('sequence expansion handles large compact ranges', function () {
+    $values = Str::fromSequenceSet('1:100000');
+
+    expect($values)->toHaveCount(100000);
+    expect($values[0])->toBe(1);
+    expect($values[99999])->toBe(100000);
 });

@@ -40,11 +40,44 @@ class Str
             return $result;
         }
 
-        if (str_contains($string, "\n")) {
+        if (str_contains($string, "\r") || str_contains($string, "\n")) {
             return ['{'.strlen($string).'}', $string];
         }
 
         return '"'.static::escape($string).'"';
+    }
+
+    /**
+     * Make a parenthesized list of strings or NIL values, preserving literal boundaries.
+     *
+     * @param  array<string|null>  $values
+     */
+    public static function literalList(array $values): array
+    {
+        if (! $values) {
+            return ['()'];
+        }
+
+        $tokens = array_map(
+            fn (?string $value) => is_null($value) ? 'NIL' : static::literal($value),
+            array_values($values)
+        );
+
+        $last = count($tokens) - 1;
+
+        if (is_array($tokens[0])) {
+            $tokens[0][0] = '('.$tokens[0][0];
+        } else {
+            $tokens[0] = '('.$tokens[0];
+        }
+
+        if (is_array($tokens[$last])) {
+            $tokens[$last][1] .= ')';
+        } else {
+            $tokens[$last] .= ')';
+        }
+
+        return $tokens;
     }
 
     /**
@@ -96,6 +129,38 @@ class Str
 
         // Otherwise, return a typical range string.
         return $from.':'.$to;
+    }
+
+    /**
+     * Expand an IMAP sequence set into its individual values.
+     *
+     * @return int[]
+     */
+    public static function fromSequenceSet(string $set): array
+    {
+        $values = [];
+
+        foreach (explode(',', $set) as $sequence) {
+            if (! str_contains($sequence, ':')) {
+                $values[] = (int) $sequence;
+
+                continue;
+            }
+
+            [$start, $end] = array_map('intval', explode(':', $sequence, 2));
+
+            $step = $start <= $end ? 1 : -1;
+
+            for ($value = $start; ; $value += $step) {
+                $values[] = $value;
+
+                if ($value === $end) {
+                    break;
+                }
+            }
+        }
+
+        return $values;
     }
 
     /**

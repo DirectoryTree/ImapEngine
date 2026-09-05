@@ -17,8 +17,8 @@ test('inbox', function () {
 test('capabilities', function () {
     $mailbox = mailbox();
 
-    expect(array_flip($mailbox->capabilities()))->toHaveKeys([
-        'IMAP4rev1',
+    expect(array_flip($mailbox->capabilities()->all()))->toHaveKeys([
+        'IMAP4REV1',
         'LITERAL+',
         'UIDPLUS',
         'SORT',
