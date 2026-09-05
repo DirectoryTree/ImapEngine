@@ -13,7 +13,7 @@ class Authentication
      */
     public function __construct(
         protected ConnectionInterface $connection,
-        protected Authenticator $authenticator,
+        protected AuthenticatorInterface $authenticator,
     ) {}
 
     /**

@@ -7,8 +7,8 @@ use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
-use DirectoryTree\ImapEngine\SelectionOption;
-use DirectoryTree\ImapEngine\SelectionResult;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
@@ -119,9 +119,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false, SelectionOption ...$options): SelectionResult
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
-        return $this->mailbox?->select($this, $force, ...$options) ?? new SelectionResult;
+        return $this->mailbox?->select($this, $force, ...$options) ?? new Result;
     }
 
     /**

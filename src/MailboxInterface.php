@@ -4,6 +4,8 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 interface MailboxInterface
 {
@@ -53,17 +55,7 @@ interface MailboxInterface
     /**
      * Get the mailbox's capabilities.
      */
-    public function capabilities(): array;
-
-    /**
-     * Determine if the mailbox supports the given capability.
-     */
-    public function hasCapability(string $capability): bool;
-
-    /**
-     * Determine if a capability has been enabled for the current connection.
-     */
-    public function hasEnabledCapability(string $capability): bool;
+    public function capabilities(): Capabilities;
 
     /**
      * Enable the given mailbox capabilities for the current connection.
@@ -75,12 +67,12 @@ interface MailboxInterface
     /**
      * Select the given folder.
      */
-    public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult;
+    public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result;
 
     /**
      * Examine the given folder, invalidating the cached writable selection.
      */
-    public function examine(FolderInterface $folder): SelectionResult;
+    public function examine(FolderInterface $folder): Result;
 
     /**
      * Determine if the given folder is selected.

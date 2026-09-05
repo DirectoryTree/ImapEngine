@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -14,9 +15,9 @@ test('it can be created with basic properties', function () {
     expect($mailbox)->toBeInstanceOf(FakeMailbox::class);
     expect($mailbox->config('host'))->toBe('imap.example.com');
     expect($mailbox->config('username'))->toBe('user1');
-    expect($mailbox->capabilities())->toBe(['IMAP4rev1', 'STARTTLS']);
-    expect($mailbox->hasCapability('imap4rev1'))->toBeTrue();
-    expect($mailbox->hasCapability('START'))->toBeFalse();
+    expect($mailbox->capabilities()->all())->toBe(['IMAP4REV1', 'STARTTLS']);
+    expect($mailbox->capabilities()->supports('imap4rev1'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('START'))->toBeFalse();
 });
 
 test('it returns config values correctly', function () {
@@ -68,16 +69,25 @@ test('it is always connected', function () {
 test('it tracks enabled capabilities until reconnection', function () {
     $mailbox = new FakeMailbox(capabilities: ['QRESYNC']);
 
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeFalse();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
 
     $mailbox->enable('qresync');
 
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
 
     $mailbox->reconnect();
 
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeFalse();
-    expect($mailbox->hasCapability('QRESYNC'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
+    expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
+});
+
+test('it rejects enabling unsupported capabilities', function () {
+    $mailbox = new FakeMailbox(capabilities: ['QRESYNC']);
+
+    expect(fn () => $mailbox->enable('CONDSTORE'))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capability [CONDSTORE]. IMAP server does not support it.',
+    );
 });
 
 test('it returns folder repository', function () {

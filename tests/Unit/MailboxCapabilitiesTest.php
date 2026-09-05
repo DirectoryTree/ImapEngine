@@ -22,12 +22,11 @@ test('disconnect clears capabilities and enabled extensions for the next connect
     $folder = new Folder($mailbox, 'INBOX');
     $folder->select();
 
-    expect($mailbox->hasEnabledCapability('qresync'))->toBeTrue();
-    expect($mailbox->hasCapability('QRESYNC'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('qresync'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
 
     $mailbox->disconnect();
 
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeFalse();
     expect($mailbox->selected($folder))->toBeFalse();
 
     $stream = new FakeStream;
@@ -39,8 +38,9 @@ test('disconnect clears capabilities and enabled extensions for the next connect
     ]);
     $mailbox->connect(new ImapConnection($stream));
 
-    expect($mailbox->hasCapability('QRESYNC'))->toBeFalse();
-    expect($mailbox->hasCapability('CONDSTORE'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
+    expect($mailbox->capabilities()->supports('QRESYNC'))->toBeFalse();
+    expect($mailbox->capabilities()->supports('CONDSTORE'))->toBeTrue();
     $stream->assertWritten('TAG2 CAPABILITY');
 });
 
@@ -58,8 +58,7 @@ test('clones discover their own capabilities without changing the original mailb
 
     $clone = clone $mailbox;
 
-    expect($clone->hasEnabledCapability('QRESYNC'))->toBeFalse();
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
 
     $stream = new FakeStream;
     $stream->feed([
@@ -70,8 +69,9 @@ test('clones discover their own capabilities without changing the original mailb
     ]);
     $clone->connect(new ImapConnection($stream));
 
-    expect($clone->hasCapability('QRESYNC'))->toBeFalse();
-    expect($clone->hasCapability('CONDSTORE'))->toBeTrue();
-    expect($mailbox->hasCapability('QRESYNC'))->toBeTrue();
+    expect($clone->capabilities()->enabled('QRESYNC'))->toBeFalse();
+    expect($clone->capabilities()->supports('QRESYNC'))->toBeFalse();
+    expect($clone->capabilities()->supports('CONDSTORE'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
     $stream->assertWritten('TAG2 CAPABILITY');
 });

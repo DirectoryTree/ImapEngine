@@ -1,14 +1,15 @@
 <?php
 
-namespace DirectoryTree\ImapEngine;
+namespace DirectoryTree\ImapEngine\Selection;
 
 use Countable;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\FetchResult;
 
-class SelectionResult implements Countable
+class Result implements Countable
 {
     /**
      * Constructor.

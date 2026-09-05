@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-interface Authenticator
+interface AuthenticatorInterface
 {
     /**
      * Get the SASL mechanism name.

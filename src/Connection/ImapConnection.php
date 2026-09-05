@@ -22,12 +22,12 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\FetchedMessageData;
-use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\Fetch\ModifierInterface as FetchModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
-use DirectoryTree\ImapEngine\SelectionOption;
-use DirectoryTree\ImapEngine\SelectionResult;
-use DirectoryTree\ImapEngine\StoreModifier;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
+use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
@@ -277,7 +277,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function select(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult
+    public function select(string $folder = 'INBOX', OptionInterface ...$options): SelectionResult
     {
         return $this->examineOrSelect('SELECT', $folder, $options);
     }
@@ -285,7 +285,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function examine(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult
+    public function examine(string $folder = 'INBOX', OptionInterface ...$options): SelectionResult
     {
         return $this->examineOrSelect('EXAMINE', $folder, $options);
     }
@@ -299,7 +299,7 @@ class ImapConnection implements ConnectionInterface
 
         if ($options) {
             $tokens[] = Str::list(array_map(
-                fn (SelectionOption $option) => $option->toImap(),
+                fn (OptionInterface $option) => $option->toImap(),
                 $options,
             ));
         }
@@ -488,13 +488,13 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult
+    public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifierInterface ...$modifiers): StoreResult
     {
         $tokens = [Str::set($set)];
 
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
-                fn (StoreModifier $modifier) => $modifier->toImap(),
+                fn (StoreModifierInterface $modifier) => $modifier->toImap(),
                 $modifiers,
             ));
         }
@@ -688,7 +688,7 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult
+    public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifierInterface ...$modifiers): FetchResult
     {
         $prefix = ($identifier === ImapIdentifier::Uid) ? 'UID' : '';
 
@@ -706,7 +706,7 @@ class ImapConnection implements ConnectionInterface
 
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
-                fn (FetchModifier $modifier) => $modifier->toImap(),
+                fn (FetchModifierInterface $modifier) => $modifier->toImap(),
                 $modifiers,
             ));
         }

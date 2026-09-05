@@ -14,7 +14,7 @@ use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
-use DirectoryTree\ImapEngine\MessageData\FetchItem;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
@@ -86,8 +86,8 @@ class MessageQuery implements MessageQueryInterface
 
         $mailbox = $this->folder->mailbox();
 
-        $supported = $mailbox->hasCapability($capability)
-            || ($capability === 'CONDSTORE' && $mailbox->hasCapability('QRESYNC'));
+        $supported = $mailbox->capabilities()->supports($capability)
+            || ($capability === 'CONDSTORE' && $mailbox->capabilities()->supports('QRESYNC'));
 
         if (! $supported) {
             throw new ImapCapabilityException(
@@ -95,14 +95,14 @@ class MessageQuery implements MessageQueryInterface
             );
         }
 
-        if ($vanished && ! $mailbox->hasEnabledCapability('QRESYNC')) {
+        if ($vanished && ! $mailbox->capabilities()->enabled('QRESYNC')) {
             throw new ImapCapabilityException(
                 'Enable QRESYNC before selecting a folder to request vanished messages.'
             );
         }
 
         $items = array_map(
-            fn (FetchItem $item) => $item->toImap(),
+            fn (FetchItemInterface $item) => $item->toImap(),
             $this->fetchItems,
         );
 
@@ -376,7 +376,7 @@ class MessageQuery implements MessageQueryInterface
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
         $fetch = array_map(
-            fn (FetchItem $item) => $item->toImap(),
+            fn (FetchItemInterface $item) => $item->toImap(),
             $this->fetchItems,
         );
 
@@ -432,7 +432,7 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function sort(ImapSort $sort): Collection
     {
-        if (! $this->folder->mailbox()->hasCapability('SORT')) {
+        if (! $this->folder->mailbox()->capabilities()->supports('SORT')) {
             throw new ImapCapabilityException(
                 'Unable to sort messages. IMAP server does not support SORT capability.'
             );

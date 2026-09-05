@@ -10,7 +10,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
-use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\Fetch\ModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -1003,7 +1003,7 @@ test('fetch combines custom modifiers into one modifier list', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $custom = new class implements FetchModifier
+    $custom = new class implements ModifierInterface
     {
         public function toImap(): string
         {

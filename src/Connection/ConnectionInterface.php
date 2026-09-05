@@ -8,12 +8,12 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
-use DirectoryTree\ImapEngine\FetchModifier;
+use DirectoryTree\ImapEngine\Fetch\ModifierInterface as FetchModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
-use DirectoryTree\ImapEngine\SelectionOption;
-use DirectoryTree\ImapEngine\SelectionResult;
-use DirectoryTree\ImapEngine\StoreModifier;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
+use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
 use Generator;
 
@@ -165,7 +165,7 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-fetch-command
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
      */
-    public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifier ...$modifiers): FetchResult;
+    public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifierInterface ...$modifiers): FetchResult;
 
     /**
      * Send an IMAP command.
@@ -179,7 +179,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-select-command
      */
-    public function select(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult;
+    public function select(string $folder = 'INBOX', OptionInterface ...$options): SelectionResult;
 
     /**
      * Send a "EXAMINE" command.
@@ -188,7 +188,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-examine-command
      */
-    public function examine(string $folder = 'INBOX', SelectionOption ...$options): SelectionResult;
+    public function examine(string $folder = 'INBOX', OptionInterface ...$options): SelectionResult;
 
     /**
      * Send a "LIST" command.
@@ -219,7 +219,7 @@ interface ConnectionInterface
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
      * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.3
      */
-    public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifier ...$modifiers): StoreResult;
+    public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifierInterface ...$modifiers): StoreResult;
 
     /**
      * Send a "APPEND" command.

@@ -183,11 +183,54 @@ test('mailbox enables qresync before selecting and keeps the folder selected', f
 
     $selection = $folder->select(options: new QuickResync(777, 40, [1, 2, 3]));
     $folder->messages();
+    $mailbox->enable('QRESYNC');
 
     $stream->assertWritten('TAG3 ENABLE QRESYNC');
     $stream->assertWritten('TAG4 SELECT "INBOX" (QRESYNC (777 40 1:3))');
     $stream->assertNotWritten('TAG5 SELECT');
     expect($selection->highestModSequence())->toBe(42);
+});
+
+test('mailbox rejects enabling qresync after selecting a folder', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG3 OK CAPABILITY completed',
+    ]);
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $folder = new Folder($mailbox, 'INBOX');
+    $folder->select();
+
+    expect(fn () => $folder->select(options: new QuickResync(777, 42)))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.',
+    );
+    $stream->assertNotWritten('ENABLE QRESYNC');
+});
+
+test('mailbox rejects enabling qresync after examining a folder', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK EXAMINE completed',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG3 OK CAPABILITY completed',
+    ]);
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $folder = new Folder($mailbox, 'INBOX');
+    $folder->examine();
+
+    expect(fn () => $folder->select(options: new QuickResync(777, 42)))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.',
+    );
+    $stream->assertNotWritten('ENABLE QRESYNC');
 });
 
 test('message query fetches changes without searching first', function () {
@@ -260,7 +303,7 @@ test('vanished synchronization reuses qresync enabled before selection', functio
     $query->changesSince(42, [7], vanished: true);
 
     expect($result->vanishedUids())->toBe([7]);
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeTrue();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
     $stream->assertWritten('TAG3 ENABLE QRESYNC');
     $stream->assertWritten('TAG4 SELECT "INBOX"');
     $stream->assertWritten('TAG5 UID FETCH 7 (FLAGS) (CHANGEDSINCE 42 VANISHED)');
@@ -283,7 +326,7 @@ test('advertised qresync is not treated as enabled when the server does not ackn
     $mailbox->enable('QRESYNC');
     $query = (new Folder($mailbox, 'INBOX'))->messages();
 
-    expect($mailbox->hasEnabledCapability('QRESYNC'))->toBeFalse();
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
     expect(fn () => $query->changesSince(42, [7], vanished: true))->toThrow(ImapCapabilityException::class);
     $stream->assertNotWritten('UID FETCH');
 });

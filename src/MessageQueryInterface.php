@@ -9,7 +9,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
-use DirectoryTree\ImapEngine\MessageData\FetchItem;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -45,17 +45,17 @@ interface MessageQueryInterface
     /**
      * Add items to the message FETCH request.
      */
-    public function with(FetchItem ...$items): static;
+    public function with(FetchItemInterface ...$items): static;
 
     /**
      * Remove items from the message FETCH request.
      */
-    public function without(FetchItem ...$items): static;
+    public function without(FetchItemInterface ...$items): static;
 
     /**
      * Replace the items in the message FETCH request.
      */
-    public function only(FetchItem ...$items): static;
+    public function only(FetchItemInterface ...$items): static;
 
     /**
      * Order messages locally by UID, replacing any server-side sort criteria.

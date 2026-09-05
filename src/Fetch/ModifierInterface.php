@@ -1,8 +1,8 @@
 <?php
 
-namespace DirectoryTree\ImapEngine;
+namespace DirectoryTree\ImapEngine\Fetch;
 
-interface FetchModifier
+interface ModifierInterface
 {
     /**
      * Get the IMAP representation of the fetch modifier.

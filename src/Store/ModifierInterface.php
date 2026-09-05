@@ -1,8 +1,8 @@
 <?php
 
-namespace DirectoryTree\ImapEngine;
+namespace DirectoryTree\ImapEngine\Store;
 
-interface StoreModifier
+interface ModifierInterface
 {
     /**
      * Get the IMAP representation of the store modifier.

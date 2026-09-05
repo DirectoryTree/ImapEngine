@@ -2,7 +2,7 @@
 
 use DirectoryTree\ImapEngine\Authentication;
 use DirectoryTree\ImapEngine\Authentication\XOAuth2;
-use DirectoryTree\ImapEngine\Authenticator;
+use DirectoryTree\ImapEngine\AuthenticatorInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Loggers\FakeLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
@@ -77,7 +77,7 @@ test('authentication supports multiple decoded challenges for custom mechanisms'
         'TAG1 OK Authenticated',
     ]);
 
-    $authenticator = new class implements Authenticator
+    $authenticator = new class implements AuthenticatorInterface
     {
         public array $challenges = [];
 
@@ -119,7 +119,7 @@ test('authentication encodes an empty initial response as equals', function () {
         'TAG1 OK Authenticated',
     ]);
 
-    $authenticator = new class implements Authenticator
+    $authenticator = new class implements AuthenticatorInterface
     {
         public function mechanism(): string
         {
@@ -153,7 +153,7 @@ test('authentication can be cancelled by the authenticator', function () {
         'TAG2 OK NOOP completed',
     ]);
 
-    $authenticator = new class implements Authenticator
+    $authenticator = new class implements AuthenticatorInterface
     {
         public function mechanism(): string
         {
@@ -188,7 +188,7 @@ test('authenticator exceptions disconnect an unfinished authentication exchange'
         '+ '.base64_encode('challenge'),
     ]);
 
-    $authenticator = new class implements Authenticator
+    $authenticator = new class implements AuthenticatorInterface
     {
         public function mechanism(): string
         {

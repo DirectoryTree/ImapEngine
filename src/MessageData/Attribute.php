@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\MessageData;
 
-enum Attribute: string implements FetchItem
+enum Attribute: string implements FetchItemInterface
 {
     case Flags = 'FLAGS';
     case Size = 'RFC822.SIZE';

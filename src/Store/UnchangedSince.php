@@ -2,14 +2,12 @@
 
 namespace DirectoryTree\ImapEngine\Store;
 
-use DirectoryTree\ImapEngine\StoreModifier;
-
 /**
  * Store flags only when messages have not changed after a modification sequence.
  *
  * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.3
  */
-class UnchangedSince implements StoreModifier
+class UnchangedSince implements ModifierInterface
 {
     /**
      * Constructor.

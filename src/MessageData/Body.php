@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\MessageData;
 
-class Body implements FetchItem
+class Body implements FetchItemInterface
 {
     /**
      * Constructor.

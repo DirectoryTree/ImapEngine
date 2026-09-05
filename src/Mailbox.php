@@ -10,13 +10,14 @@ use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\RequiresEnableInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use Exception;
 use InvalidArgumentException;
 
 class Mailbox implements MailboxInterface
 {
-    use HasCapabilities;
-
     /**
      * The mailbox configuration.
      */
@@ -43,22 +44,17 @@ class Mailbox implements MailboxInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.1.1
      */
-    protected ?array $capabilities = null;
+    protected ?Capabilities $capabilities = null;
 
     /**
-     * The capabilities enabled for the current connection.
+     * The currently selected or examined folder.
      */
-    protected array $enabled = [];
-
-    /**
-     * The currently selected folder.
-     */
-    protected ?FolderInterface $selected = null;
+    protected ?FolderInterface $folder = null;
 
     /**
      * The result from the currently selected folder.
      */
-    protected ?SelectionResult $selection = null;
+    protected ?Result $selection = null;
 
     /**
      * The mailbox connection.
@@ -80,9 +76,8 @@ class Mailbox implements MailboxInterface
     {
         $this->connection = null;
         $this->capabilities = null;
-        $this->selected = null;
+        $this->folder = null;
         $this->selection = null;
-        $this->enabled = [];
     }
 
     /**
@@ -197,9 +192,8 @@ class Mailbox implements MailboxInterface
         } finally {
             $this->connection = null;
             $this->capabilities = null;
-            $this->selected = null;
+            $this->folder = null;
             $this->selection = null;
-            $this->enabled = [];
         }
     }
 
@@ -227,20 +221,14 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function capabilities(): array
+    public function capabilities(): Capabilities
     {
-        return $this->capabilities ??= array_map(
-            fn (Token $token) => $token->value,
-            $this->connection()->capability()->tokensAfter(2)
+        return $this->capabilities ??= Capabilities::from(
+            array_map(
+                fn (Token $token) => $token->value,
+                $this->connection()->capability()->tokensAfter(2)
+            )
         );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function hasEnabledCapability(string $capability): bool
-    {
-        return in_array(strtoupper($capability), $this->enabled, true);
     }
 
     /**
@@ -248,30 +236,40 @@ class Mailbox implements MailboxInterface
      */
     public function enable(string ...$capabilities): ResponseCollection
     {
-        $capabilities = array_map('strtoupper', $capabilities);
+        $current = $this->capabilities();
 
-        foreach ($capabilities as $capability) {
-            if (! $this->hasCapability($capability)) {
+        $requested = Capabilities::from($capabilities);
+
+        foreach ($requested->all() as $capability) {
+            if (! $current->supports($capability)) {
                 throw new ImapCapabilityException(
                     "Unable to enable capability [$capability]. IMAP server does not support it."
                 );
             }
         }
 
-        $capabilities = array_values(array_diff($capabilities, $this->enabled));
+        $requested = array_values(array_filter(
+            $requested->all(),
+            fn (string $capability) => ! $current->enabled($capability),
+        ));
 
-        if (empty($capabilities)) {
+        if (empty($requested)) {
             return new ResponseCollection;
         }
 
-        $responses = $this->connection()->enable(...$capabilities);
+        if ($this->folder) {
+            throw new ImapCapabilityException(
+                'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.'
+            );
+        }
+
+        $responses = $this->connection()->enable(...$requested);
 
         foreach ($responses as $response) {
             if ($response->type()->is('ENABLED')) {
-                $this->enabled = array_unique([
-                    ...$this->enabled,
-                    ...array_map(fn (Token $token) => strtoupper($token->value), $response->tokensAfter(2)),
-                ]);
+                $this->capabilities->enable(
+                    ...array_map(fn (Token $token) => $token->value, $response->tokensAfter(2))
+                );
             }
         }
 
@@ -281,40 +279,46 @@ class Mailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function select(FolderInterface $folder, bool $force = false, SelectionOption ...$options): SelectionResult
+    public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
     {
         foreach ($options as $option) {
-            if (! $this->hasCapability($option->capability())) {
+            if (! $this->capabilities()->supports($option->capability())) {
                 throw new ImapCapabilityException(
                     "Unable to select folder with [{$option->capability()}]. IMAP server does not support it."
                 );
             }
 
-            if ($option->capability() === 'QRESYNC') {
-                $this->enable('QRESYNC');
+            if ($option instanceof RequiresEnableInterface) {
+                $this->enable($option->capability());
             }
         }
 
         if (! $this->selected($folder) || $force || $options) {
-            $this->selection = $this->connection()->select($folder->path(), ...$options);
+            $this->selection = null;
+
+            $selection = $this->connection()->select($folder->path(), ...$options);
+
+            $this->folder = $folder;
+            $this->selection = $selection;
         }
 
-        $this->selected = $folder;
-
-        return $this->selection ?? new SelectionResult;
+        return $this->selection;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function examine(FolderInterface $folder): SelectionResult
+    public function examine(FolderInterface $folder): Result
     {
         // EXAMINE replaces the server selection with a read-only one, even
         // for the same folder. The next query must select it again.
-        $this->selected = null;
         $this->selection = null;
 
-        return $this->connection()->examine($folder->path());
+        $selection = $this->connection()->examine($folder->path());
+
+        $this->folder = $folder;
+
+        return $selection;
     }
 
     /**
@@ -322,6 +326,6 @@ class Mailbox implements MailboxInterface
      */
     public function selected(FolderInterface $folder): bool
     {
-        return $this->selected?->is($folder) ?? false;
+        return $this->selection && $this->folder?->is($folder);
     }
 }

@@ -2,9 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Authentication;
 
-use DirectoryTree\ImapEngine\Authenticator;
+use DirectoryTree\ImapEngine\AuthenticatorInterface;
 
-class XOAuth2 implements Authenticator
+class XOAuth2 implements AuthenticatorInterface
 {
     /**
      * Constructor.

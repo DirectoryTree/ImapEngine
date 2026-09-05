@@ -2,8 +2,6 @@
 
 namespace DirectoryTree\ImapEngine\Fetch;
 
-use DirectoryTree\ImapEngine\FetchModifier;
-
 /**
  * Fetch messages changed after a modification sequence.
  *
@@ -12,7 +10,7 @@ use DirectoryTree\ImapEngine\FetchModifier;
  * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.1.4
  * @see https://datatracker.ietf.org/doc/html/rfc7162#section-3.2.6
  */
-class ChangedSince implements FetchModifier
+class ChangedSince implements ModifierInterface
 {
     /**
      * Constructor.

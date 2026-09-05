@@ -8,6 +8,8 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\ItemNotFoundException;
@@ -95,7 +97,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
     {
-        if (! $this->mailbox->hasCapability('IDLE')) {
+        if (! $this->mailbox->capabilities()->supports('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
@@ -173,7 +175,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false, SelectionOption ...$options): SelectionResult
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
         return $this->mailbox->select($this, $force, ...$options);
     }
@@ -183,7 +185,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
-        if (! $this->mailbox->hasCapability('QUOTA')) {
+        if (! $this->mailbox->capabilities()->supports('QUOTA')) {
             throw new ImapCapabilityException(
                 'Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.'
             );

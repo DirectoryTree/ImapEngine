@@ -1,8 +1,8 @@
 <?php
 
-namespace DirectoryTree\ImapEngine;
+namespace DirectoryTree\ImapEngine\Selection;
 
-interface SelectionOption
+interface OptionInterface
 {
     /**
      * Get the capability required by the selection option.

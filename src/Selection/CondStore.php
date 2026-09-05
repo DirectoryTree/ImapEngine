@@ -2,9 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Selection;
 
-use DirectoryTree\ImapEngine\SelectionOption;
-
-class CondStore implements SelectionOption
+class CondStore implements OptionInterface
 {
     /**
      * {@inheritDoc}

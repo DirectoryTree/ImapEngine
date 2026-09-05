@@ -261,15 +261,15 @@ test('capabilities', function () {
         'TAG2 OK CAPABILITY completed',
     ]));
 
-    expect($mailbox->capabilities())->toBe([
-        'IMAP4rev1',
+    expect($mailbox->capabilities()->all())->toBe([
+        'IMAP4REV1',
         'STARTTLS',
         'AUTH=PLAIN',
     ]);
 
-    expect($mailbox->hasCapability('imap4rev1'))->toBeTrue();
-    expect($mailbox->hasCapability('AUTH'))->toBeTrue();
-    expect($mailbox->hasCapability('AUTH=PLAIN'))->toBeTrue();
-    expect($mailbox->hasCapability('AUTH=LOGIN'))->toBeFalse();
-    expect($mailbox->hasCapability('START'))->toBeFalse();
+    expect($mailbox->capabilities()->supports('imap4rev1'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('AUTH'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('AUTH=PLAIN'))->toBeTrue();
+    expect($mailbox->capabilities()->supports('AUTH=LOGIN'))->toBeFalse();
+    expect($mailbox->capabilities()->supports('START'))->toBeFalse();
 });

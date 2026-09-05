@@ -9,7 +9,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\SortCriterion;
 use DirectoryTree\ImapEngine\Store\UnchangedSince;
-use DirectoryTree\ImapEngine\StoreModifier;
+use DirectoryTree\ImapEngine\Store\ModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
 
 test('store supports adding removing and replacing flags', function (?string $mode, bool $silent, string $item) {
@@ -126,7 +126,7 @@ test('store combines modifiers in one list and preserves a zero checkpoint', fun
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $custom = new class implements StoreModifier
+    $custom = new class implements ModifierInterface
     {
         public function toImap(): string
         {

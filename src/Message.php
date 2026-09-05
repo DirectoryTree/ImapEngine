@@ -202,7 +202,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         $mailbox = $this->folder->mailbox();
 
-        if (! $mailbox->hasCapability('UIDPLUS')) {
+        if (! $mailbox->capabilities()->supports('UIDPLUS')) {
             throw new ImapCapabilityException(
                 'Unable to copy message. IMAP server does not support UIDPLUS capability'
             );
@@ -223,12 +223,12 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $mailbox = $this->folder->mailbox();
 
         switch (true) {
-            case $mailbox->hasCapability('MOVE'):
+            case $mailbox->capabilities()->supports('MOVE'):
                 $response = $mailbox->connection()->move($this->uid(), $folder);
 
                 return MessageResponseParser::getUidFromCopy($response);
 
-            case $mailbox->hasCapability('UIDPLUS'):
+            case $mailbox->capabilities()->supports('UIDPLUS'):
                 $uid = $this->copy($folder);
 
                 $this->delete($expunge);
