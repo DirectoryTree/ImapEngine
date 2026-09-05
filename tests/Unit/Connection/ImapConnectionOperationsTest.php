@@ -8,8 +8,8 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\SortCriterion;
-use DirectoryTree\ImapEngine\Store\UnchangedSince;
 use DirectoryTree\ImapEngine\Store\ModifierInterface;
+use DirectoryTree\ImapEngine\Store\UnchangedSince;
 use DirectoryTree\ImapEngine\StoreResult;
 
 test('store supports adding removing and replacing flags', function (?string $mode, bool $silent, string $item) {
