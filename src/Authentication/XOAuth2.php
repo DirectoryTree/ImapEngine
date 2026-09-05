@@ -25,7 +25,7 @@ class XOAuth2 implements Authenticator
     /**
      * {@inheritDoc}
      */
-    public function initialResponse(): string
+    public function initial(): string
     {
         return "user=$this->user\1auth=Bearer $this->token\1\1";
     }
@@ -35,6 +35,6 @@ class XOAuth2 implements Authenticator
      */
     public function respond(string $challenge): string
     {
-        return $challenge === '' ? $this->initialResponse() : '';
+        return '';
     }
 }

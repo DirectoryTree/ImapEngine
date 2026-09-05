@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\AppendResult;
+use DirectoryTree\ImapEngine\Authentication;
 use DirectoryTree\ImapEngine\Authentication\XOAuth2;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
@@ -121,7 +122,7 @@ test('authenticate success', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->authenticate(new XOAuth2('foo', 'bar'));
+    (new Authentication($connection, new XOAuth2('foo', 'bar')))->authenticate();
 
     $credentials = Str::credentials('foo', 'bar');
 
@@ -141,7 +142,7 @@ test('authenticate failure', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->authenticate(new XOAuth2('foo', 'bar'));
+    (new Authentication($connection, new XOAuth2('foo', 'bar')))->authenticate();
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 AUTHENTICATE [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
 test('start tls success', function () {

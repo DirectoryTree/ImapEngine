@@ -4,7 +4,6 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
-use DirectoryTree\ImapEngine\Authenticator;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
@@ -58,12 +57,19 @@ interface ConnectionInterface
     /**
      * Send an "AUTHENTICATE" command.
      *
-     * Authenticate using a SASL mechanism. Initial responses require SASL-IR support.
+     * Authenticate using a SASL mechanism. Initial data requires SASL-IR support.
+     *
+     * @return Generator<int, string, mixed, TaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc4959
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-authenticate-command
      */
-    public function authenticate(Authenticator $authenticator, bool $initialResponse = false): TaggedResponse;
+    public function authenticate(string $mechanism, ?string $initial = null): Generator;
+
+    /**
+     * Respond to the current authentication challenge.
+     */
+    public function respond(?string $response): void;
 
     /**
      * Send a "STARTTLS" command.

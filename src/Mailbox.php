@@ -46,6 +46,11 @@ class Mailbox implements MailboxInterface
     protected ?array $capabilities = null;
 
     /**
+     * The capabilities enabled for the current connection.
+     */
+    protected array $enabled = [];
+
+    /**
      * The currently selected folder.
      */
     protected ?FolderInterface $selected = null;
@@ -54,11 +59,6 @@ class Mailbox implements MailboxInterface
      * The result from the currently selected folder.
      */
     protected ?SelectionResult $selection = null;
-
-    /**
-     * The capabilities enabled for the current connection.
-     */
-    protected array $enabled = [];
 
     /**
      * The mailbox connection.
@@ -128,7 +128,7 @@ class Mailbox implements MailboxInterface
     {
         $this->disconnect();
 
-        if ($password !== null) {
+        if (! is_null($password)) {
             $this->config['password'] = $password;
         }
 
@@ -174,10 +174,13 @@ class Mailbox implements MailboxInterface
 
         match ($this->config('authentication')) {
             'login' => $this->connection->login($username, $password),
-            'xoauth2' => $this->connection->authenticate(
+            'xoauth2' => (new Authentication(
+                $this->connection,
                 new Authentication\XOAuth2($username, $password),
+            ))->authenticate(),
+            default => throw new InvalidArgumentException(
+                'Unsupported authentication mechanism.'
             ),
-            default => throw new InvalidArgumentException('Unsupported authentication mechanism.'),
         };
     }
 

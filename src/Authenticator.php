@@ -10,9 +10,9 @@ interface Authenticator
     public function mechanism(): string;
 
     /**
-     * Get the unencoded initial response, or null to await a challenge.
+     * Get the unencoded initial data, or null to await a challenge.
      */
-    public function initialResponse(): ?string;
+    public function initial(): ?string;
 
     /**
      * Respond to a decoded challenge. Return null to cancel authentication.

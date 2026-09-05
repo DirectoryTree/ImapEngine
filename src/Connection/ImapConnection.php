@@ -4,7 +4,6 @@ namespace DirectoryTree\ImapEngine\Connection;
 
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
-use DirectoryTree\ImapEngine\Authenticator;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
@@ -213,12 +212,12 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function authenticate(Authenticator $authenticator, bool $initialResponse = false): TaggedResponse
+    public function authenticate(string $mechanism, ?string $initial = null): Generator
     {
-        $tokens = [$authenticator->mechanism()];
+        $tokens = [$mechanism];
 
-        if ($initialResponse && ($response = $authenticator->initialResponse()) !== null) {
-            $tokens[] = $response === '' ? '=' : base64_encode($response);
+        if ($initial !== null) {
+            $tokens[] = $initial === '' ? '=' : base64_encode($initial);
         }
 
         $this->send('AUTHENTICATE', $tokens, $tag);
@@ -235,18 +234,18 @@ class ImapConnection implements ConnectionInterface
                 return $response;
             }
 
-            try {
-                $answer = $authenticator->respond(base64_decode(trim(substr((string) $response, 1))));
-            } catch (Throwable $e) {
-                $this->disconnect();
-
-                throw $e;
-            }
-
-            $this->write($answer === null ? '*' : base64_encode($answer), sensitive: true);
+            yield base64_decode(trim(substr((string) $response, 1)));
         }
 
         throw new ImapResponseException('No authentication response found');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function respond(?string $response): void
+    {
+        $this->write($response === null ? '*' : base64_encode($response), sensitive: true);
     }
 
     /**

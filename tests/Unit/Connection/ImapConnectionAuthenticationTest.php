@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Authentication;
 use DirectoryTree\ImapEngine\Authentication\XOAuth2;
 use DirectoryTree\ImapEngine\Authenticator;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
@@ -30,7 +31,8 @@ test('oauth authentication optionally includes an initial response and redacts c
 
     $connection = new ImapConnection($stream, $logger);
     $connection->connect('imap.example.com');
-    $response = $connection->authenticate(new XOAuth2('foo', 'secret'), initialResponse: $initialResponse);
+    $response = (new Authentication($connection, new XOAuth2('foo', 'secret')))
+        ->authenticate(initial: $initialResponse);
 
     $credentials = base64_encode("user=foo\1auth=Bearer secret\1\1");
 
@@ -58,7 +60,8 @@ test('oauth acknowledges an error challenge with an empty continuation and consu
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    expect(fn () => $connection->authenticate(new XOAuth2('foo', 'secret'), initialResponse: $initialResponse))
+    expect(fn () => (new Authentication($connection, new XOAuth2('foo', 'secret')))
+        ->authenticate(initial: $initialResponse))
         ->toThrow(ImapCommandException::class);
 
     $credentials = base64_encode("user=foo\1auth=Bearer secret\1\1");
@@ -93,7 +96,7 @@ test('authentication supports multiple decoded challenges for custom mechanisms'
             return 'LOGIN';
         }
 
-        public function initialResponse(): ?string
+        public function initial(): ?string
         {
             return null;
         }
@@ -111,7 +114,7 @@ test('authentication supports multiple decoded challenges for custom mechanisms'
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
-    $connection->authenticate($authenticator, initialResponse: true);
+    (new Authentication($connection, $authenticator))->authenticate(initial: true);
 
     $stream->assertWritten("TAG1 AUTHENTICATE LOGIN\r\n");
     $stream->assertWritten(base64_encode('foo')."\r\n");
@@ -133,7 +136,7 @@ test('authentication encodes an empty initial response as equals', function () {
             return 'EXTERNAL';
         }
 
-        public function initialResponse(): string
+        public function initial(): string
         {
             return '';
         }
@@ -146,7 +149,7 @@ test('authentication encodes an empty initial response as equals', function () {
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
-    $connection->authenticate($authenticator, initialResponse: true);
+    (new Authentication($connection, $authenticator))->authenticate(initial: true);
 
     $stream->assertWritten("TAG1 AUTHENTICATE EXTERNAL =\r\n");
 });
@@ -167,7 +170,7 @@ test('authentication can be cancelled by the authenticator', function () {
             return 'X-CUSTOM';
         }
 
-        public function initialResponse(): ?string
+        public function initial(): ?string
         {
             return null;
         }
@@ -181,7 +184,8 @@ test('authentication can be cancelled by the authenticator', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    expect(fn () => $connection->authenticate($authenticator))->toThrow(ImapCommandException::class);
+    expect(fn () => (new Authentication($connection, $authenticator))->authenticate())
+        ->toThrow(ImapCommandException::class);
 
     $stream->assertWritten("*\r\n");
     expect($connection->noop()->successful())->toBeTrue();
@@ -201,7 +205,7 @@ test('authenticator exceptions disconnect an unfinished authentication exchange'
             return 'X-CUSTOM';
         }
 
-        public function initialResponse(): ?string
+        public function initial(): ?string
         {
             return null;
         }
@@ -215,7 +219,8 @@ test('authenticator exceptions disconnect an unfinished authentication exchange'
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    expect(fn () => $connection->authenticate($authenticator))->toThrow(RuntimeException::class, 'Unable to respond');
+    expect(fn () => (new Authentication($connection, $authenticator))->authenticate())
+        ->toThrow(RuntimeException::class, 'Unable to respond');
     expect($connection->connected())->toBeFalse();
 });
 
