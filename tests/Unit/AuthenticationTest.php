@@ -4,7 +4,7 @@ use DirectoryTree\ImapEngine\Authentication;
 use DirectoryTree\ImapEngine\Authentication\XOAuth2;
 use DirectoryTree\ImapEngine\Authenticator;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
+use DirectoryTree\ImapEngine\Connection\Loggers\FakeLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -17,17 +17,7 @@ test('oauth authentication optionally includes an initial response and redacts c
         'TAG1 OK Authenticated',
     ]));
 
-    $logger = new class implements LoggerInterface
-    {
-        public array $sent = [];
-
-        public function sent(string $message): void
-        {
-            $this->sent[] = $message;
-        }
-
-        public function received(string $message): void {}
-    };
+    $logger = new FakeLogger;
 
     $connection = new ImapConnection($stream, $logger);
     $connection->connect('imap.example.com');
@@ -44,7 +34,7 @@ test('oauth authentication optionally includes an initial response and redacts c
     }
 
     expect($response->successful())->toBeTrue();
-    expect($logger->sent)->toBe(array_fill(0, $initialResponse ? 1 : 2, '[redacted]'));
+    $logger->assertSent('[redacted]', $initialResponse ? 1 : 2);
 })->with([false, true]);
 
 test('oauth acknowledges an error challenge with an empty continuation and consumes completion', function (bool $initialResponse) {
