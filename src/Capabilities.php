@@ -2,29 +2,47 @@
 
 namespace DirectoryTree\ImapEngine;
 
-class Capabilities
+readonly class Capabilities
 {
     /**
-     * The capabilities.
+     * The mailbox capabilities.
      *
      * @var array<string, Capability>
      */
-    protected array $items = [];
+    protected array $items;
 
     /**
-     * Create a capability collection from the given values.
+     * Constructor.
+     *
+     * @param  array<string, Capability>  $items
      */
-    public static function from(iterable $capabilities): static
+    protected function __construct(array $items)
     {
-        $instance = new static;
+        $this->items = $items;
+    }
+
+    /**
+     * Create a capability collection from the given items.
+     */
+    public static function from(Capability ...$capabilities): static
+    {
+        $items = [];
 
         foreach ($capabilities as $capability) {
-            $item = new Capability($capability);
-
-            $instance->items[$item->name()] = $item;
+            $items[$capability->name()] = $capability;
         }
 
-        return $instance;
+        return new static($items);
+    }
+
+    /**
+     * Get the capability items.
+     *
+     * @return array<string, Capability>
+     */
+    public function items(): array
+    {
+        return $this->items;
     }
 
     /**
@@ -33,6 +51,14 @@ class Capabilities
     public function all(): array
     {
         return array_keys($this->items);
+    }
+
+    /**
+     * Determine if the exact capability exists.
+     */
+    public function has(string $capability): bool
+    {
+        return isset($this->items[strtoupper($capability)]);
     }
 
     /**
@@ -49,16 +75,6 @@ class Capabilities
     public function enabled(string $capability): bool
     {
         return ($this->items[strtoupper($capability)] ?? null)?->enabled() ?? false;
-    }
-
-    /**
-     * Mark the given capabilities as enabled.
-     */
-    public function enable(string ...$capabilities): void
-    {
-        foreach ($capabilities as $capability) {
-            ($this->items[strtoupper($capability)] ?? null)?->enable();
-        }
     }
 
     /**

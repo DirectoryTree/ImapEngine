@@ -224,8 +224,8 @@ class Mailbox implements MailboxInterface
     public function capabilities(): Capabilities
     {
         return $this->capabilities ??= Capabilities::from(
-            array_map(
-                fn (Token $token) => $token->value,
+            ...array_map(
+                fn (Token $token) => Capability::make($token->value),
                 $this->connection()->capability()->tokensAfter(2)
             )
         );
@@ -238,10 +238,12 @@ class Mailbox implements MailboxInterface
     {
         $current = $this->capabilities();
 
-        $requested = Capabilities::from($capabilities);
+        $requested = Capabilities::from(
+            ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+        );
 
         foreach ($requested->all() as $capability) {
-            if (! $current->supports($capability)) {
+            if (! $current->has($capability)) {
                 throw new ImapCapabilityException(
                     "Unable to enable capability [$capability]. IMAP server does not support it."
                 );
@@ -265,13 +267,23 @@ class Mailbox implements MailboxInterface
 
         $responses = $this->connection()->enable(...$requested);
 
+        $items = $current->items();
+
         foreach ($responses as $response) {
-            if ($response->type()->is('ENABLED')) {
-                $this->capabilities->enable(
-                    ...array_map(fn (Token $token) => $token->value, $response->tokensAfter(2))
-                );
+            if (! $response->type()->is('ENABLED')) {
+                continue;
+            }
+
+            foreach ($response->tokensAfter(2) as $token) {
+                $capability = Capability::make($token->value, enabled: true);
+
+                if ($current->has($capability->name())) {
+                    $items[$capability->name()] = $capability;
+                }
             }
         }
+
+        $this->capabilities = Capabilities::from(...array_values($items));
 
         return $responses;
     }

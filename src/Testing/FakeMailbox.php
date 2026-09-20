@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine\Testing;
 
 use DirectoryTree\ImapEngine\Capabilities;
+use DirectoryTree\ImapEngine\Capability;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
@@ -34,7 +35,9 @@ class FakeMailbox implements MailboxInterface
         protected array $folders = [],
         array $capabilities = [],
     ) {
-        $this->capabilities = Capabilities::from($capabilities);
+        $this->capabilities = Capabilities::from(
+            ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+        );
 
         foreach ($folders as $folder) {
             $folder->setMailbox($this);
@@ -75,7 +78,12 @@ class FakeMailbox implements MailboxInterface
         }
 
         $this->selected = null;
-        $this->capabilities = Capabilities::from($this->capabilities->all());
+        $this->capabilities = Capabilities::from(
+            ...array_map(
+                fn (string $capability) => Capability::make($capability),
+                $this->capabilities->all()
+            )
+        );
     }
 
     /**
@@ -123,17 +131,26 @@ class FakeMailbox implements MailboxInterface
      */
     public function enable(string ...$capabilities): ResponseCollection
     {
-        $capabilities = Capabilities::from($capabilities);
+        $current = $this->capabilities();
+        $capabilities = Capabilities::from(
+            ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+        );
 
         foreach ($capabilities->all() as $capability) {
-            if (! $this->capabilities->supports($capability)) {
+            if (! $current->has($capability)) {
                 throw new ImapCapabilityException(
                     "Unable to enable capability [$capability]. IMAP server does not support it."
                 );
             }
         }
 
-        $this->capabilities->enable(...$capabilities->all());
+        $items = $current->items();
+
+        foreach ($capabilities->all() as $capability) {
+            $items[$capability] = Capability::make($capability, enabled: true);
+        }
+
+        $this->capabilities = Capabilities::from(...array_values($items));
 
         return new ResponseCollection;
     }

@@ -2,16 +2,22 @@
 
 namespace DirectoryTree\ImapEngine;
 
-class Capability
+readonly class Capability
 {
     /**
      * Constructor.
      */
-    public function __construct(
+    protected function __construct(
         protected string $name,
         protected bool $enabled = false,
-    ) {
-        $this->name = strtoupper($name);
+    ) {}
+
+    /**
+     * Make a new capability instance.
+     */
+    public static function make(string $name, bool $enabled = false): static
+    {
+        return new static(strtoupper($name), $enabled);
     }
 
     /**
@@ -39,15 +45,5 @@ class Capability
     public function enabled(): bool
     {
         return $this->enabled;
-    }
-
-    /**
-     * Enable the capability.
-     */
-    public function enable(): static
-    {
-        $this->enabled = true;
-
-        return $this;
     }
 }

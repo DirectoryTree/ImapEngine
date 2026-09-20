@@ -2,6 +2,7 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
@@ -18,11 +19,14 @@ test('disconnect clears capabilities and enabled extensions for the next connect
         'TAG5 OK LOGOUT completed',
     ]));
 
+    $capabilities = $mailbox->capabilities();
+
     $mailbox->enable('qresync');
     $folder = new Folder($mailbox, 'INBOX');
     $folder->select();
 
     expect($mailbox->capabilities()->enabled('qresync'))->toBeTrue();
+    expect($capabilities->enabled('qresync'))->toBeFalse();
     expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
 
     $mailbox->disconnect();
@@ -74,4 +78,25 @@ test('clones discover their own capabilities without changing the original mailb
     expect($clone->capabilities()->supports('CONDSTORE'))->toBeTrue();
     expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
     $stream->assertWritten('TAG2 CAPABILITY');
+});
+
+test('enable requires an exact advertised capability', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 ENABLE AUTH=XOAUTH2',
+        'TAG2 OK CAPABILITY completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    expect($mailbox->capabilities()->supports('AUTH'))->toBeTrue();
+    expect(fn () => $mailbox->enable('AUTH'))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capability [AUTH]. IMAP server does not support it.',
+    );
+
+    $stream->assertNotWritten('ENABLE AUTH');
 });

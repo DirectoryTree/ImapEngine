@@ -68,12 +68,14 @@ test('it is always connected', function () {
 
 test('it tracks enabled capabilities until reconnection', function () {
     $mailbox = new FakeMailbox(capabilities: ['QRESYNC']);
+    $capabilities = $mailbox->capabilities();
 
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
 
     $mailbox->enable('qresync');
 
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    expect($capabilities->enabled('QRESYNC'))->toBeFalse();
 
     $mailbox->reconnect();
 
@@ -87,6 +89,16 @@ test('it rejects enabling unsupported capabilities', function () {
     expect(fn () => $mailbox->enable('CONDSTORE'))->toThrow(
         ImapCapabilityException::class,
         'Unable to enable capability [CONDSTORE]. IMAP server does not support it.',
+    );
+});
+
+test('it requires an exact advertised capability to enable', function () {
+    $mailbox = new FakeMailbox(capabilities: ['AUTH=XOAUTH2']);
+
+    expect($mailbox->capabilities()->supports('AUTH'))->toBeTrue();
+    expect(fn () => $mailbox->enable('AUTH'))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capability [AUTH]. IMAP server does not support it.',
     );
 });
 
