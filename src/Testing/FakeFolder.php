@@ -208,7 +208,7 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the folder's messages.
+     * Set the folder's fake messages.
      *
      * @param  FakeMessage[]  $messages
      */
@@ -220,7 +220,7 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Get the folder's messages.
+     * Get the folder's fake messages.
      *
      * @return FakeMessage[]
      */
@@ -230,7 +230,7 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Add a message to the folder.
+     * Add a fake message to the folder.
      */
     public function addMessage(FakeMessage $message): void
     {

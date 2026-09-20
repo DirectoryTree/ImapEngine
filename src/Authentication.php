@@ -22,6 +22,7 @@ class Authentication
     public function authenticate(bool $initial = false): TaggedResponse
     {
         $response = $this->authenticator->initial();
+
         $sent = $initial && $response !== null;
 
         $exchange = $this->connection->authenticate(
