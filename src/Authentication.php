@@ -29,7 +29,9 @@ class Authentication
             $sent ? $response : null,
         );
 
-        foreach ($exchange as $challenge) {
+        while ($exchange->valid()) {
+            $challenge = $exchange->current();
+
             try {
                 if (! $sent && $response !== null) {
                     $answer = $response;
@@ -43,7 +45,7 @@ class Authentication
                 throw $e;
             }
 
-            $this->connection->respond($answer);
+            $exchange->send($answer);
         }
 
         return $exchange->getReturn();

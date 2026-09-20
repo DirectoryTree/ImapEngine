@@ -234,18 +234,12 @@ class ImapConnection implements ConnectionInterface
                 return $response;
             }
 
-            yield base64_decode(trim(substr((string) $response, 1)));
+            $answer = yield base64_decode(trim(substr((string) $response, 1)));
+
+            $this->write($answer === null ? '*' : base64_encode($answer), sensitive: true);
         }
 
         throw new ImapResponseException('No authentication response found');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function respond(?string $response): void
-    {
-        $this->write($response === null ? '*' : base64_encode($response), sensitive: true);
     }
 
     /**

@@ -58,18 +58,15 @@ interface ConnectionInterface
      * Send an "AUTHENTICATE" command.
      *
      * Authenticate using a SASL mechanism. Initial data requires SASL-IR support.
+     * Yields decoded challenges and accepts replies through Generator::send().
+     * Sending null cancels the exchange.
      *
-     * @return Generator<int, string, mixed, TaggedResponse>
+     * @return Generator<int, string, ?string, TaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc4959
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-authenticate-command
      */
     public function authenticate(string $mechanism, ?string $initial = null): Generator;
-
-    /**
-     * Respond to the current authentication challenge.
-     */
-    public function respond(?string $response): void;
 
     /**
      * Send a "STARTTLS" command.
