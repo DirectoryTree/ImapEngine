@@ -49,12 +49,16 @@ class Str
     }
 
     /**
-     * Make a quoted IMAP charset name.
+     * Make an IMAP charset name.
      */
     public static function charset(string $charset): string
     {
         if (preg_match('/[\x00-\x1F\x7F]/', $charset)) {
             throw new InvalidArgumentException('Invalid IMAP charset.');
+        }
+
+        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/', $charset)) {
+            return $charset;
         }
 
         return '"'.static::escape($charset).'"';

@@ -179,7 +179,7 @@ test('search accepts an explicit charset separately from criteria', function (Im
     $connection->connect('imap.example.com');
     $connection->search(['SUBJECT', '"été"'], 'UTF-8', $identifier);
 
-    $stream->assertWritten('TAG1 '.$command.' CHARSET "UTF-8" SUBJECT "été"');
+    $stream->assertWritten('TAG1 '.$command.' CHARSET UTF-8 SUBJECT "été"');
 })->with([
     [ImapIdentifier::Uid, 'UID SEARCH'],
     [ImapIdentifier::MessageNumber, 'SEARCH'],
@@ -210,13 +210,13 @@ test('sort accepts an explicit charset separately from criteria', function (Imap
     $connection->connect('imap.example.com');
     $connection->sort(new ImapSort(new SortCriterion(ImapSortKey::Arrival)), ['ALL'], 'US-ASCII', $identifier);
 
-    $stream->assertWritten('TAG1 '.$command.' (ARRIVAL) "US-ASCII" ALL');
+    $stream->assertWritten('TAG1 '.$command.' (ARRIVAL) US-ASCII ALL');
 })->with([
     [ImapIdentifier::Uid, 'UID SORT'],
     [ImapIdentifier::MessageNumber, 'SORT'],
 ]);
 
-test('sort quotes the charset and rejects control characters', function () {
+test('sort quotes charsets that are not atoms and rejects control characters', function () {
     $stream = new FakeStream;
     $stream->feed([
         '* OK Ready',

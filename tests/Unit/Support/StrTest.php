@@ -78,8 +78,9 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
 
-test('charset quotes and escapes names', function () {
-    expect(Str::charset('UTF-8'))->toBe('"UTF-8"');
+test('charset uses atoms when possible and quotes other names', function () {
+    expect(Str::charset('UTF-8'))->toBe('UTF-8');
+    expect(Str::charset('US-ASCII'))->toBe('US-ASCII');
     expect(Str::charset('UTF "8"'))->toBe('"UTF \\"8\\""');
 });
 
