@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Selection;
 
-interface RequiresEnableInterface
+interface RequiresEnablementInterface
 {
     //
 }

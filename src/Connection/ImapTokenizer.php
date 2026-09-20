@@ -44,9 +44,9 @@ class ImapTokenizer
     {
         $this->skipWhitespace();
 
-        $this->ensureBuffer(1);
+        $this->fillBuffer(1);
 
-        $char = $this->currentChar();
+        $char = $this->peek();
 
         if ($char === null || $char === '') {
             return null;
@@ -55,9 +55,9 @@ class ImapTokenizer
         // Check for line feed.
         if ($char === "\n") {
             // With a valid IMAP response, we should never reach this point,
-            // but in case we receive a malformed response, we will flush
+            // but in case we receive a malformed response, we will reset
             // the buffer and return null to prevent an infinite loop.
-            $this->flushBuffer();
+            $this->resetBuffer();
 
             return null;
         }
@@ -66,9 +66,9 @@ class ImapTokenizer
         if ($char === "\r") {
             $this->advance(); // Consume CR
 
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            if ($this->currentChar() !== "\n") {
+            if ($this->peek() !== "\n") {
                 throw new ImapParserException('Expected LF after CR');
             }
 
@@ -124,7 +124,7 @@ class ImapTokenizer
 
         // BINARY fetch responses use the same literal framing with a "~" prefix.
         if ($char === '~') {
-            $this->ensureBuffer(2);
+            $this->fillBuffer(2);
 
             if (substr($this->buffer, $this->position, 2) === '~{') {
                 $this->advance();
@@ -143,9 +143,9 @@ class ImapTokenizer
     protected function skipWhitespace(): void
     {
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             // Break on EOF.
             if ($char === null || $char === '') {
@@ -179,9 +179,9 @@ class ImapTokenizer
         $value = '';
 
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             if ($char === null) {
                 throw new ImapParserException(sprintf(
@@ -194,9 +194,9 @@ class ImapTokenizer
             if ($char === '\\') {
                 $this->advance(); // Skip the backslash.
 
-                $this->ensureBuffer(1);
+                $this->fillBuffer(1);
 
-                $escapedChar = $this->currentChar();
+                $escapedChar = $this->peek();
 
                 if ($escapedChar === null) {
                     throw new ImapParserException('Unterminated escape sequence in quoted string');
@@ -238,9 +238,9 @@ class ImapTokenizer
         $numStr = '';
 
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             if ($char === null) {
                 throw new ImapParserException('Unterminated literal specifier');
@@ -258,7 +258,7 @@ class ImapTokenizer
         }
 
         // Expect carriage return after the literal specifier.
-        $this->ensureBuffer(2);
+        $this->fillBuffer(2);
 
         // Get the carriage return.
         $crlf = substr($this->buffer, $this->position, 2);
@@ -329,7 +329,7 @@ class ImapTokenizer
         while (ctype_digit($this->buffer[$position] ?? '')) {
             $position++;
 
-            $this->ensureBuffer($position - $this->position + 1);
+            $this->fillBuffer($position - $this->position + 1);
         }
 
         $next = $this->buffer[$position] ?? null;
@@ -353,9 +353,9 @@ class ImapTokenizer
         $start = $this->position;
 
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             if ($char === null) {
                 break;
@@ -381,15 +381,15 @@ class ImapTokenizer
         $value = '';
 
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             if ($char === null) {
                 break;
             }
 
-            if (! $this->isValidAtomCharacter($char)) {
+            if (! $this->isAtomCharacter($char)) {
                 break;
             }
 
@@ -431,9 +431,9 @@ class ImapTokenizer
         $value = '';
 
         while (true) {
-            $this->ensureBuffer(1);
+            $this->fillBuffer(1);
 
-            $char = $this->currentChar();
+            $char = $this->peek();
 
             if ($char === null) {
                 throw new ImapParserException('Unterminated email address, expected ">"');
@@ -454,9 +454,9 @@ class ImapTokenizer
     }
 
     /**
-     * Ensures that at least the given length in characters are available in the buffer.
+     * Fills the buffer with at least the given length in characters from the stream.
      */
-    protected function ensureBuffer(int $length): void
+    protected function fillBuffer(int $length): void
     {
         // If we have enough data in the buffer, return early.
         while ((strlen($this->buffer) - $this->position) < $length) {
@@ -473,15 +473,15 @@ class ImapTokenizer
     }
 
     /**
-     * Returns the current character in the buffer.
+     * Peeks at the current character in the buffer without advancing the position.
      */
-    protected function currentChar(): ?string
+    protected function peek(): ?string
     {
         return $this->buffer[$this->position] ?? null;
     }
 
     /**
-     * Advances the internal pointer by $n characters.
+     * Advances the internal pointer by the given number of characters.
      */
     protected function advance(int $n = 1): void
     {
@@ -489,14 +489,14 @@ class ImapTokenizer
 
         // If we have consumed the entire buffer, reset it.
         if ($this->position >= strlen($this->buffer)) {
-            $this->flushBuffer();
+            $this->resetBuffer();
         }
     }
 
     /**
-     * Flush the buffer and reset the position.
+     * Reset the buffer and its position.
      */
-    protected function flushBuffer(): void
+    protected function resetBuffer(): void
     {
         $this->buffer = '';
         $this->position = 0;
@@ -505,7 +505,7 @@ class ImapTokenizer
     /**
      * Determine if the given character is a valid atom character.
      */
-    protected function isValidAtomCharacter(string $char): bool
+    protected function isAtomCharacter(string $char): bool
     {
         $code = ord($char);
 

@@ -11,7 +11,7 @@ use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
-use DirectoryTree\ImapEngine\Selection\RequiresEnableInterface;
+use DirectoryTree\ImapEngine\Selection\RequiresEnablementInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
 use Exception;
 use InvalidArgumentException;
@@ -300,7 +300,7 @@ class Mailbox implements MailboxInterface
                 );
             }
 
-            if ($option instanceof RequiresEnableInterface) {
+            if ($option instanceof RequiresEnablementInterface) {
                 $this->enable($option->capability());
 
                 if (! $this->capabilities()->enabled($option->capability())) {

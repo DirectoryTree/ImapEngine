@@ -4,7 +4,7 @@ namespace DirectoryTree\ImapEngine\Selection;
 
 use DirectoryTree\ImapEngine\Support\Str;
 
-class QuickResync implements OptionInterface, RequiresEnableInterface
+class QuickResync implements OptionInterface, RequiresEnablementInterface
 {
     /**
      * Constructor.
