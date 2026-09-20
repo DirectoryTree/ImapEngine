@@ -6,8 +6,8 @@ enum Attribute: string implements FetchItemInterface
 {
     case Flags = 'FLAGS';
     case Size = 'RFC822.SIZE';
-    case BodyStructure = 'BODYSTRUCTURE';
     case ModSequence = 'MODSEQ';
+    case BodyStructure = 'BODYSTRUCTURE';
 
     /**
      * {@inheritDoc}
