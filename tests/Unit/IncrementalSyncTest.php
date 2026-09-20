@@ -57,6 +57,24 @@ test('select reports when mod sequences are unavailable', function () {
     expect($result->supportsModSequences())->toBeFalse();
 });
 
+test('select does not assume mod sequences are supported without a response code', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '* OK [UIDVALIDITY 777] UIDs valid',
+        'TAG1 OK SELECT completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->select('INBOX');
+
+    expect($result->highestModSequence())->toBeNull();
+    expect($result->supportsModSequences())->toBeFalse();
+});
+
 test('quick resync selection includes the saved checkpoint', function () {
     $stream = new FakeStream;
     $stream->open();
@@ -189,6 +207,30 @@ test('mailbox enables qresync before selecting and keeps the folder selected', f
     $stream->assertWritten('TAG4 SELECT "INBOX" (QRESYNC (777 40 1:3))');
     $stream->assertNotWritten('TAG5 SELECT');
     expect($selection->highestModSequence())->toBe(42);
+});
+
+test('mailbox does not select with qresync when the server does not enable it', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG2 OK CAPABILITY completed',
+        '* ENABLED',
+        'TAG3 OK ENABLE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $folder = new Folder($mailbox, 'INBOX');
+
+    expect(fn () => $folder->select(options: new QuickResync(777, 42)))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to select folder with [QRESYNC]. IMAP server did not enable it.',
+    );
+
+    $stream->assertWritten('TAG3 ENABLE QRESYNC');
+    $stream->assertNotWritten('TAG4 SELECT');
 });
 
 test('mailbox rejects enabling qresync after selecting a folder', function () {

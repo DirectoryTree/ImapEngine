@@ -3,6 +3,7 @@
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
@@ -99,4 +100,62 @@ test('enable requires an exact advertised capability', function () {
     );
 
     $stream->assertNotWritten('ENABLE AUTH');
+});
+
+test('failed selection clears the previous folder so capabilities can be enabled', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        'TAG3 NO Mailbox unavailable',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG4 OK CAPABILITY completed',
+        '* ENABLED QRESYNC',
+        'TAG5 OK ENABLE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $inbox = new Folder($mailbox, 'INBOX');
+    $missing = new Folder($mailbox, 'Missing');
+
+    $inbox->select();
+
+    expect(fn () => $missing->select())->toThrow(ImapCommandException::class);
+    expect($mailbox->selected($inbox))->toBeFalse();
+
+    $mailbox->enable('QRESYNC');
+
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    $stream->assertWritten('TAG5 ENABLE QRESYNC');
+});
+
+test('failed examination clears the previous folder so capabilities can be enabled', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        'TAG3 NO Mailbox unavailable',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC',
+        'TAG4 OK CAPABILITY completed',
+        '* ENABLED QRESYNC',
+        'TAG5 OK ENABLE completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $inbox = new Folder($mailbox, 'INBOX');
+    $missing = new Folder($mailbox, 'Missing');
+
+    $inbox->select();
+
+    expect(fn () => $missing->examine())->toThrow(ImapCommandException::class);
+    expect($mailbox->selected($inbox))->toBeFalse();
+
+    $mailbox->enable('QRESYNC');
+
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    $stream->assertWritten('TAG5 ENABLE QRESYNC');
 });

@@ -21,7 +21,7 @@ class Result implements Countable
         protected ?int $uidNext = null,
         protected ?int $highestModSequence = null,
         protected array $permanentFlags = [],
-        protected bool $supportsModSequences = true,
+        protected bool $supportsModSequences = false,
         protected ?FetchResult $changes = null,
         protected ?ResponseCollection $responses = null,
     ) {}
@@ -37,7 +37,7 @@ class Result implements Countable
         $uidNext = null;
         $highestModSequence = null;
         $permanentFlags = [];
-        $supportsModSequences = true;
+        $noModSeq = false;
 
         foreach ($responses->untagged() as $response) {
             $type = $response->tokenAt(2);
@@ -61,7 +61,7 @@ class Result implements Countable
                 'UIDVALIDITY' => $uidValidity = (int) $value->value,
                 'UIDNEXT' => $uidNext = (int) $value->value,
                 'HIGHESTMODSEQ' => $highestModSequence = (int) $value->value,
-                'NOMODSEQ' => $supportsModSequences = false,
+                'NOMODSEQ' => $noModSeq = true,
                 'PERMANENTFLAGS' => $permanentFlags = $value instanceof ListData ? $value->values() : [],
                 default => null,
             };
@@ -74,7 +74,7 @@ class Result implements Countable
             $uidNext,
             $highestModSequence,
             $permanentFlags,
-            $supportsModSequences,
+            ! $noModSeq && ! is_null($highestModSequence),
             FetchResult::fromResponses($responses),
             $responses,
         );

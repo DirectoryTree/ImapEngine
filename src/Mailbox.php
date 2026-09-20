@@ -302,10 +302,17 @@ class Mailbox implements MailboxInterface
 
             if ($option instanceof RequiresEnableInterface) {
                 $this->enable($option->capability());
+
+                if (! $this->capabilities()->enabled($option->capability())) {
+                    throw new ImapCapabilityException(
+                        "Unable to select folder with [{$option->capability()}]. IMAP server did not enable it."
+                    );
+                }
             }
         }
 
         if (! $this->selected($folder) || $force || $options) {
+            $this->folder = null;
             $this->selection = null;
 
             $selection = $this->connection()->select($folder->path(), ...$options);
@@ -324,6 +331,7 @@ class Mailbox implements MailboxInterface
     {
         // EXAMINE replaces the server selection with a read-only one, even
         // for the same folder. The next query must select it again.
+        $this->folder = null;
         $this->selection = null;
 
         $selection = $this->connection()->examine($folder->path());
