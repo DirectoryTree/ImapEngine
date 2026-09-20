@@ -9,7 +9,8 @@ use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 use Illuminate\Support\ItemNotFoundException;
 
 test('it can be created with basic properties', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $folders = [
         'inbox' => new FakeFolder('inbox'),
         'sent' => new FakeFolder('sent'),
@@ -21,7 +22,8 @@ test('it can be created with basic properties', function () {
 });
 
 test('it can find folder by path', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
     $sent = new FakeFolder('sent');
 
@@ -38,14 +40,16 @@ test('it can find folder by path', function () {
 });
 
 test('it throws exception when folder not found with findOrFail', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $repository = new FakeFolderRepository($mailbox, []);
 
     $repository->findOrFail('nonexistent');
 })->throws(ItemNotFoundException::class);
 
 test('it can create new folder', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $repository = new FakeFolderRepository($mailbox, []);
 
     $folder = $repository->create('new_folder');
@@ -56,7 +60,8 @@ test('it can create new folder', function () {
 });
 
 test('it can find or create folder', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
 
     $repository = new FakeFolderRepository($mailbox, ['inbox' => $inbox]);
@@ -72,7 +77,8 @@ test('it can find or create folder', function () {
 });
 
 test('it can get folders with pattern matching', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
     $sent = new FakeFolder('sent');
     $drafts = new FakeFolder('drafts');
@@ -103,7 +109,8 @@ test('it can get folders with pattern matching', function () {
 });
 
 test('it resolves special-use folders from the collection', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $sentByName = new FakeFolder('Sent');
     $sentByAttribute = new FakeFolder('Outgoing', [ImapSpecialUse::Sent->value]);
 

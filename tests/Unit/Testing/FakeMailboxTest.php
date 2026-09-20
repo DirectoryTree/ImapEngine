@@ -6,7 +6,7 @@ use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 
 test('it can be created with basic properties', function () {
-    $mailbox = new FakeMailbox(
+    $mailbox = FakeMailbox::make(
         ['host' => 'imap.example.com', 'username' => 'user1'],
         [new FakeFolder('inbox')],
         ['IMAP4rev1', 'STARTTLS']
@@ -21,7 +21,7 @@ test('it can be created with basic properties', function () {
 });
 
 test('it returns config values correctly', function () {
-    $mailbox = new FakeMailbox([
+    $mailbox = FakeMailbox::make([
         'host' => 'imap.example.com',
         'port' => 993,
         'encryption' => 'ssl',
@@ -41,7 +41,7 @@ test('it returns config values correctly', function () {
 test('it reconnects while updating only the password', function (?string $password, string $expectedPassword) {
     $folder = new FakeFolder('inbox');
     $config = ['host' => 'imap.example.com', 'username' => 'foo', 'password' => 'old-password'];
-    $mailbox = new FakeMailbox($config, [$folder]);
+    $mailbox = FakeMailbox::make($config, [$folder]);
     $mailbox->select($folder);
 
     $mailbox->reconnect(password: $password);
@@ -61,13 +61,13 @@ test('it reconnects while updating only the password', function (?string $passwo
 ]);
 
 test('it is always connected', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
 
     expect($mailbox->connected())->toBeTrue();
 });
 
 test('it tracks enabled capabilities until reconnection', function () {
-    $mailbox = new FakeMailbox(capabilities: ['QRESYNC']);
+    $mailbox = FakeMailbox::make(capabilities: ['QRESYNC']);
     $capabilities = $mailbox->capabilities();
 
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
@@ -84,7 +84,7 @@ test('it tracks enabled capabilities until reconnection', function () {
 });
 
 test('it rejects enabling unsupported capabilities', function () {
-    $mailbox = new FakeMailbox(capabilities: ['QRESYNC']);
+    $mailbox = FakeMailbox::make(capabilities: ['QRESYNC']);
 
     expect(fn () => $mailbox->enable('CONDSTORE'))->toThrow(
         ImapCapabilityException::class,
@@ -93,7 +93,7 @@ test('it rejects enabling unsupported capabilities', function () {
 });
 
 test('it requires an exact advertised capability to enable', function () {
-    $mailbox = new FakeMailbox(capabilities: ['AUTH=XOAUTH2']);
+    $mailbox = FakeMailbox::make(capabilities: ['AUTH=XOAUTH2']);
 
     expect($mailbox->capabilities()->supports('AUTH'))->toBeTrue();
     expect(fn () => $mailbox->enable('AUTH'))->toThrow(
@@ -103,21 +103,21 @@ test('it requires an exact advertised capability to enable', function () {
 });
 
 test('it returns folder repository', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
 
     expect($mailbox->folders())->toBeInstanceOf(FakeFolderRepository::class);
 });
 
 test('it can access inbox folder', function () {
     $inbox = new FakeFolder('inbox');
-    $mailbox = new FakeMailbox(folders: [$inbox]);
+    $mailbox = FakeMailbox::make(folders: [$inbox]);
 
     expect($mailbox->inbox())->toBe($inbox);
 });
 
 test('it can select and check selected folders', function () {
     $folder = new FakeFolder('inbox');
-    $mailbox = new FakeMailbox(folders: [$folder]);
+    $mailbox = FakeMailbox::make(folders: [$folder]);
 
     expect($mailbox->selected($folder))->toBeFalse();
 

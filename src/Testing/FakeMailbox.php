@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Testing;
 
 use DirectoryTree\ImapEngine\Capabilities;
 use DirectoryTree\ImapEngine\Capability;
+use DirectoryTree\ImapEngine\Collections\FolderCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
@@ -22,26 +23,34 @@ class FakeMailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
-     * The mailbox capabilities.
-     */
-    protected Capabilities $capabilities;
-
-    /**
      * Constructor.
      */
-    public function __construct(
-        protected array $config = [],
-        /** @var FakeFolder[] */
-        protected array $folders = [],
-        array $capabilities = [],
+    protected function __construct(
+        protected array $config,
+        protected FolderCollection $folders,
+        protected Capabilities $capabilities,
     ) {
-        $this->capabilities = Capabilities::from(
-            ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
-        );
-
+        /** @var FakeFolder $folder */
         foreach ($folders as $folder) {
             $folder->setMailbox($this);
         }
+    }
+
+    /**
+     * Make a new fake mailbox.
+     *
+     * @param  FakeFolder[]  $folders
+     * @param  string[]  $capabilities
+     */
+    public static function make(array $config = [], array $folders = [], array $capabilities = []): static
+    {
+        return new static(
+            $config,
+            new FolderCollection($folders),
+            Capabilities::from(
+                ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+            ),
+        );
     }
 
     /**
@@ -78,6 +87,7 @@ class FakeMailbox implements MailboxInterface
         }
 
         $this->selected = null;
+
         $this->capabilities = Capabilities::from(
             ...array_map(
                 fn (string $capability) => Capability::make($capability),
@@ -115,7 +125,7 @@ class FakeMailbox implements MailboxInterface
      */
     public function folders(): FolderRepositoryInterface
     {
-        return new FakeFolderRepository($this, $this->folders);
+        return new FakeFolderRepository($this, $this->folders->all());
     }
 
     /**
@@ -132,6 +142,7 @@ class FakeMailbox implements MailboxInterface
     public function enable(string ...$capabilities): ResponseCollection
     {
         $current = $this->capabilities();
+
         $capabilities = Capabilities::from(
             ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
         );
