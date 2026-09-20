@@ -5,7 +5,6 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
-use DirectoryTree\ImapEngine\FetchedResponse;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
 
