@@ -58,6 +58,50 @@ test('sequence addressed results do not require a uid', function (string $comman
     expect($result->responses())->toHaveCount(3);
 })->with(['fetch', 'store']);
 
+test('fetch and store filter large sparse message sets', function (string $command) {
+    $set = range(1, 1999, 2);
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        '* 1 FETCH (UID 1 FLAGS (\\Seen))',
+        '* 2 FETCH (UID 1000 FLAGS (\\Flagged))',
+        '* 3 FETCH (UID 1001 FLAGS (\\Seen))',
+        '* 4 FETCH (UID 1999 FLAGS (\\Seen))',
+        'TAG1 OK Completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $command === 'fetch'
+        ? $connection->fetch($set, 'FLAGS')
+        : $connection->store($set, '\\Seen', silent: false);
+
+    expect(array_map(fn ($message) => $message->uid(), $result->messages()))->toBe([1, 1001, 1999]);
+})->with(['fetch', 'store']);
+
+test('fetch and store filter overlapping message ranges', function (string $command, ImapIdentifier $identifier) {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        '* 4 FETCH (UID 4 FLAGS (\\Flagged))',
+        '* 7 FETCH (UID 7 FLAGS (\\Seen))',
+        '* 10 FETCH (UID 10 FLAGS (\\Seen))',
+        '* 17 FETCH (UID 17 FLAGS (\\Flagged))',
+        '* 19 FETCH (UID 19 FLAGS (\\Seen))',
+        'TAG1 OK Completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $result = $command === 'fetch'
+        ? $connection->fetch('10:5,1:7,20:18', 'FLAGS', identifier: $identifier)
+        : $connection->store('10:5,1:7,20:18', '\\Seen', silent: false, identifier: $identifier);
+
+    expect(array_map(fn ($message) => $message->uid(), $result->messages()))->toBe([4, 7, 10, 19]);
+})->with(['fetch', 'store'])->with([ImapIdentifier::Uid, ImapIdentifier::MessageNumber]);
+
 test('server resolved sets do not discard potentially requested messages', function (string $set, string $command) {
     $stream = new FakeStream;
     $stream->feed([

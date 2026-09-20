@@ -23,15 +23,18 @@ use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Fetch\ModifierInterface as FetchModifierInterface;
 use DirectoryTree\ImapEngine\FetchedMessageData;
+use DirectoryTree\ImapEngine\FetchedResponse;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
 use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
+use DirectoryTree\ImapEngine\Support\MessageSetMatcher;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
+use Illuminate\Support\Collection;
 use LogicException;
 use Throwable;
 
@@ -190,7 +193,7 @@ class ImapConnection implements ConnectionInterface
     {
         $this->send('LOGIN', Str::literal([$user, $password]), $tag);
 
-        return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
+        return $this->assertTaggedResponse($tag, exception: fn (TaggedResponse $response) => (
             ImapCommandException::make($this->result->command()->redacted(), $response)
         ));
     }
@@ -485,6 +488,7 @@ class ImapConnection implements ConnectionInterface
     public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifierInterface ...$modifiers): StoreResult
     {
         $tokens = [Str::set($set)];
+        $matcher = new MessageSetMatcher($tokens[0]);
 
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
@@ -498,12 +502,11 @@ class ImapConnection implements ConnectionInterface
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID STORE' : 'STORE', $tokens, $tag);
 
-        $response = $this->taggedResponse($tag);
-        $result = StoreResult::fromResponses(
-            $this->result->responses(),
-            $response,
-            fn (FetchedMessageData $data, UntaggedResponse $response) => $this->matchesMessageSet($data, $response, $tokens[0], $identifier),
-        );
+        $response = $this->assertTaggedResponse($tag, assertion: true);
+        $responses = $this->result->responses();
+        $fetches = $this->matchingFetchedResponses($responses, $matcher, $identifier);
+
+        $result = StoreResult::fromResponses($responses, $response, $fetches);
 
         if ($response->status()->is('BAD') || ($response->failed() && empty($result->modified()))) {
             throw ImapCommandException::make($this->result->command(), $response);
@@ -698,6 +701,8 @@ class ImapConnection implements ConnectionInterface
             Str::list($items),
         ];
 
+        $matcher = new MessageSetMatcher($tokens[0]);
+
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
                 fn (FetchModifierInterface $modifier) => $modifier->toImap(),
@@ -715,52 +720,55 @@ class ImapConnection implements ConnectionInterface
         // >> TAG123 FETCH 123 (UID BODY[TEXT])
         // << * 123 FETCH (UID 456 BODY[TEXT] {14}\nHello, World!)
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
-        return FetchResult::fromResponses($this->result->responses(), function (FetchedMessageData $data, UntaggedResponse $response) use ($items, $identifier, $tokens) {
-            if (! $this->matchesMessageSet($data, $response, $tokens[0], $identifier)) {
-                return false;
-            }
+        $responses = $this->result->responses();
 
-            foreach ($items as $item) {
-                $key = str_replace(['BODY.PEEK[', 'BINARY.PEEK['], ['BODY[', 'BINARY['], strtoupper($item));
-                $key = preg_replace('/<(\\d+)\\.\\d+>$/', '<$1>', $key);
+        $fetches = $this->matchingFetchedResponses($responses, $matcher, $identifier)
+            ->filter(fn (FetchedResponse $fetch) => $this->hasFetchedItems($fetch->data(), $items));
 
-                if (! $data->has($key)) {
-                    return false;
-                }
-            }
+        return FetchResult::fromResponses($responses, $fetches);
+    }
 
-            return true;
-        });
+    /**
+     * Get fetched responses belonging to the command's message set.
+     *
+     * @return Collection<int, FetchedResponse>
+     */
+    protected function matchingFetchedResponses(ResponseCollection $responses, MessageSetMatcher $matcher, ImapIdentifier $identifier): Collection
+    {
+        return FetchedResponse::collect($responses)->filter(
+            fn (FetchedResponse $fetch) => $this->matchesMessageSet($fetch, $matcher, $identifier)
+        );
     }
 
     /**
      * Determine whether a fetched message belongs to the command's message set.
      */
-    protected function matchesMessageSet(FetchedMessageData $data, UntaggedResponse $response, string $set, ImapIdentifier $identifier): bool
+    protected function matchesMessageSet(FetchedResponse $fetch, MessageSetMatcher $matcher, ImapIdentifier $identifier): bool
     {
-        if ($identifier === ImapIdentifier::Uid && ! $data->has('UID')) {
+        if ($identifier === ImapIdentifier::Uid && ! $fetch->data()->has('UID')) {
             return false;
         }
 
-        // Wildcards and saved searches require server state we do not have.
-        // Do not discard potentially requested messages by guessing their bounds.
-        if (str_contains($set, '*') || $set === '$') {
-            return true;
-        }
+        $number = $identifier === ImapIdentifier::Uid ? $fetch->data()->uid() : $fetch->sequenceNumber();
 
-        $number = $identifier === ImapIdentifier::Uid ? $data->uid() : (int) $response->type()->value;
+        return $matcher->contains($number);
+    }
 
-        foreach (explode(',', $set) as $sequence) {
-            [$start, $end] = array_pad(explode(':', $sequence, 2), 2, $sequence);
-            $start = (int) $start;
-            $end = (int) $end;
+    /**
+     * Determine whether a fetched message includes all requested data items.
+     */
+    protected function hasFetchedItems(FetchedMessageData $data, array $items): bool
+    {
+        foreach ($items as $item) {
+            $key = str_replace(['BODY.PEEK[', 'BINARY.PEEK['], ['BODY[', 'BINARY['], strtoupper($item));
+            $key = preg_replace('/<(\\d+)\\.\\d+>$/', '<$1>', $key);
 
-            if ($number >= min($start, $end) && $number <= max($start, $end)) {
-                return true;
+            if (! $data->has($key)) {
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
     /**
@@ -796,36 +804,23 @@ class ImapConnection implements ConnectionInterface
     }
 
     /**
-     * Assert the next response is a successful tagged response.
+     * Assert the next response is tagged and passes the given assertion.
      */
-    protected function assertTaggedResponse(string $tag, ?callable $exception = null): TaggedResponse
+    protected function assertTaggedResponse(string $tag, callable|true|null $assertion = null, ?callable $exception = null): TaggedResponse
     {
+        $assertion ??= fn (TaggedResponse $response) => $response->successful();
+
         /** @var TaggedResponse $response */
         $response = $this->assertNextResponse(
             fn (Response $response) => (
                 $response instanceof TaggedResponse && $response->tag()->is($tag)
             ),
             fn (TaggedResponse $response) => (
-                $response->successful()
+                $assertion === true || $assertion($response)
             ),
             $exception ?? fn (TaggedResponse $response) => (
                 ImapCommandException::make($this->result->command(), $response)
             ),
-        );
-
-        return $response;
-    }
-
-    /**
-     * Get the tagged response for the given command without asserting its status.
-     */
-    protected function taggedResponse(string $tag): TaggedResponse
-    {
-        /** @var TaggedResponse $response */
-        $response = $this->assertNextResponse(
-            fn (Response $response) => $response instanceof TaggedResponse && $response->tag()->is($tag),
-            fn (TaggedResponse $response) => true,
-            fn (TaggedResponse $response) => ImapCommandException::make($this->result->command(), $response),
         );
 
         return $response;

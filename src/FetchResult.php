@@ -3,8 +3,7 @@
 namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
-use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use Illuminate\Support\Collection;
 
 class FetchResult
 {
@@ -18,30 +17,27 @@ class FetchResult
     ) {}
 
     /**
-     * Create a fetch result from IMAP responses, optionally filtering fetched messages.
+     * Create a fetch result from IMAP responses and selected fetched responses.
      *
-     * @param  (callable(FetchedMessageData, UntaggedResponse): bool)|null  $filter
+     * @param  Collection<int, FetchedResponse>|null  $fetches
      */
-    public static function fromResponses(ResponseCollection $responses, ?callable $filter = null): static
+    public static function fromResponses(ResponseCollection $responses, ?Collection $fetches = null): static
     {
-        $messages = [];
+        $fetches ??= FetchedResponse::collect($responses);
+
         $vanished = [];
 
         foreach ($responses->untagged() as $response) {
             if ($response->type()->is('VANISHED')) {
                 $vanished[] = Vanished::fromResponse($response);
-            } elseif (
-                ($type = $response->tokenAt(2)) instanceof Token && $type->is('FETCH')
-            ) {
-                $message = FetchedMessageData::fromResponse($response);
-
-                if (! $filter || $filter($message, $response)) {
-                    $messages[] = $message;
-                }
             }
         }
 
-        return new static($messages, $vanished, $responses);
+        return new static(
+            $fetches->map(fn (FetchedResponse $fetch) => $fetch->data())->values()->all(),
+            $vanished,
+            $responses,
+        );
     }
 
     /**
