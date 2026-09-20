@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Support;
 
 use BackedEnum;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 class Str
 {
@@ -45,6 +46,18 @@ class Str
         }
 
         return '"'.static::escape($string).'"';
+    }
+
+    /**
+     * Make a quoted IMAP charset name.
+     */
+    public static function charset(string $charset): string
+    {
+        if (preg_match('/[\x00-\x1F\x7F]/', $charset)) {
+            throw new InvalidArgumentException('Invalid IMAP charset.');
+        }
+
+        return '"'.static::escape($charset).'"';
     }
 
     /**
@@ -110,25 +123,56 @@ class Str
 
     /**
      * Make an IMAP sequence set.
+     *
+     * @see https://www.rfc-editor.org/rfc/rfc9051.html#section-9
      */
     public static function set(int|string|array $from, int|float|string|null $to = null): string
     {
         if (is_array($from)) {
-            return static::toSequenceSet($from);
+            // Compression can omit intermediate values, so validate each one first.
+            foreach ($from as $value) {
+                static::assertValidSequenceSet((string) $value);
+            }
         }
 
-        // At this point, $from is an integer. No upper bound provided, return $from as a string.
-        if (is_null($to)) {
-            return (string) $from;
+        $set = match (true) {
+            is_array($from) => static::toSequenceSet($from),
+            is_null($to) => (string) $from,
+            $to == INF => $from.':*',
+            default => $from.':'.$to,
+        };
+
+        static::assertValidSequenceSet($set);
+
+        return $set;
+    }
+
+    /**
+     * Assert that a sequence set can be sent as an IMAP command argument.
+     */
+    protected static function assertValidSequenceSet(string $set): void
+    {
+        if ($set === '$') {
+            return;
         }
 
-        // If the upper bound is infinite, use the '*' notation.
-        if ($to == INF) {
-            return $from.':*';
-        }
+        foreach (explode(',', $set) as $sequence) {
+            if (! preg_match('/\A(?:[1-9][0-9]*|\*)(?::(?:[1-9][0-9]*|\*))?\z/', $sequence)) {
+                throw new InvalidArgumentException('Invalid IMAP sequence set.');
+            }
 
-        // Otherwise, return a typical range string.
-        return $from.':'.$to;
+            foreach (explode(':', $sequence) as $number) {
+                if ($number === '*') {
+                    continue;
+                }
+
+                $digits = strlen($number);
+
+                if ($digits > 10 || ($digits === 10 && strcmp($number, '4294967295') > 0)) {
+                    throw new InvalidArgumentException('Invalid IMAP sequence set.');
+                }
+            }
+        }
     }
 
     /**

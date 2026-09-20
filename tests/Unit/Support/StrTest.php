@@ -11,7 +11,28 @@ test('set', function () {
     expect(Str::set(['5', '10']))->toBe('5,10');
     expect(Str::set([5]))->toBe('5');
     expect(Str::set(5))->toBe('5');
+    expect(Str::set('*'))->toBe('*');
+    expect(Str::set('$'))->toBe('$');
+    expect(Str::set('4294967295'))->toBe('4294967295');
 });
+
+test('set rejects invalid sequence sets', function (array|int|string $from, int|float|string|null $to) {
+    expect(fn () => Str::set($from, $to))->toThrow(InvalidArgumentException::class);
+})->with([
+    ['1'."\r\n".'TAG2 LOGOUT', null],
+    [[1, '2'."\r\n".'TAG2 LOGOUT'], null],
+    [[1, '2.0', 3], null],
+    ['1 2', null],
+    ['1,$', null],
+    ['1::2', null],
+    ['1:0', null],
+    ['0', null],
+    [0, null],
+    [-1, null],
+    ['4294967296', null],
+    [1, '4294967296'],
+    [[], null],
+]);
 
 test('set converts consecutive values into sequence ranges', function () {
     expect(Str::set([1, 2, 3, 5, 7, 8, 9]))->toBe('1:3,5,7:9');
@@ -56,6 +77,15 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('hello'))->toBe('"hello"');
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
+
+test('charset quotes and escapes names', function () {
+    expect(Str::charset('UTF-8'))->toBe('"UTF-8"');
+    expect(Str::charset('UTF "8"'))->toBe('"UTF \\"8\\""');
+});
+
+test('charset rejects control characters', function (string $charset) {
+    expect(fn () => Str::charset($charset))->toThrow(InvalidArgumentException::class);
+})->with(["UTF\0-8", "UTF\t-8", "UTF\r-8", "UTF\n-8", "UTF\x7f-8"]);
 
 test('literal preserves carriage returns and newlines using literals', function (string $input) {
     $expected = ['{'.strlen($input).'}', $input];

@@ -40,11 +40,9 @@ class Mailbox implements MailboxInterface
     ];
 
     /**
-     * The cached mailbox capabilities.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.1.1
+     * The result from the currently selected folder.
      */
-    protected ?Capabilities $capabilities = null;
+    protected ?Result $selection = null;
 
     /**
      * The currently selected or examined folder.
@@ -52,9 +50,11 @@ class Mailbox implements MailboxInterface
     protected ?FolderInterface $folder = null;
 
     /**
-     * The result from the currently selected folder.
+     * The cached mailbox capabilities.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.1.1
      */
-    protected ?Result $selection = null;
+    protected ?Capabilities $capabilities = null;
 
     /**
      * The mailbox connection.
@@ -74,10 +74,18 @@ class Mailbox implements MailboxInterface
      */
     public function __clone(): void
     {
-        $this->connection = null;
-        $this->capabilities = null;
+        $this->reset();
+    }
+
+    /**
+     * Reset the connection state.
+     */
+    protected function reset(): void
+    {
         $this->folder = null;
         $this->selection = null;
+        $this->connection = null;
+        $this->capabilities = null;
     }
 
     /**
@@ -190,10 +198,7 @@ class Mailbox implements MailboxInterface
         } catch (Exception) {
             // Do nothing.
         } finally {
-            $this->connection = null;
-            $this->capabilities = null;
-            $this->folder = null;
-            $this->selection = null;
+            $this->reset();
         }
     }
 

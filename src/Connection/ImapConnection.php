@@ -517,7 +517,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function search(array $criteria, ?string $charset = null, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
-        $tokens = $charset === null ? $criteria : ['CHARSET', Str::literal($charset), ...$criteria];
+        $tokens = $charset === null ? $criteria : ['CHARSET', Str::charset($charset), ...$criteria];
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID SEARCH' : 'SEARCH', $tokens, tag: $tag);
 
@@ -533,7 +533,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function sort(ImapSort $sort, array $criteria, string $charset = 'UTF-8', ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
-        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", $charset, ...$criteria], tag: $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", Str::charset($charset), ...$criteria], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 

@@ -131,6 +131,42 @@ test('message operations accept raw sequence sets', function (string $method, ar
     ['expunge', [], 'UID EXPUNGE 1:3,7:*'],
 ]);
 
+test('message operations reject injected sequence sets before writing', function (string $method, array $arguments) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->{$method}("1\r\nTAG2 LOGOUT", ...$arguments))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    ['fetch', ['FLAGS']],
+    ['store', ['\\Seen']],
+    ['copy', ['Archive']],
+    ['move', ['Archive']],
+    ['expunge', []],
+]);
+
+test('quick resync rejects injected message sets before selecting', function (array|int|string $knownUids, ?array $sequenceMatch) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->select('INBOX', new QuickResync(777, 42, $knownUids, $sequenceMatch)))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    ["1\r\nTAG2 LOGOUT", null],
+    [[1, "2\r\nTAG2 LOGOUT"], null],
+    [[], [["1\r\nTAG2 LOGOUT"], [2]]],
+]);
+
 test('search accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
     $stream = new FakeStream;
     $stream->feed([
@@ -149,6 +185,19 @@ test('search accepts an explicit charset separately from criteria', function (Im
     [ImapIdentifier::MessageNumber, 'SEARCH'],
 ]);
 
+test('search rejects control characters in the charset before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->search(['ALL'], "UTF-8\r\nTAG2 LOGOUT"))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
 test('sort accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
     $stream = new FakeStream;
     $stream->feed([
@@ -161,11 +210,33 @@ test('sort accepts an explicit charset separately from criteria', function (Imap
     $connection->connect('imap.example.com');
     $connection->sort(new ImapSort(new SortCriterion(ImapSortKey::Arrival)), ['ALL'], 'US-ASCII', $identifier);
 
-    $stream->assertWritten('TAG1 '.$command.' (ARRIVAL) US-ASCII ALL');
+    $stream->assertWritten('TAG1 '.$command.' (ARRIVAL) "US-ASCII" ALL');
 })->with([
     [ImapIdentifier::Uid, 'UID SORT'],
     [ImapIdentifier::MessageNumber, 'SORT'],
 ]);
+
+test('sort quotes the charset and rejects control characters', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        '* SORT 7',
+        'TAG1 OK SORT completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+    $sort = new ImapSort(new SortCriterion(ImapSortKey::Arrival));
+
+    $connection->sort($sort, ['ALL'], 'UTF 8');
+
+    $stream->assertWritten('TAG1 UID SORT (ARRIVAL) "UTF 8" ALL');
+
+    expect(fn () => $connection->sort($sort, ['ALL'], "UTF-8\r\nTAG2 LOGOUT"))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG2 UID SORT');
+});
 
 test('list supports selection options multiple patterns and status return data', function () {
     $stream = new FakeStream;
