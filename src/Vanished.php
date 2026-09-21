@@ -22,7 +22,8 @@ class Vanished
     public static function fromResponse(UntaggedResponse $response): static
     {
         $data = $response->tokenAt(2);
-        $earlier = $data instanceof ListData && $data->contains('EARLIER');
+        $earlier = $data instanceof ListData
+            && strtoupper((string) ($data->values()[0] ?? '')) === 'EARLIER';
         $sequenceSet = $response->tokenAt($earlier ? 3 : 2);
 
         return new static(
