@@ -2,9 +2,9 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\FetchedResponseCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use Illuminate\Support\Collection;
 
 class FetchedResponse
 {
@@ -27,14 +27,15 @@ class FetchedResponse
     /**
      * Parse fetched responses from a collection of raw IMAP responses.
      *
-     * @return Collection<int, static>
+     * @return FetchedResponseCollection
      */
-    public static function collect(ResponseCollection $responses): Collection
+    public static function collect(ResponseCollection $responses): FetchedResponseCollection
     {
-        return $responses->fetches()
-            ->map(fn (UntaggedResponse $response) => static::fromResponse($response))
-            ->values()
-            ->toBase();
+        return new FetchedResponseCollection(
+            $responses->fetches()
+                ->map(fn (UntaggedResponse $response) => static::fromResponse($response))
+                ->values()
+        );
     }
 
     /**

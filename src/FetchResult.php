@@ -2,8 +2,8 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\FetchedResponseCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
-use Illuminate\Support\Collection;
 
 class FetchResult
 {
@@ -18,10 +18,8 @@ class FetchResult
 
     /**
      * Create a fetch result from IMAP responses and selected fetched responses.
-     *
-     * @param  Collection<int, FetchedResponse>|null  $fetches
      */
-    public static function fromResponses(ResponseCollection $responses, ?Collection $fetches = null): static
+    public static function fromResponses(ResponseCollection $responses, ?FetchedResponseCollection $fetches = null): static
     {
         $fetches ??= FetchedResponse::collect($responses);
 
@@ -34,7 +32,7 @@ class FetchResult
         }
 
         return new static(
-            $fetches->map(fn (FetchedResponse $fetch) => $fetch->data())->values()->all(),
+            $fetches->messages(),
             $vanished,
             $responses,
         );

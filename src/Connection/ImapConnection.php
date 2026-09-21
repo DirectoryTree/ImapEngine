@@ -22,7 +22,6 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 use DirectoryTree\ImapEngine\Exceptions\ImapResponseException;
 use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Fetch\ModifierInterface as FetchModifierInterface;
-use DirectoryTree\ImapEngine\FetchedMessageData;
 use DirectoryTree\ImapEngine\FetchedResponse;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\ImapSort;
@@ -30,11 +29,9 @@ use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
 use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
-use DirectoryTree\ImapEngine\Support\MessageSetMatcher;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
-use Illuminate\Support\Collection;
 use LogicException;
 use Throwable;
 
@@ -488,7 +485,6 @@ class ImapConnection implements ConnectionInterface
     public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifierInterface ...$modifiers): StoreResult
     {
         $tokens = [Str::set($set)];
-        $matcher = new MessageSetMatcher($tokens[0]);
 
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
@@ -504,7 +500,7 @@ class ImapConnection implements ConnectionInterface
 
         $response = $this->assertTaggedResponse($tag, assertion: true);
         $responses = $this->result->responses();
-        $fetches = $this->matchingFetchedResponses($responses, $matcher, $identifier);
+        $fetches = FetchedResponse::collect($responses)->forMessageSet($tokens[0], $identifier);
 
         $result = StoreResult::fromResponses($responses, $response, $fetches);
 
@@ -701,8 +697,6 @@ class ImapConnection implements ConnectionInterface
             Str::list($items),
         ];
 
-        $matcher = new MessageSetMatcher($tokens[0]);
-
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
                 fn (FetchModifierInterface $modifier) => $modifier->toImap(),
@@ -722,53 +716,11 @@ class ImapConnection implements ConnectionInterface
         // << * 123 FETCH (FLAGS (\Seen)) <-- Unsolicited response
         $responses = $this->result->responses();
 
-        $fetches = $this->matchingFetchedResponses($responses, $matcher, $identifier)
-            ->filter(fn (FetchedResponse $fetch) => $this->hasFetchedItems($fetch->data(), $items));
+        $fetches = FetchedResponse::collect($responses)
+            ->forMessageSet($tokens[0], $identifier)
+            ->withItems($items);
 
         return FetchResult::fromResponses($responses, $fetches);
-    }
-
-    /**
-     * Get fetched responses belonging to the command's message set.
-     *
-     * @return Collection<int, FetchedResponse>
-     */
-    protected function matchingFetchedResponses(ResponseCollection $responses, MessageSetMatcher $matcher, ImapIdentifier $identifier): Collection
-    {
-        return FetchedResponse::collect($responses)->filter(
-            fn (FetchedResponse $fetch) => $this->matchesMessageSet($fetch, $matcher, $identifier)
-        );
-    }
-
-    /**
-     * Determine whether a fetched message belongs to the command's message set.
-     */
-    protected function matchesMessageSet(FetchedResponse $fetch, MessageSetMatcher $matcher, ImapIdentifier $identifier): bool
-    {
-        if ($identifier === ImapIdentifier::Uid && ! $fetch->data()->has('UID')) {
-            return false;
-        }
-
-        $number = $identifier === ImapIdentifier::Uid ? $fetch->data()->uid() : $fetch->sequenceNumber();
-
-        return $matcher->contains($number);
-    }
-
-    /**
-     * Determine whether a fetched message includes all requested data items.
-     */
-    protected function hasFetchedItems(FetchedMessageData $data, array $items): bool
-    {
-        foreach ($items as $item) {
-            $key = str_replace(['BODY.PEEK[', 'BINARY.PEEK['], ['BODY[', 'BINARY['], strtoupper($item));
-            $key = preg_replace('/<(\\d+)\\.\\d+>$/', '<$1>', $key);
-
-            if (! $data->has($key)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**

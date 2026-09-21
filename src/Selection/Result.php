@@ -2,14 +2,13 @@
 
 namespace DirectoryTree\ImapEngine\Selection;
 
-use Countable;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\FetchResult;
 
-class Result implements Countable
+class Result
 {
     /**
      * Constructor.
@@ -21,9 +20,8 @@ class Result implements Countable
         protected ?int $uidNext = null,
         protected ?int $highestModSequence = null,
         protected array $permanentFlags = [],
-        protected bool $supportsModSequences = false,
-        protected ?FetchResult $changes = null,
-        protected ?ResponseCollection $responses = null,
+        protected FetchResult $changes = new FetchResult,
+        protected ResponseCollection $responses = new ResponseCollection,
     ) {}
 
     /**
@@ -37,8 +35,6 @@ class Result implements Countable
         $uidNext = null;
         $highestModSequence = null;
         $permanentFlags = [];
-        $noModSeq = false;
-
         foreach ($responses->untagged() as $response) {
             $type = $response->tokenAt(2);
 
@@ -59,7 +55,7 @@ class Result implements Countable
             $value = $code->tokenAt(1);
 
             match ($name) {
-                'NOMODSEQ' => $noModSeq = true,
+                'NOMODSEQ' => $highestModSequence = null,
                 'UIDNEXT' => $uidNext = (int) $value->value,
                 'UIDVALIDITY' => $uidValidity = (int) $value->value,
                 'HIGHESTMODSEQ' => $highestModSequence = (int) $value->value,
@@ -69,15 +65,14 @@ class Result implements Countable
         }
 
         return new static(
-            $exists,
-            $recent,
-            $uidValidity,
-            $uidNext,
-            $highestModSequence,
-            $permanentFlags,
-            ! $noModSeq && ! is_null($highestModSequence),
-            FetchResult::fromResponses($responses),
-            $responses,
+            exists: $exists,
+            recent: $recent,
+            uidValidity: $uidValidity,
+            uidNext: $uidNext,
+            highestModSequence: $highestModSequence,
+            permanentFlags: $permanentFlags,
+            changes: FetchResult::fromResponses($responses),
+            responses: $responses,
         );
     }
 
@@ -134,7 +129,7 @@ class Result implements Countable
      */
     public function supportsModSequences(): bool
     {
-        return $this->supportsModSequences;
+        return ! is_null($this->highestModSequence);
     }
 
     /**
@@ -142,7 +137,7 @@ class Result implements Countable
      */
     public function changes(): FetchResult
     {
-        return $this->changes ?? new FetchResult;
+        return $this->changes;
     }
 
     /**
@@ -150,14 +145,6 @@ class Result implements Countable
      */
     public function responses(): ResponseCollection
     {
-        return $this->responses ?? new ResponseCollection;
-    }
-
-    /**
-     * Count the untagged selection responses.
-     */
-    public function count(): int
-    {
-        return $this->responses()->untagged()->count();
+        return $this->responses;
     }
 }

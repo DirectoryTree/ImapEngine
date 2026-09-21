@@ -4,10 +4,19 @@ namespace DirectoryTree\ImapEngine\Support;
 
 class MessageSetMatcher
 {
+    /**
+     * The individual message numbers in the set.
+     */
     protected array $numbers = [];
 
+    /**
+     * The ranges of message numbers in the set.
+     */
     protected array $ranges = [];
 
+    /**
+     * Whether the set requires server resolution.
+     */
     protected bool $serverResolved = false;
 
     /**

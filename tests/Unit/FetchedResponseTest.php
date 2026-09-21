@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Collections\FetchedResponseCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapParser;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
@@ -37,6 +38,7 @@ test('response collections filter raw fetch responses while fetched responses re
     $first = $parsed[0];
     $second = $parsed[1];
 
+    expect($parsed)->toBeInstanceOf(FetchedResponseCollection::class);
     expect($parsed)->toHaveCount(2);
     expect($first->sequenceNumber())->toBe(2);
     expect($first->data()->uid())->toBe(7);

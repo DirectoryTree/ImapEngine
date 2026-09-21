@@ -223,11 +223,11 @@ test('select folder', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->select('INBOX');
+    $result = $connection->select('INBOX');
 
     $stream->assertWritten('TAG1 SELECT "INBOX"');
 
-    expect($responses->count())->toBe(1);
+    expect($result->responses()->untagged())->toHaveCount(1);
 });
 
 test('examine folder', function () {
@@ -243,11 +243,11 @@ test('examine folder', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $responses = $connection->examine('INBOX');
+    $result = $connection->examine('INBOX');
 
     $stream->assertWritten('TAG1 EXAMINE "INBOX"');
 
-    expect($responses->count())->toBe(1);
+    expect($result->responses()->untagged())->toHaveCount(1);
 });
 
 test('status folder', function () {
