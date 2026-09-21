@@ -26,8 +26,6 @@ class FetchedResponse
 
     /**
      * Parse fetched responses from a collection of raw IMAP responses.
-     *
-     * @return FetchedResponseCollection
      */
     public static function collect(ResponseCollection $responses): FetchedResponseCollection
     {
