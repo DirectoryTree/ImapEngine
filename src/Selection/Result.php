@@ -55,13 +55,14 @@ class Result implements Countable
             }
 
             $name = strtoupper($code->first()?->value ?? '');
+
             $value = $code->tokenAt(1);
 
             match ($name) {
-                'UIDVALIDITY' => $uidValidity = (int) $value->value,
-                'UIDNEXT' => $uidNext = (int) $value->value,
-                'HIGHESTMODSEQ' => $highestModSequence = (int) $value->value,
                 'NOMODSEQ' => $noModSeq = true,
+                'UIDNEXT' => $uidNext = (int) $value->value,
+                'UIDVALIDITY' => $uidValidity = (int) $value->value,
+                'HIGHESTMODSEQ' => $highestModSequence = (int) $value->value,
                 'PERMANENTFLAGS' => $permanentFlags = $value instanceof ListData ? $value->values() : [],
                 default => null,
             };
