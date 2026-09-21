@@ -15,9 +15,9 @@ class MessageSetMatcher
     protected array $ranges = [];
 
     /**
-     * Whether the set requires server resolution.
+     * Whether the set can be filtered without server state.
      */
-    protected bool $serverResolved = false;
+    protected bool $filterable = true;
 
     /**
      * Create a matcher from a validated IMAP message set.
@@ -27,7 +27,7 @@ class MessageSetMatcher
         // Wildcards and saved searches require server state we do not have.
         // Do not discard potentially requested messages by guessing their bounds.
         if (str_contains($set, '*') || $set === '$') {
-            $this->serverResolved = true;
+            $this->filterable = false;
 
             return;
         }
@@ -50,7 +50,7 @@ class MessageSetMatcher
      */
     public function contains(int $number): bool
     {
-        if ($this->serverResolved || isset($this->numbers[$number])) {
+        if (! $this->filterable || isset($this->numbers[$number])) {
             return true;
         }
 
