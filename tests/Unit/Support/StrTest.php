@@ -88,6 +88,22 @@ test('charset rejects control characters', function (string $charset) {
     expect(fn () => Str::charset($charset))->toThrow(InvalidArgumentException::class);
 })->with(["UTF\0-8", "UTF\t-8", "UTF\r-8", "UTF\n-8", "UTF\x7f-8"]);
 
+test('atom accepts valid IMAP atoms', function (string $atom) {
+    expect(Str::atom($atom))->toBe($atom);
+})->with(['QRESYNC', 'UTF8=ACCEPT', 'X-GOOD-IDEA']);
+
+test('atom rejects invalid IMAP atoms', function (string $atom) {
+    expect(fn () => Str::atom($atom))->toThrow(InvalidArgumentException::class);
+})->with(['', 'BAD CAPABILITY', "BAD\r\nCAPABILITY", 'BAD]CAPABILITY', 'BAD\\CAPABILITY']);
+
+test('mechanism accepts valid SASL mechanism names', function (string $mechanism) {
+    expect(Str::mechanism($mechanism))->toBe($mechanism);
+})->with(['PLAIN', 'XOAUTH2', 'X-CUSTOM_MECHANISM']);
+
+test('mechanism rejects invalid SASL mechanism names', function (string $mechanism) {
+    expect(fn () => Str::mechanism($mechanism))->toThrow(InvalidArgumentException::class);
+})->with(['', 'plain', 'BAD MECHANISM', "BAD\r\nMECHANISM", str_repeat('A', 21)]);
+
 test('literal preserves carriage returns and newlines using literals', function (string $input) {
     $expected = ['{'.strlen($input).'}', $input];
     expect(Str::literal($input))->toBe($expected);

@@ -9,6 +9,32 @@ use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Selection\QuickResync;
 use DirectoryTree\ImapEngine\SortCriterion;
 
+test('authenticate rejects invalid SASL mechanisms before writing', function (string $mechanism) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->authenticate($mechanism)->current())
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with(['', 'plain', 'BAD MECHANISM', "XOAUTH2\r\nTAG2 LOGOUT", str_repeat('A', 21)]);
+
+test('enable rejects invalid capability names before writing', function (string $capability) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->enable($capability))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with(['', 'BAD CAPABILITY', "QRESYNC\r\nTAG2 LOGOUT", 'BAD]CAPABILITY']);
+
 test('id preserves field names and nil values', function (?array $parameters, string $expected) {
     $stream = new FakeStream;
     $stream->feed([

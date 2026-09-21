@@ -214,7 +214,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function authenticate(string $mechanism, ?string $initial = null): Generator
     {
-        $tokens = [$mechanism];
+        $tokens = [Str::mechanism($mechanism)];
 
         if ($initial !== null) {
             $tokens[] = $initial === '' ? '=' : base64_encode($initial);
@@ -259,7 +259,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function enable(string ...$capabilities): ResponseCollection
     {
-        $this->send('ENABLE', $capabilities, $tag);
+        $this->send('ENABLE', array_map([Str::class, 'atom'], $capabilities), $tag);
 
         $this->assertTaggedResponse($tag);
 

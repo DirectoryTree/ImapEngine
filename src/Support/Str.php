@@ -65,6 +65,30 @@ class Str
     }
 
     /**
+     * Make an IMAP atom.
+     */
+    public static function atom(string $atom): string
+    {
+        if ($atom === '' || preg_match('/[^\x21-\x7E]/', $atom) || strpbrk($atom, '(){}%*"\\]') !== false) {
+            throw new InvalidArgumentException('Invalid IMAP atom.');
+        }
+
+        return $atom;
+    }
+
+    /**
+     * Make a SASL mechanism name.
+     */
+    public static function mechanism(string $mechanism): string
+    {
+        if (! preg_match('/\A[A-Z0-9_-]{1,20}\z/', $mechanism)) {
+            throw new InvalidArgumentException('Invalid SASL mechanism.');
+        }
+
+        return $mechanism;
+    }
+
+    /**
      * Make a parenthesized list of strings or NIL values, preserving literal boundaries.
      *
      * @param  array<string|null>  $values
