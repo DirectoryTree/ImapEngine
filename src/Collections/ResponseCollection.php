@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Collections;
 use DirectoryTree\ImapEngine\Connection\Responses\ContinuationResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use Illuminate\Support\Collection;
 
 /**
@@ -44,5 +45,19 @@ class ResponseCollection extends Collection
     public function continuation(): self
     {
         return $this->whereInstanceOf(ContinuationResponse::class);
+    }
+
+    /**
+     * Filter the collection to only untagged FETCH responses.
+     *
+     * @return self<array-key, UntaggedResponse>
+     */
+    public function fetches(): self
+    {
+        return $this->untagged()->filter(function (UntaggedResponse $response) {
+            $type = $response->tokenAt(2);
+
+            return $type instanceof Token && $type->is('FETCH');
+        });
     }
 }

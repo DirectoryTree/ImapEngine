@@ -9,7 +9,7 @@ interface FolderRepositoryInterface
     /**
      * Add items to the folder LIST request.
      */
-    public function with(FolderDataItem ...$items): static;
+    public function with(FolderDataItemInterface ...$items): static;
 
     /**
      * Find a folder.

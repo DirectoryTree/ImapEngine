@@ -21,6 +21,11 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function size(): ?int;
 
     /**
+     * Get the message modification sequence.
+     */
+    public function modSequence(): ?int;
+
+    /**
      * Get the message date and time.
      */
     public function date(): ?CarbonInterface;

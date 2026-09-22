@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Support;
 
 use BackedEnum;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 class Str
 {
@@ -40,11 +41,84 @@ class Str
             return $result;
         }
 
-        if (str_contains($string, "\n")) {
+        if (str_contains($string, "\r") || str_contains($string, "\n")) {
             return ['{'.strlen($string).'}', $string];
         }
 
         return '"'.static::escape($string).'"';
+    }
+
+    /**
+     * Make an IMAP charset name.
+     */
+    public static function charset(string $charset): string
+    {
+        if (preg_match('/[\x00-\x1F\x7F]/', $charset)) {
+            throw new InvalidArgumentException('Invalid IMAP charset.');
+        }
+
+        if (preg_match('/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/', $charset)) {
+            return $charset;
+        }
+
+        return '"'.static::escape($charset).'"';
+    }
+
+    /**
+     * Make an IMAP atom.
+     */
+    public static function atom(string $atom): string
+    {
+        if ($atom === '' || preg_match('/[^\x21-\x7E]/', $atom) || strpbrk($atom, '(){}%*"\\]') !== false) {
+            throw new InvalidArgumentException('Invalid IMAP atom.');
+        }
+
+        return $atom;
+    }
+
+    /**
+     * Make a SASL mechanism name.
+     */
+    public static function mechanism(string $mechanism): string
+    {
+        if (! preg_match('/\A[A-Z0-9_-]{1,20}\z/', $mechanism)) {
+            throw new InvalidArgumentException('Invalid SASL mechanism.');
+        }
+
+        return $mechanism;
+    }
+
+    /**
+     * Make a parenthesized list of strings or NIL values, preserving literal boundaries.
+     *
+     * @param  array<string|null>  $values
+     */
+    public static function literalList(array $values): array
+    {
+        if (! $values) {
+            return ['()'];
+        }
+
+        $tokens = array_map(
+            fn (?string $value) => is_null($value) ? 'NIL' : static::literal($value),
+            array_values($values)
+        );
+
+        $last = count($tokens) - 1;
+
+        if (is_array($tokens[0])) {
+            $tokens[0][0] = '('.$tokens[0][0];
+        } else {
+            $tokens[0] = '('.$tokens[0];
+        }
+
+        if (is_array($tokens[$last])) {
+            $tokens[$last][1] .= ')';
+        } else {
+            $tokens[$last] .= ')';
+        }
+
+        return $tokens;
     }
 
     /**
@@ -77,25 +151,88 @@ class Str
 
     /**
      * Make an IMAP sequence set.
+     *
+     * @see https://www.rfc-editor.org/rfc/rfc9051.html#section-9
      */
     public static function set(int|string|array $from, int|float|string|null $to = null): string
     {
         if (is_array($from)) {
-            return static::toSequenceSet($from);
+            // Compression can omit intermediate values, so validate each one first.
+            foreach ($from as $value) {
+                static::assertValidSequenceSet((string) $value);
+            }
         }
 
-        // At this point, $from is an integer. No upper bound provided, return $from as a string.
-        if (is_null($to)) {
-            return (string) $from;
+        $set = match (true) {
+            is_array($from) => static::toSequenceSet($from),
+            is_null($to) => (string) $from,
+            $to == INF => $from.':*',
+            default => $from.':'.$to,
+        };
+
+        static::assertValidSequenceSet($set);
+
+        return $set;
+    }
+
+    /**
+     * Assert that a sequence set can be sent as an IMAP command argument.
+     */
+    protected static function assertValidSequenceSet(string $set): void
+    {
+        if ($set === '$') {
+            return;
         }
 
-        // If the upper bound is infinite, use the '*' notation.
-        if ($to == INF) {
-            return $from.':*';
+        foreach (explode(',', $set) as $sequence) {
+            if (! preg_match('/\A(?:[1-9][0-9]*|\*)(?::(?:[1-9][0-9]*|\*))?\z/', $sequence)) {
+                throw new InvalidArgumentException('Invalid IMAP sequence set.');
+            }
+
+            foreach (explode(':', $sequence) as $number) {
+                if ($number === '*') {
+                    continue;
+                }
+
+                $digits = strlen($number);
+
+                if ($digits > 10 || ($digits === 10 && strcmp($number, '4294967295') > 0)) {
+                    throw new InvalidArgumentException('Invalid IMAP sequence set.');
+                }
+            }
+        }
+    }
+
+    /**
+     * Expand an IMAP sequence set into its individual values.
+     *
+     * @return int[]
+     */
+    public static function fromSequenceSet(string $set): array
+    {
+        $values = [];
+
+        foreach (explode(',', $set) as $sequence) {
+            if (! str_contains($sequence, ':')) {
+                $values[] = (int) $sequence;
+
+                continue;
+            }
+
+            [$start, $end] = array_map('intval', explode(':', $sequence, 2));
+
+            $step = $start <= $end ? 1 : -1;
+
+            for ($value = $start; ; $value += $step) {
+                $values[] = $value;
+
+                if ($value === $end) {
+                    break;
+                }
+            }
         }
 
-        // Otherwise, return a typical range string.
-        return $from.':'.$to;
+        return $values;
     }
 
     /**

@@ -7,14 +7,17 @@ use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\FetchedMessageData;
+use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
 use DirectoryTree\ImapEngine\UidOrder;
+use DirectoryTree\ImapEngine\Vanished;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -38,6 +41,34 @@ class FakeMessageQuery implements MessageQueryInterface
         return $this->applyOrdering(new MessageCollection(
             $this->folder->getMessages()
         ));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
+    {
+        $uids = (array) $uids;
+
+        $messages = collect($this->folder->getMessages())
+            ->filter(fn (FakeMessage $message) => in_array($message->uid(), $uids, true))
+            ->filter(fn (FakeMessage $message) => ($message->modSequence() ?? 0) > $modSequence)
+            ->map(fn (FakeMessage $message) => new FetchedMessageData([
+                'UID' => $message->uid(),
+                'FLAGS' => $message->flags(),
+                'MODSEQ' => [$message->modSequence()],
+            ]))
+            ->values()
+            ->all();
+
+        $vanishedUids = $vanished
+            ? $this->folder->vanishedSince($modSequence, $uids)
+            : [];
+
+        return new FetchResult(
+            $messages,
+            $vanishedUids ? [new Vanished($vanishedUids, earlier: true)] : [],
+        );
     }
 
     /**
@@ -168,7 +199,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface
     {
         return $this->get()->findOrFail($id);
     }
@@ -176,7 +207,7 @@ class FakeMessageQuery implements MessageQueryInterface
     /**
      * {@inheritDoc}
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface
     {
         return $this->get()->find($id);
     }

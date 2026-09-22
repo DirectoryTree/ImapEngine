@@ -17,7 +17,8 @@
         }
     ],
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
+        "php-64bit": "*",
         "symfony/mime": ">=6.0",
         "nesbot/carbon": ">=2.0",
         "illuminate/collections": ">=9.0",

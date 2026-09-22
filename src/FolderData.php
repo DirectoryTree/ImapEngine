@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-enum FolderData: string implements FolderDataItem
+enum FolderData: string implements FolderDataItemInterface
 {
     case SpecialUse = 'SPECIAL-USE';
 

@@ -2,6 +2,9 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
+
 interface FolderInterface
 {
     /**
@@ -59,7 +62,7 @@ interface FolderInterface
     /**
      * Select the current folder.
      */
-    public function select(bool $force = false): void;
+    public function select(bool $force = false, OptionInterface ...$options): Result;
 
     /**
      * Get the folder's quotas.

@@ -4,6 +4,7 @@ use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\FetchedMessageData;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Message;
@@ -24,7 +25,12 @@ test('it moves message using MOVE when capable and returns the new UID', functio
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 1, [], 'header', 'body');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header',
+        'BODY[TEXT]' => 'body',
+    ]));
 
     $newUid = $message->move('INBOX.Sent');
 
@@ -48,7 +54,12 @@ test('it copies and then deletes message using UIDPLUS when incapable of MOVE an
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 1, [], 'header', 'body');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header',
+        'BODY[TEXT]' => 'body',
+    ]));
 
     $newUid = $message->move('INBOX.Sent');
 
@@ -76,7 +87,12 @@ test('it only expunges the deleted message', function () {
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 42, [], 'header', 'body');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 42,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header',
+        'BODY[TEXT]' => 'body',
+    ]));
 
     $message->delete(expunge: true);
 
@@ -99,7 +115,12 @@ test('it throws exception when server does not support MOVE or UIDPLUS capabilit
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 1, [], 'header', 'body');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header',
+        'BODY[TEXT]' => 'body',
+    ]));
 
     $message->move('INBOX.Sent');
 })->throws(ImapCapabilityException::class);
@@ -120,7 +141,12 @@ test('it can mark and unmark a message as flagged', function () {
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 1, [], 'header', 'body');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header',
+        'BODY[TEXT]' => 'body',
+    ]));
 
     expect($message->isFlagged())->toBeFalse();
     expect($message->flags())->not->toContain('\\Flagged');
@@ -153,12 +179,42 @@ test('it can determine if two messages are the same', function () {
     $folder2 = new Folder($mailbox, 'INBOX.Sent', [], '/');
 
     // Create messages with different properties
-    $message1 = new Message($folder1, 1, [], 'header1', 'body1');
-    $message2 = new Message($folder1, 1, [], 'header1', 'body1'); // Same as message1
-    $message3 = new Message($folder1, 2, [], 'header1', 'body1'); // Different UID
-    $message4 = new Message($folder2, 1, [], 'header1', 'body1'); // Different folder
-    $message5 = new Message($folder1, 1, [], 'header2', 'body1'); // Different header
-    $message6 = new Message($folder1, 1, [], 'header1', 'body2'); // Different body
+    $message1 = new Message($folder1, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header1',
+        'BODY[TEXT]' => 'body1',
+    ]));
+    $message2 = new Message($folder1, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header1',
+        'BODY[TEXT]' => 'body1',
+    ])); // Same as message1
+    $message3 = new Message($folder1, new FetchedMessageData([
+        'UID' => 2,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header1',
+        'BODY[TEXT]' => 'body1',
+    ])); // Different UID
+    $message4 = new Message($folder2, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header1',
+        'BODY[TEXT]' => 'body1',
+    ])); // Different folder
+    $message5 = new Message($folder1, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header2',
+        'BODY[TEXT]' => 'body1',
+    ])); // Different header
+    $message6 = new Message($folder1, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'header1',
+        'BODY[TEXT]' => 'body2',
+    ])); // Different body
 
     // Same message
     expect($message1->is($message2))->toBeTrue();
@@ -189,14 +245,13 @@ test('it serializes and unserializes the message correctly', function () {
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $originalMessage = new Message(
-        $folder,
-        123,
-        ['\\Seen', '\\Flagged'],
-        'From: test@example.com',
-        'This is the message body content',
-        1024
-    );
+    $originalMessage = new Message($folder, new FetchedMessageData([
+        'UID' => 123,
+        'FLAGS' => ['\\Seen', '\\Flagged'],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODY[TEXT]' => 'This is the message body content',
+        'RFC822.SIZE' => 1024,
+    ]));
 
     $serialized = serialize($originalMessage);
     $unserializedMessage = unserialize($serialized);
@@ -229,7 +284,12 @@ test('it fetches text content from body structure when body is not loaded', func
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 12 1 NIL NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
@@ -257,7 +317,12 @@ test('it fetches html content from body structure when body is not loaded', func
         '* 1 FETCH (BODYSTRUCTURE ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 19 1 NIL NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
@@ -287,7 +352,12 @@ test('it decodes base64 encoded content when lazy loading', function () {
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "base64" 16 1 NIL NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->text(fetch: true))->toBe('Hello World!');
 });
@@ -315,7 +385,12 @@ test('it decodes quoted-printable encoded content when lazy loading', function (
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "quoted-printable" 14 1 NIL NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->text(fetch: true))->toBe('Hello World!');
 });
@@ -345,7 +420,12 @@ test('it converts charset to utf-8 when lazy loading', function () {
         '* 1 FETCH (BODYSTRUCTURE ("text" "plain" ("charset" "iso-8859-1") NIL NIL "7bit" 5 1 NIL NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->text(fetch: true))->toBe($originalContent);
 });
@@ -373,7 +453,12 @@ HEAD;
 
     $body = 'Hello from parsed body!';
 
-    $message = new Message($folder, 1, [], $head, $body);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => $head,
+        'BODY[TEXT]' => $body,
+    ]));
 
     expect($message->hasBody())->toBeTrue();
     expect($message->text())->toBe('Hello from parsed body!');
@@ -401,7 +486,12 @@ test('it fetches text from multipart message body structure', function () {
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 12 1 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 24 1 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
@@ -430,7 +520,12 @@ test('it fetches html from multipart message body structure', function () {
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 12 1 NIL NIL NIL) ("text" "html" ("charset" "utf-8") NIL NIL "7bit" 19 1 NIL NIL NIL) "alternative" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->html(fetch: true))->toBe('<p>Hello World!</p>');
 });
@@ -459,7 +554,11 @@ test('it fetches body structure automatically when not preloaded', function () {
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
     // Message created without body structure data.
-    $message = new Message($folder, 1, [], 'From: test@example.com', '');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+    ]));
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeFalse();
@@ -489,7 +588,11 @@ test('it fetches body structure automatically for html when not preloaded', func
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+    ]));
 
     expect($message->hasBodyStructure())->toBeFalse();
     expect($message->html(fetch: true))->toBe('<p>Hello World!</p>');
@@ -519,7 +622,12 @@ test('it fetches attachments from body structure', function () {
         '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name" "document.pdf") NIL NIL "base64" 5000 NIL ("attachment" ("filename" "document.pdf")) NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
     );
 
-    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'BODY[HEADER]' => 'From: test@example.com',
+        'BODYSTRUCTURE' => $bodyStructureData,
+    ]));
 
     expect($message->hasBody())->toBeFalse();
     expect($message->hasBodyStructure())->toBeTrue();
@@ -554,7 +662,10 @@ test('it fetches headers from server', function () {
     $folder = new Folder($mailbox, 'INBOX', [], '/');
 
     // Create a message with just the UID - no headers or body
-    $message = new Message($folder, 1, [], '', '');
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+    ]));
 
     expect($message->hasHead())->toBeFalse();
     expect($message->hasBody())->toBeFalse();
