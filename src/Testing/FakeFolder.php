@@ -16,6 +16,13 @@ class FakeFolder implements FolderInterface
     use ComparesFolders;
 
     /**
+     * The modification sequence at which each message vanished.
+     *
+     * @var array<int, int>
+     */
+    protected array $vanished = [];
+
+    /**
      * Constructor.
      */
     public function __construct(
@@ -235,6 +242,37 @@ class FakeFolder implements FolderInterface
     public function addMessage(FakeMessage $message): void
     {
         $this->messages[] = $message;
+    }
+
+    /**
+     * Record a message as vanished at the given modification sequence.
+     */
+    public function vanish(int $uid, int $modSequence): FakeFolder
+    {
+        $this->messages = array_values(array_filter(
+            $this->messages,
+            fn (FakeMessage $message) => $message->uid() !== $uid,
+        ));
+
+        $this->vanished[$uid] = $modSequence;
+
+        return $this;
+    }
+
+    /**
+     * Get the requested message UIDs that vanished after the checkpoint.
+     *
+     * @param  int[]  $uids
+     * @return int[]
+     */
+    public function vanishedSince(int $modSequence, array $uids): array
+    {
+        return array_keys(array_filter(
+            $this->vanished,
+            fn (int $vanishedAt, int $uid) => $vanishedAt > $modSequence
+                && in_array($uid, $uids, true),
+            ARRAY_FILTER_USE_BOTH,
+        ));
     }
 
     /**

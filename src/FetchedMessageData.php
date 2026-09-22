@@ -18,7 +18,8 @@ class FetchedMessageData implements Arrayable
      * Constructor.
      */
     public function __construct(
-        protected array $attributes = []
+        protected array $attributes = [],
+        protected ?int $sequenceNumber = null,
     ) {
         $this->attributes = array_change_key_case($attributes, CASE_UPPER);
     }
@@ -61,7 +62,10 @@ class FetchedMessageData implements Arrayable
             $attributes[$key] = $tokens[$index++];
         }
 
-        return new static($attributes);
+        return new static(
+            $attributes,
+            sequenceNumber: (int) $response->type()->value,
+        );
     }
 
     /**
@@ -87,12 +91,25 @@ class FetchedMessageData implements Arrayable
      */
     public function merge(array|self $attributes): static
     {
-        return new static(array_replace(
-            $this->attributes,
+        return new static(
+            array_replace(
+                $this->attributes,
+                $attributes instanceof self
+                    ? $attributes->attributes
+                    : array_change_key_case($attributes, CASE_UPPER),
+            ),
             $attributes instanceof self
-                ? $attributes->attributes
-                : array_change_key_case($attributes, CASE_UPPER),
-        ));
+                ? $attributes->sequenceNumber ?? $this->sequenceNumber
+                : $this->sequenceNumber,
+        );
+    }
+
+    /**
+     * Get the message sequence number.
+     */
+    public function sequenceNumber(): ?int
+    {
+        return $this->sequenceNumber;
     }
 
     /**

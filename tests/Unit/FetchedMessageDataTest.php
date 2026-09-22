@@ -25,6 +25,7 @@ test('it creates a message from fetch response data', function () {
     $data = FetchedMessageData::fromResponse($response);
     $message = $data->toMessage(new Folder(new Mailbox, 'INBOX'));
 
+    expect($data->sequenceNumber())->toBe(5);
     expect($data->uid())->toBe(42);
     expect($message->uid())->toBe(42);
     expect($message->flags())->toBe(['\\Seen']);
@@ -107,17 +108,21 @@ test('it distinguishes omitted attributes from empty or nil attributes', functio
 });
 
 test('merging partial updates preserves omitted attributes without mutating the original', function () {
-    $original = new FetchedMessageData([
-        'UID' => 7,
-        'FLAGS' => ['\\Seen'],
-        'BODY[TEXT]' => 'Existing content',
-        'THREADID' => ['T123'],
-    ]);
+    $original = new FetchedMessageData(
+        [
+            'UID' => 7,
+            'FLAGS' => ['\\Seen'],
+            'BODY[TEXT]' => 'Existing content',
+            'THREADID' => ['T123'],
+        ],
+        sequenceNumber: 5,
+    );
     $changes = new FetchedMessageData(['FLAGS' => [], 'MODSEQ' => [43], 'THREADID' => null]);
 
     $merged = $original->merge($changes)->merge(['emailid' => ['M123']]);
 
     expect($merged->uid())->toBe(7);
+    expect($merged->sequenceNumber())->toBe(5);
     expect($merged->flags())->toBe([]);
     expect($merged->body())->toBe('Existing content');
     expect($merged->modSequence())->toBe(43);

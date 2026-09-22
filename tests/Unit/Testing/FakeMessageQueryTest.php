@@ -316,3 +316,26 @@ test('fake synchronization also returns no changes for an empty uid set', functi
     expect($result->messages())->toBe([]);
     expect($result->vanishedUids())->toBe([]);
 });
+
+test('fake synchronization returns messages that vanished after the checkpoint', function () {
+    $folder = new FakeFolder(
+        'INBOX',
+        messages: [new FakeMessage(3), new FakeMessage(4), new FakeMessage(6), new FakeMessage(7)],
+    );
+
+    $folder
+        ->vanish(uid: 3, modSequence: 43)
+        ->vanish(uid: 4, modSequence: 42)
+        ->vanish(uid: 6, modSequence: 44);
+
+    $changes = $folder->messages()->changesSince(42, [3, 4, 6, 7], vanished: true);
+    $laterChanges = $folder->messages()->changesSince(43, [3, 4, 6, 7], vanished: true);
+    $withoutVanished = $folder->messages()->changesSince(42, [3, 4, 6, 7]);
+
+    expect($changes->vanishedUids())->toBe([3, 6]);
+    expect($changes->vanished())->toHaveCount(1);
+    expect($changes->vanished()[0]->earlier())->toBeTrue();
+    expect($laterChanges->vanishedUids())->toBe([6]);
+    expect($withoutVanished->vanishedUids())->toBe([]);
+    expect($folder->messages()->get()->map(fn (FakeMessage $message) => $message->uid())->all())->toBe([7]);
+});

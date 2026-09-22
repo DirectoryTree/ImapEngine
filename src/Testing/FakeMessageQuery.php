@@ -17,6 +17,7 @@ use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
 use DirectoryTree\ImapEngine\UidOrder;
+use DirectoryTree\ImapEngine\Vanished;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -60,7 +61,14 @@ class FakeMessageQuery implements MessageQueryInterface
             ->values()
             ->all();
 
-        return new FetchResult($messages);
+        $vanishedUids = $vanished
+            ? $this->folder->vanishedSince($modSequence, $uids)
+            : [];
+
+        return new FetchResult(
+            $messages,
+            $vanishedUids ? [new Vanished($vanishedUids, earlier: true)] : [],
+        );
     }
 
     /**

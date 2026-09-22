@@ -41,7 +41,7 @@ class FetchedResponse
      */
     public function sequenceNumber(): int
     {
-        return (int) $this->response->type()->value;
+        return (int) $this->data->sequenceNumber();
     }
 
     /**

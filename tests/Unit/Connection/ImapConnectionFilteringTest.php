@@ -54,6 +54,7 @@ test('sequence addressed results do not require a uid', function (string $comman
         : $connection->store(7, '\\Seen', identifier: ImapIdentifier::MessageNumber);
 
     expect($result->messages())->toHaveCount(1);
+    expect($result->messages()[0]->sequenceNumber())->toBe(7);
     expect($result->messages()[0]->flags())->toBe(['\\Seen']);
     expect($result->responses())->toHaveCount(3);
 })->with(['fetch', 'store']);
