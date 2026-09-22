@@ -409,7 +409,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function list(string $reference = '', array|string $pattern = '*', array $selection = [], array $return = []): ResponseCollection
     {
-        $tokens = $selection ? [Str::list($selection)] : [];
+        $tokens = $selection ? [Str::list(array_map([Str::class, 'atom'], $selection))] : [];
 
         $tokens[] = Str::literal($reference);
 
