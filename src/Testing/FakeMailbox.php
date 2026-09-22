@@ -13,6 +13,7 @@ use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\RequiresEnablementInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
 
 class FakeMailbox implements MailboxInterface
@@ -143,11 +144,11 @@ class FakeMailbox implements MailboxInterface
     {
         $current = $this->capabilities();
 
-        $capabilities = Capabilities::from(
+        $requested = Capabilities::from(
             ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
         );
 
-        foreach ($capabilities->all() as $capability) {
+        foreach ($requested->all() as $capability) {
             if (! $current->has($capability)) {
                 throw new ImapCapabilityException(
                     "Unable to enable capability [$capability]. IMAP server does not support it."
@@ -155,9 +156,24 @@ class FakeMailbox implements MailboxInterface
             }
         }
 
+        $requested = array_values(array_filter(
+            $requested->all(),
+            fn (string $capability) => ! $current->enabled($capability),
+        ));
+
+        if (empty($requested)) {
+            return new ResponseCollection;
+        }
+
+        if ($this->selected) {
+            throw new ImapCapabilityException(
+                'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.'
+            );
+        }
+
         $items = $current->items();
 
-        foreach ($capabilities->all() as $capability) {
+        foreach ($requested as $capability) {
             $items[$capability] = Capability::make($capability, enabled: true);
         }
 
@@ -171,6 +187,18 @@ class FakeMailbox implements MailboxInterface
      */
     public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
     {
+        foreach ($options as $option) {
+            if (! $this->capabilities()->supports($option->capability())) {
+                throw new ImapCapabilityException(
+                    "Unable to select folder with [{$option->capability()}]. IMAP server does not support it."
+                );
+            }
+
+            if ($option instanceof RequiresEnablementInterface) {
+                $this->enable($option->capability());
+            }
+        }
+
         $this->selected = $folder;
 
         return new Result;

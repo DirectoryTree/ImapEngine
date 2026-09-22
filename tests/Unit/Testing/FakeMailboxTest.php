@@ -1,6 +1,8 @@
 <?php
 
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\CondStore;
+use DirectoryTree\ImapEngine\Selection\QuickResync;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -124,4 +126,43 @@ test('it can select and check selected folders', function () {
     $mailbox->select($folder);
 
     expect($mailbox->selected($folder))->toBeTrue();
+});
+
+test('it rejects selection options for unsupported capabilities', function () {
+    $folder = new FakeFolder('inbox');
+    $mailbox = FakeMailbox::make(folders: [$folder]);
+
+    expect(fn () => $mailbox->select($folder, options: new CondStore))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to select folder with [CONDSTORE]. IMAP server does not support it.',
+    );
+
+    expect($mailbox->selected($folder))->toBeFalse();
+});
+
+test('it enables selection options that require enablement', function () {
+    $folder = new FakeFolder('inbox');
+    $mailbox = FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    $mailbox->select($folder, options: new QuickResync(777, 42));
+
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    expect($mailbox->selected($folder))->toBeTrue();
+});
+
+test('it cannot enable selection options after selecting a folder', function () {
+    $inbox = new FakeFolder('inbox');
+    $archive = new FakeFolder('archive');
+    $mailbox = FakeMailbox::make(folders: [$inbox, $archive], capabilities: ['QRESYNC']);
+
+    $mailbox->select($inbox);
+
+    expect(fn () => $mailbox->select($archive, options: new QuickResync(777, 42)))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.',
+    );
+
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
+    expect($mailbox->selected($inbox))->toBeTrue();
+    expect($mailbox->selected($archive))->toBeFalse();
 });
