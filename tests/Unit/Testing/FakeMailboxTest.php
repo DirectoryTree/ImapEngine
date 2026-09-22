@@ -166,3 +166,20 @@ test('it cannot enable selection options after selecting a folder', function () 
     expect($mailbox->selected($inbox))->toBeTrue();
     expect($mailbox->selected($archive))->toBeFalse();
 });
+
+test('it cannot enable selection options after examining a folder', function () {
+    $inbox = new FakeFolder('inbox');
+    $archive = new FakeFolder('archive');
+    $mailbox = FakeMailbox::make(folders: [$inbox, $archive], capabilities: ['QRESYNC']);
+
+    $mailbox->examine($inbox);
+
+    expect($mailbox->selected($inbox))->toBeFalse();
+    expect(fn () => $mailbox->select($archive, options: new QuickResync(777, 42)))->toThrow(
+        ImapCapabilityException::class,
+        'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.',
+    );
+
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
+    expect($mailbox->selected($archive))->toBeFalse();
+});

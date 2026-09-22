@@ -24,6 +24,11 @@ class FakeMailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
+     * The currently examined folder.
+     */
+    protected ?FolderInterface $examined = null;
+
+    /**
      * Constructor.
      */
     protected function __construct(
@@ -88,6 +93,7 @@ class FakeMailbox implements MailboxInterface
         }
 
         $this->selected = null;
+        $this->examined = null;
 
         $this->capabilities = Capabilities::from(
             ...array_map(
@@ -165,7 +171,7 @@ class FakeMailbox implements MailboxInterface
             return new ResponseCollection;
         }
 
-        if ($this->selected) {
+        if ($this->selected || $this->examined) {
             throw new ImapCapabilityException(
                 'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.'
             );
@@ -199,6 +205,7 @@ class FakeMailbox implements MailboxInterface
             }
         }
 
+        $this->examined = null;
         $this->selected = $folder;
 
         return new Result;
@@ -210,6 +217,7 @@ class FakeMailbox implements MailboxInterface
     public function examine(FolderInterface $folder): Result
     {
         $this->selected = null;
+        $this->examined = $folder;
 
         return new Result;
     }
