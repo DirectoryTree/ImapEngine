@@ -24,8 +24,7 @@ class FetchResult
         ResponseCollection $responses,
         ?FetchedResponseCollection $fetches = null,
         ?VanishedCollection $vanished = null,
-    ): static
-    {
+    ): static {
         $fetches ??= FetchedResponse::collect($responses);
         $vanished ??= Vanished::collect($responses);
 
