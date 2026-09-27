@@ -43,6 +43,8 @@ class MessageSetMatcher
 
             $this->ranges[] = [min($start, $end), max($start, $end)];
         }
+
+        $this->ranges = static::mergeRanges($this->ranges);
     }
 
     /**
@@ -54,12 +56,55 @@ class MessageSetMatcher
             return true;
         }
 
-        foreach ($this->ranges as [$start, $end]) {
-            if ($number >= $start && $number <= $end) {
-                return true;
+        $start = 0;
+        $end = count($this->ranges) - 1;
+
+        while ($start <= $end) {
+            $middle = intdiv($start + $end, 2);
+            [$rangeStart, $rangeEnd] = $this->ranges[$middle];
+
+            if ($number < $rangeStart) {
+                $end = $middle - 1;
+
+                continue;
             }
+
+            if ($number > $rangeEnd) {
+                $start = $middle + 1;
+
+                continue;
+            }
+
+            return true;
         }
 
         return false;
+    }
+
+    /**
+     * Sort and merge overlapping or adjacent ranges.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $ranges
+     * @return array<int, array{0: int, 1: int}>
+     */
+    protected static function mergeRanges(array $ranges): array
+    {
+        usort($ranges, fn (array $left, array $right) => $left[0] <=> $right[0]);
+
+        $merged = [];
+
+        foreach ($ranges as [$start, $end]) {
+            $last = count($merged) - 1;
+
+            if ($last < 0 || $start > $merged[$last][1] + 1) {
+                $merged[] = [$start, $end];
+
+                continue;
+            }
+
+            $merged[$last][1] = max($merged[$last][1], $end);
+        }
+
+        return $merged;
     }
 }
