@@ -23,8 +23,8 @@ class VanishedCollection extends Collection
                 array_values(array_filter($vanished->uids(), $matcher->contains(...))),
                 $vanished->earlier(),
             );
-        })->filter(
-            fn (Vanished $vanished) => $vanished->uids() !== []
+        })->reject(
+            fn (Vanished $vanished) => empty($vanished->uids())
         )->values();
     }
 }
