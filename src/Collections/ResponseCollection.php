@@ -60,4 +60,16 @@ class ResponseCollection extends Collection
             return $type instanceof Token && $type->is('FETCH');
         });
     }
+
+    /**
+     * Filter the collection to only untagged VANISHED responses.
+     *
+     * @return self<array-key, UntaggedResponse>
+     */
+    public function vanished(): self
+    {
+        return $this->untagged()->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('VANISHED')
+        );
+    }
 }

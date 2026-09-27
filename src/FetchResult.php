@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use DirectoryTree\ImapEngine\Collections\FetchedResponseCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Collections\VanishedCollection;
 
 class FetchResult
 {
@@ -19,21 +20,18 @@ class FetchResult
     /**
      * Create a fetch result from IMAP responses and selected fetched responses.
      */
-    public static function fromResponses(ResponseCollection $responses, ?FetchedResponseCollection $fetches = null): static
+    public static function fromResponses(
+        ResponseCollection $responses,
+        ?FetchedResponseCollection $fetches = null,
+        ?VanishedCollection $vanished = null,
+    ): static
     {
         $fetches ??= FetchedResponse::collect($responses);
-
-        $vanished = [];
-
-        foreach ($responses->untagged() as $response) {
-            if ($response->type()->is('VANISHED')) {
-                $vanished[] = Vanished::fromResponse($response);
-            }
-        }
+        $vanished ??= Vanished::collect($responses);
 
         return new static(
             $fetches->messages(),
-            $vanished,
+            $vanished->all(),
             $responses,
         );
     }

@@ -4,6 +4,7 @@ use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\ImapSort;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Selection\QuickResync;
@@ -34,6 +35,19 @@ test('enable rejects invalid capability names before writing', function (string 
 
     $stream->assertNotWritten('TAG1');
 })->with(['', 'BAD CAPABILITY', "QRESYNC\r\nTAG2 LOGOUT", 'BAD]CAPABILITY']);
+
+test('enable rejects an empty capability list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->enable())
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
 
 test('id preserves field names and nil values', function (?array $parameters, string $expected) {
     $stream = new FakeStream;
@@ -88,6 +102,19 @@ test('append always sends an exact message literal', function (string $message) 
     $stream->assertWritten('TAG1 APPEND "INBOX" {'.strlen($message)."}\r\n");
     $stream->assertWritten($message."\r\n");
 })->with(['', 'A "quoted" message with a \\ slash', 'Bonjour été']);
+
+test('append rejects injected flags before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->append('INBOX', 'Message', ["\\Seen\r\nTAG2 LOGOUT"]))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
 
 test('fetch expands macros into valid data item lists', function (string $macro, string $items, string $extra) {
     $stream = new FakeStream;
@@ -191,7 +218,47 @@ test('quick resync rejects injected message sets before selecting', function (ar
     ["1\r\nTAG2 LOGOUT", null],
     [[1, "2\r\nTAG2 LOGOUT"], null],
     [[], [["1\r\nTAG2 LOGOUT"], [2]]],
+    [0, null],
+    ['', null],
+    ['*', null],
+    ['$', null],
 ]);
+
+test('quick resync rejects invalid sequence match data before selecting', function (array $sequenceMatch) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->select('INBOX', new QuickResync(777, 42, [], $sequenceMatch)))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    'missing uid set' => [[[1, 2]]],
+    'additional set' => [[[1, 2], [5, 6], [9, 10]]],
+    'associative pair' => [['messages' => [1, 2], 'uids' => [5, 6]]],
+    'unequal cardinality' => [[[1, 2, 3], [5, 6]]],
+    'descending message numbers' => [[[3, 2, 1], [5, 6, 9]]],
+    'descending uids' => [[[1, 2, 3], [9, 6, 5]]],
+    'duplicate message numbers' => [['1:3,3:4', '5:9']],
+    'wildcard message numbers' => [['1:*', '5:9']],
+    'wildcard uids' => [['1:3', '5:*']],
+]);
+
+test('quick resync rejects sequence match data without known uids before selecting', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->select('INBOX', new QuickResync(777, 42, [], [[1, 2], [5, 6]])))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
 
 test('search accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
     $stream = new FakeStream;
@@ -286,6 +353,23 @@ test('list supports selection options multiple patterns and status return data',
     expect($responses->last()->type()->is('STATUS'))->toBeTrue();
 });
 
+test('list rejects injected selection and return options before writing', function (array $selection, array $return) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->list(selection: $selection, return: $return))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    'selection' => [["SUBSCRIBED\r\nTAG2 LOGOUT"], []],
+    'return' => [[], ["CHILDREN\r\nTAG2 LOGOUT"]],
+    'nested return' => [[], ['STATUS', ["MESSAGES\r\nTAG2 LOGOUT"]]],
+]);
+
 test('folder listing ignores additional untagged responses', function () {
     $stream = new FakeStream;
     $stream->feed([
@@ -320,6 +404,119 @@ test('status accepts explicitly requested items including rev1 recent', function
     $stream->assertWritten('TAG1 STATUS "INBOX" (RECENT)');
 });
 
+test('status rejects injected items before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->status(items: ["MESSAGES\r\nTAG2 LOGOUT"]))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('status rejects an empty item list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->status(items: []))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('list rejects an empty mailbox pattern list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->list(pattern: []))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('search rejects an empty criteria list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->search([]))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('sort rejects an empty criteria list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    $sort = new ImapSort(new SortCriterion(ImapSortKey::Date));
+
+    expect(fn () => $connection->sort($sort, []))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('fetch rejects an empty item list before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->fetch(1, []))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('fetch rejects vanished with message number identifiers before writing', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->fetch(
+        1,
+        'FLAGS',
+        ImapIdentifier::MessageNumber,
+        new ChangedSince(42, vanished: true),
+    ))->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('store rejects invalid modes and flags before writing', function (?string $mode, string $flag) {
+    $stream = new FakeStream;
+    $stream->feed('* OK Ready');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->store(1, $flag, mode: $mode))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    'mode' => ["+\r\nTAG2 LOGOUT", '\\Seen'],
+    'flag' => ['+', "\\Seen\r\nTAG2 LOGOUT"],
+]);
+
 test('quick resync includes paired sequence matches', function (array|int|string $knownUids, string $expected) {
     $stream = new FakeStream;
     $stream->feed([
@@ -333,7 +530,6 @@ test('quick resync includes paired sequence matches', function (array|int|string
 
     $stream->assertWritten('TAG1 SELECT "INBOX" (QRESYNC (777 42'.$expected.' (1:3 5:6,9)))');
 })->with([
-    [[], ''],
     [[5, 6, 9], ' 5:6,9'],
     ['5:6,9', ' 5:6,9'],
 ]);

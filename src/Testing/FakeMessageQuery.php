@@ -10,6 +10,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\FetchedMessageData;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\MessageInterface;
@@ -18,6 +19,7 @@ use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
 use DirectoryTree\ImapEngine\UidOrder;
 use DirectoryTree\ImapEngine\Vanished;
+use Illuminate\Support\ItemNotFoundException;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -49,6 +51,29 @@ class FakeMessageQuery implements MessageQueryInterface
     public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
     {
         $uids = (array) $uids;
+
+        if ($uids === []) {
+            return new FetchResult;
+        }
+
+        $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';
+
+        $mailbox = $this->folder->mailbox();
+
+        $supported = $mailbox->capabilities()->supports($capability)
+            || ($capability === 'CONDSTORE' && $mailbox->capabilities()->supports('QRESYNC'));
+
+        if (! $supported) {
+            throw new ImapCapabilityException(
+                "Unable to fetch message changes. IMAP server does not support $capability capability."
+            );
+        }
+
+        if ($vanished && ! $mailbox->capabilities()->enabled('QRESYNC')) {
+            throw new ImapCapabilityException(
+                'Enable QRESYNC before selecting a folder to request vanished messages.'
+            );
+        }
 
         $messages = collect($this->folder->getMessages())
             ->filter(fn (FakeMessage $message) => in_array($message->uid(), $uids, true))
@@ -102,9 +127,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
-        $uid = (int) collect($this->folder->getMessages())->max(
-            fn (FakeMessage $message) => $message->uid()
-        ) + 1;
+        $uid = $this->folder->nextUid();
 
         $this->folder->addMessage(
             new FakeMessage($uid, $flags === null ? [] : $flags, $message)
@@ -201,7 +224,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface
     {
-        return $this->get()->findOrFail($id);
+        return $this->find($id, $identifier) ?? throw new ItemNotFoundException;
     }
 
     /**
@@ -209,7 +232,14 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface
     {
-        return $this->get()->find($id);
+        if ($identifier === ImapIdentifier::Uid) {
+            return $this->get()->find($id);
+        }
+
+        return collect($this->folder->getMessages())
+            ->sortBy(fn (FakeMessage $message) => $message->uid())
+            ->values()
+            ->get($id - 1);
     }
 
     /**

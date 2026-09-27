@@ -2,6 +2,9 @@
 
 namespace DirectoryTree\ImapEngine\Fetch;
 
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
+use InvalidArgumentException;
+
 /**
  * Fetch messages changed after a modification sequence.
  *
@@ -23,8 +26,12 @@ class ChangedSince implements ModifierInterface
     /**
      * {@inheritDoc}
      */
-    public function toImap(): string
+    public function toImap(ImapIdentifier $identifier): string
     {
+        if ($this->vanished && $identifier !== ImapIdentifier::Uid) {
+            throw new InvalidArgumentException('The VANISHED modifier requires UID FETCH.');
+        }
+
         return 'CHANGEDSINCE '.$this->modSequence.($this->vanished ? ' VANISHED' : '');
     }
 }

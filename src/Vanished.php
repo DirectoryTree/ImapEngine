@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Collections\VanishedCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Support\Str;
@@ -29,6 +31,18 @@ class Vanished
         return new static(
             Str::fromSequenceSet($sequenceSet->value),
             $earlier,
+        );
+    }
+
+    /**
+     * Parse vanished responses from a collection of raw IMAP responses.
+     */
+    public static function collect(ResponseCollection $responses): VanishedCollection
+    {
+        return new VanishedCollection(
+            $responses->vanished()
+                ->map(fn (UntaggedResponse $response) => static::fromResponse($response))
+                ->values()
         );
     }
 

@@ -30,8 +30,10 @@ use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
 use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Vanished;
 use Exception;
 use Generator;
+use InvalidArgumentException;
 use LogicException;
 use Throwable;
 
@@ -259,6 +261,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function enable(string ...$capabilities): ResponseCollection
     {
+        if (! $capabilities) {
+            throw new InvalidArgumentException('At least one capability is required.');
+        }
+
         $this->send('ENABLE', array_map([Str::class, 'atom'], $capabilities), $tag);
 
         $this->assertTaggedResponse($tag);
@@ -310,9 +316,13 @@ class ImapConnection implements ConnectionInterface
      */
     public function status(string $folder = 'INBOX', array $items = ['MESSAGES', 'UNSEEN', 'UIDNEXT', 'UIDVALIDITY']): UntaggedResponse
     {
+        if (! $items) {
+            throw new InvalidArgumentException('At least one status item is required.');
+        }
+
         $this->send('STATUS', [
             Str::literal($folder),
-            Str::list($items),
+            Str::list(Str::atoms($items)),
         ], $tag);
 
         $this->assertTaggedResponse($tag);
@@ -409,7 +419,11 @@ class ImapConnection implements ConnectionInterface
      */
     public function list(string $reference = '', array|string $pattern = '*', array $selection = [], array $return = []): ResponseCollection
     {
-        $tokens = $selection ? [Str::list(array_map([Str::class, 'atom'], $selection))] : [];
+        if ($pattern === []) {
+            throw new InvalidArgumentException('At least one mailbox pattern is required.');
+        }
+
+        $tokens = $selection ? [Str::list(Str::atoms($selection))] : [];
 
         $tokens[] = Str::literal($reference);
 
@@ -417,7 +431,7 @@ class ImapConnection implements ConnectionInterface
 
         if ($return) {
             $tokens[] = 'RETURN';
-            $tokens[] = Str::list($return);
+            $tokens[] = Str::list(Str::atoms($return));
         }
 
         $this->send('LIST', $tokens, $tag);
@@ -437,7 +451,7 @@ class ImapConnection implements ConnectionInterface
         $tokens[] = Str::literal($folder);
 
         if ($flags) {
-            $tokens[] = Str::list($flags);
+            $tokens[] = Str::list(array_map([Str::class, 'flag'], $flags));
         }
 
         if ($date) {
@@ -484,6 +498,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function store(array|int|string $set, array|string $flags, ?string $mode = '+', bool $silent = true, ImapIdentifier $identifier = ImapIdentifier::Uid, StoreModifierInterface ...$modifiers): StoreResult
     {
+        if (! in_array($mode, [null, '+', '-'], true)) {
+            throw new InvalidArgumentException('Invalid IMAP store mode.');
+        }
+
         $tokens = [Str::set($set)];
 
         if ($modifiers) {
@@ -494,7 +512,7 @@ class ImapConnection implements ConnectionInterface
         }
 
         $tokens[] = $mode.'FLAGS'.($silent ? '.SILENT' : '');
-        $tokens[] = Str::list((array) $flags);
+        $tokens[] = Str::list(array_map([Str::class, 'flag'], (array) $flags));
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID STORE' : 'STORE', $tokens, $tag);
 
@@ -516,6 +534,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function search(array $criteria, ?string $charset = null, ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
+        if (! $criteria) {
+            throw new InvalidArgumentException('At least one search criterion is required.');
+        }
+
         $tokens = $charset === null ? $criteria : ['CHARSET', Str::charset($charset), ...$criteria];
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID SEARCH' : 'SEARCH', $tokens, tag: $tag);
@@ -532,6 +554,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function sort(ImapSort $sort, array $criteria, string $charset = 'UTF-8', ImapIdentifier $identifier = ImapIdentifier::Uid): UntaggedResponse
     {
+        if (! $criteria) {
+            throw new InvalidArgumentException('At least one search criterion is required.');
+        }
+
         $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", Str::charset($charset), ...$criteria], tag: $tag);
 
         $this->assertTaggedResponse($tag);
@@ -683,6 +709,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function fetch(array|int|string $set, array|string $items, ImapIdentifier $identifier = ImapIdentifier::Uid, FetchModifierInterface ...$modifiers): FetchResult
     {
+        if ($items === []) {
+            throw new InvalidArgumentException('At least one fetch item is required.');
+        }
+
         $prefix = ($identifier === ImapIdentifier::Uid) ? 'UID' : '';
 
         $items = array_merge(...array_map(fn (string $item) => match (strtoupper($item)) {
@@ -699,7 +729,7 @@ class ImapConnection implements ConnectionInterface
 
         if ($modifiers) {
             $tokens[] = Str::list(array_map(
-                fn (FetchModifierInterface $modifier) => $modifier->toImap(),
+                fn (FetchModifierInterface $modifier) => $modifier->toImap($identifier),
                 $modifiers,
             ));
         }
@@ -720,7 +750,9 @@ class ImapConnection implements ConnectionInterface
             ->forMessageSet($tokens[0], $identifier)
             ->withItems($items);
 
-        return FetchResult::fromResponses($responses, $fetches);
+        $vanished = Vanished::collect($responses)->forMessageSet($tokens[0]);
+
+        return FetchResult::fromResponses($responses, $fetches, $vanished);
     }
 
     /**

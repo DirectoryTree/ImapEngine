@@ -955,7 +955,7 @@ test('fetch preserves raw responses while filtering unsolicited message data', f
         '* 2 FETCH (FLAGS (\\Seen))',
         '* 3 FETCH (UID 7 FLAGS () MODSEQ (43))',
         '* VANISHED (EARLIER) 1:2',
-        '* VANISHED 2,4',
+        '* VANISHED 2,4,99',
         'TAG1 OK FETCH completed',
     ]);
 
@@ -970,6 +970,7 @@ test('fetch preserves raw responses while filtering unsolicited message data', f
     expect($result->vanished()[0]->earlier())->toBeTrue();
     expect($result->vanished()[1]->earlier())->toBeFalse();
     expect($result->vanishedUids())->toBe([1, 2, 4]);
+    expect($result->responses()->contains(fn ($response) => (string) $response === '* VANISHED 2,4,99'))->toBeTrue();
     expect($result->responses())->toHaveCount(6);
     expect((string) $result->responses()->untagged()->first())->toBe('* 4 EXISTS');
 });
@@ -1005,7 +1006,7 @@ test('fetch combines custom modifiers into one modifier list', function () {
 
     $custom = new class implements ModifierInterface
     {
-        public function toImap(): string
+        public function toImap(ImapIdentifier $identifier): string
         {
             return 'X-CUSTOM';
         }

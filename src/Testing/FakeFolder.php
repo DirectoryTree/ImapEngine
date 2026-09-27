@@ -23,6 +23,11 @@ class FakeFolder implements FolderInterface
     protected array $vanished = [];
 
     /**
+     * The next UID assigned to an appended message.
+     */
+    protected int $uidNext;
+
+    /**
      * Constructor.
      */
     public function __construct(
@@ -32,7 +37,11 @@ class FakeFolder implements FolderInterface
         protected array $messages = [],
         protected string $delimiter = '/',
         protected ?MailboxInterface $mailbox = null,
-    ) {}
+    ) {
+        $uids = array_map(fn (FakeMessage $message) => $message->uid(), $messages);
+
+        $this->uidNext = $uids ? max($uids) + 1 : 1;
+    }
 
     /**
      * {@inheritDoc}
@@ -223,6 +232,10 @@ class FakeFolder implements FolderInterface
     {
         $this->messages = $messages;
 
+        foreach ($messages as $message) {
+            $this->uidNext = max($this->uidNext, $message->uid() + 1);
+        }
+
         return $this;
     }
 
@@ -242,6 +255,15 @@ class FakeFolder implements FolderInterface
     public function addMessage(FakeMessage $message): void
     {
         $this->messages[] = $message;
+        $this->uidNext = max($this->uidNext, $message->uid() + 1);
+    }
+
+    /**
+     * Get and increment the next message UID.
+     */
+    public function nextUid(): int
+    {
+        return $this->uidNext++;
     }
 
     /**
@@ -255,6 +277,7 @@ class FakeFolder implements FolderInterface
         ));
 
         $this->vanished[$uid] = $modSequence;
+        $this->uidNext = max($this->uidNext, $uid + 1);
 
         return $this;
     }

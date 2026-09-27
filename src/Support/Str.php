@@ -77,6 +77,29 @@ class Str
     }
 
     /**
+     * Make a nested list of IMAP atoms.
+     */
+    public static function atoms(array $atoms): array
+    {
+        return array_map(
+            fn (array|string $atom) => is_array($atom)
+                ? static::atoms($atom)
+                : static::atom($atom),
+            $atoms,
+        );
+    }
+
+    /**
+     * Make an IMAP flag.
+     */
+    public static function flag(string $flag): string
+    {
+        return str_starts_with($flag, '\\')
+            ? '\\'.static::atom(substr($flag, 1))
+            : static::atom($flag);
+    }
+
+    /**
      * Make a SASL mechanism name.
      */
     public static function mechanism(string $mechanism): string

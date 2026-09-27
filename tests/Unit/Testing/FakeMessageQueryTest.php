@@ -1,9 +1,13 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\QuickResync;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
+use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 use DirectoryTree\ImapEngine\Testing\FakeMessage;
 use DirectoryTree\ImapEngine\Testing\FakeMessageQuery;
 use Illuminate\Support\ItemNotFoundException;
@@ -141,6 +145,18 @@ test('it continues auto-incrementing from last message uid', function () {
     expect($result->uid())->toBe(6);
 });
 
+test('it does not reuse vanished message uids when appending', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(5),
+    ]);
+
+    $folder->vanish(uid: 5, modSequence: 42);
+
+    $query = new FakeMessageQuery($folder);
+
+    expect($query->append('New message')->uid())->toBe(6);
+});
+
 test('it can find message by uid', function () {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
@@ -154,6 +170,20 @@ test('it can find message by uid', function () {
 
     expect($message)->toBeInstanceOf(FakeMessage::class);
     expect($message->uid())->toBe(2);
+});
+
+test('it can find a message by message number', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(30),
+        new FakeMessage(10),
+        new FakeMessage(20),
+    ]);
+
+    $query = new FakeMessageQuery($folder);
+
+    expect($query->find(2, ImapIdentifier::MessageNumber)?->uid())->toBe(20);
+    expect($query->findOrFail(3, ImapIdentifier::MessageNumber)->uid())->toBe(30);
+    expect($query->find(4, ImapIdentifier::MessageNumber))->toBeNull();
 });
 
 test('it returns null when message not found', function () {
@@ -328,6 +358,10 @@ test('fake synchronization returns messages that vanished after the checkpoint',
         ->vanish(uid: 4, modSequence: 42)
         ->vanish(uid: 6, modSequence: 44);
 
+    $mailbox = FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    $mailbox->select($folder, options: new QuickResync(777, 42));
+
     $changes = $folder->messages()->changesSince(42, [3, 4, 6, 7], vanished: true);
     $laterChanges = $folder->messages()->changesSince(43, [3, 4, 6, 7], vanished: true);
     $withoutVanished = $folder->messages()->changesSince(42, [3, 4, 6, 7]);
@@ -338,4 +372,22 @@ test('fake synchronization returns messages that vanished after the checkpoint',
     expect($laterChanges->vanishedUids())->toBe([6]);
     expect($withoutVanished->vanishedUids())->toBe([]);
     expect($folder->messages()->get()->map(fn (FakeMessage $message) => $message->uid())->all())->toBe([7]);
+});
+
+test('fake synchronization requires the advertised capability', function () {
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(7)]);
+
+    FakeMailbox::make(folders: [$folder]);
+
+    expect(fn () => $folder->messages()->changesSince(42, [7]))
+        ->toThrow(ImapCapabilityException::class);
+});
+
+test('fake vanished synchronization requires qresync to be enabled', function () {
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(7)]);
+
+    FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    expect(fn () => $folder->messages()->changesSince(42, [7], vanished: true))
+        ->toThrow(ImapCapabilityException::class);
 });

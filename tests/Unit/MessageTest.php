@@ -164,6 +164,33 @@ test('it can mark and unmark a message as flagged', function () {
     expect($message->hasFlag(ImapFlag::Flagged))->toBeFalse();
 });
 
+test('it retains data returned while updating a message flag', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 1 FETCH (UID 1 FLAGS (\\Seen \\Flagged) MODSEQ (44))',
+        'TAG2 OK STORE completed',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    $message = new Message($folder, new FetchedMessageData([
+        'UID' => 1,
+        'FLAGS' => [],
+        'MODSEQ' => [43],
+    ]));
+
+    $message->markFlagged();
+
+    expect($message->flags())->toBe(['\\Seen', '\\Flagged']);
+    expect($message->modSequence())->toBe(44);
+});
+
 test('it can determine if two messages are the same', function () {
     $mailbox = Mailbox::make([
         'username' => 'foo',

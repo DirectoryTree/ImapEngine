@@ -179,20 +179,30 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         $flag = Str::enum($flag);
 
-        $this->folder->mailbox()
+        $result = $this->folder->mailbox()
             ->connection()
             ->store($this->uid(), $flag, mode: $operation);
+
+        $receivedFlags = false;
+
+        foreach ($result->messages() as $data) {
+            $receivedFlags = $receivedFlags || $data->has('FLAGS');
+
+            $this->data = $this->data->merge($data);
+        }
 
         if ($expunge) {
             $this->folder->expunge($this->uid());
         }
 
-        $this->data = $this->data->merge([
-            'FLAGS' => match ($operation) {
-                '+' => array_unique(array_merge($this->flags(), [$flag])),
-                '-' => array_diff($this->flags(), [$flag]),
-            },
-        ]);
+        if (! $receivedFlags) {
+            $this->data = $this->data->merge([
+                'FLAGS' => match ($operation) {
+                    '+' => array_unique(array_merge($this->flags(), [$flag])),
+                    '-' => array_diff($this->flags(), [$flag]),
+                },
+            ]);
+        }
     }
 
     /**
