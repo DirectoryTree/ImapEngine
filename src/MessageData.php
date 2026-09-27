@@ -32,6 +32,14 @@ class MessageData
     }
 
     /**
+     * Create a MODSEQ message data item.
+     */
+    public static function modSequence(): Attribute
+    {
+        return Attribute::ModSequence;
+    }
+
+    /**
      * Create a message header data item.
      */
     public static function headers(): Body

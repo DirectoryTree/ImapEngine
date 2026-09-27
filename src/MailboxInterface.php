@@ -2,7 +2,10 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 interface MailboxInterface
 {
@@ -22,9 +25,12 @@ interface MailboxInterface
     public function connected(): bool;
 
     /**
-     * Force a reconnection to the server.
+     * Reconnect to the same account, optionally replacing the stored password or token.
+     *
+     * A null password retains the current credentials. A replacement is retained
+     * for subsequent connections, even if authentication fails.
      */
-    public function reconnect(): void;
+    public function reconnect(?string $password = null): void;
 
     /**
      * Connect to the server.
@@ -49,17 +55,24 @@ interface MailboxInterface
     /**
      * Get the mailbox's capabilities.
      */
-    public function capabilities(): array;
+    public function capabilities(): Capabilities;
 
     /**
-     * Determine if the mailbox supports the given capability.
+     * Enable the given mailbox capabilities for the current connection.
+     *
+     * Call this before selecting or examining any folder.
      */
-    public function hasCapability(string $capability): bool;
+    public function enable(string ...$capabilities): ResponseCollection;
 
     /**
      * Select the given folder.
      */
-    public function select(FolderInterface $folder, bool $force = false): void;
+    public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result;
+
+    /**
+     * Examine the given folder, invalidating the cached writable selection.
+     */
+    public function examine(FolderInterface $folder): Result;
 
     /**
      * Determine if the given folder is selected.

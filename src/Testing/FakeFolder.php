@@ -7,11 +7,25 @@ use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
 {
     use ComparesFolders;
+
+    /**
+     * The modification sequence at which each message vanished.
+     *
+     * @var array<int, int>
+     */
+    protected array $vanished = [];
+
+    /**
+     * The next UID assigned to an appended message.
+     */
+    protected int $uidNext;
 
     /**
      * Constructor.
@@ -23,7 +37,11 @@ class FakeFolder implements FolderInterface
         protected array $messages = [],
         protected string $delimiter = '/',
         protected ?MailboxInterface $mailbox = null,
-    ) {}
+    ) {
+        $uids = array_map(fn (FakeMessage $message) => $message->uid(), $messages);
+
+        $this->uidNext = $uids ? max($uids) + 1 : 1;
+    }
 
     /**
      * {@inheritDoc}
@@ -81,7 +99,7 @@ class FakeFolder implements FolderInterface
     public function messages(): MessageQueryInterface
     {
         // Ensure the folder is selected.
-        $this->select(true);
+        $this->select();
 
         return new FakeMessageQuery($this);
     }
@@ -117,9 +135,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false): void
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
-        $this->mailbox?->select($this, $force);
+        return $this->mailbox?->select($this, $force, ...$options) ?? new Result;
     }
 
     /**
@@ -135,6 +153,8 @@ class FakeFolder implements FolderInterface
      */
     public function examine(): array
     {
+        $this->mailbox?->examine($this);
+
         return [];
     }
 
@@ -204,7 +224,7 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the folder's messages.
+     * Set the folder's fake messages.
      *
      * @param  FakeMessage[]  $messages
      */
@@ -212,11 +232,15 @@ class FakeFolder implements FolderInterface
     {
         $this->messages = $messages;
 
+        foreach ($messages as $message) {
+            $this->uidNext = max($this->uidNext, $message->uid() + 1);
+        }
+
         return $this;
     }
 
     /**
-     * Get the folder's messages.
+     * Get the folder's fake messages.
      *
      * @return FakeMessage[]
      */
@@ -226,11 +250,52 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Add a message to the folder.
+     * Add a fake message to the folder.
      */
     public function addMessage(FakeMessage $message): void
     {
         $this->messages[] = $message;
+        $this->uidNext = max($this->uidNext, $message->uid() + 1);
+    }
+
+    /**
+     * Get and increment the next message UID.
+     */
+    public function nextUid(): int
+    {
+        return $this->uidNext++;
+    }
+
+    /**
+     * Record a message as vanished at the given modification sequence.
+     */
+    public function vanish(int $uid, int $modSequence): FakeFolder
+    {
+        $this->messages = array_values(array_filter(
+            $this->messages,
+            fn (FakeMessage $message) => $message->uid() !== $uid,
+        ));
+
+        $this->vanished[$uid] = $modSequence;
+        $this->uidNext = max($this->uidNext, $uid + 1);
+
+        return $this;
+    }
+
+    /**
+     * Get the requested message UIDs that vanished after the checkpoint.
+     *
+     * @param  int[]  $uids
+     * @return int[]
+     */
+    public function vanishedSince(int $modSequence, array $uids): array
+    {
+        return array_keys(array_filter(
+            $this->vanished,
+            fn (int $vanishedAt, int $uid) => $vanishedAt > $modSequence
+                && in_array($uid, $uids, true),
+            ARRAY_FILTER_USE_BOTH,
+        ));
     }
 
     /**

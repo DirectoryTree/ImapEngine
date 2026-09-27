@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
-interface FolderDataItem
+interface FolderDataItemInterface
 {
     /**
      * Get the unique folder data item key.

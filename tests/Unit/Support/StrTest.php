@@ -11,7 +11,28 @@ test('set', function () {
     expect(Str::set(['5', '10']))->toBe('5,10');
     expect(Str::set([5]))->toBe('5');
     expect(Str::set(5))->toBe('5');
+    expect(Str::set('*'))->toBe('*');
+    expect(Str::set('$'))->toBe('$');
+    expect(Str::set('4294967295'))->toBe('4294967295');
 });
+
+test('set rejects invalid sequence sets', function (array|int|string $from, int|float|string|null $to) {
+    expect(fn () => Str::set($from, $to))->toThrow(InvalidArgumentException::class);
+})->with([
+    ['1'."\r\n".'TAG2 LOGOUT', null],
+    [[1, '2'."\r\n".'TAG2 LOGOUT'], null],
+    [[1, '2.0', 3], null],
+    ['1 2', null],
+    ['1,$', null],
+    ['1::2', null],
+    ['1:0', null],
+    ['0', null],
+    [0, null],
+    [-1, null],
+    ['4294967296', null],
+    [1, '4294967296'],
+    [[], null],
+]);
 
 test('set converts consecutive values into sequence ranges', function () {
     expect(Str::set([1, 2, 3, 5, 7, 8, 9]))->toBe('1:3,5,7:9');
@@ -21,6 +42,10 @@ test('set converts consecutive values into sequence ranges', function () {
     expect(Str::set([1, 2, 3, 8, 7, 6]))->toBe('1:3,8:6');
     expect(Str::set(['1', '2', '3', '5']))->toBe('1:3,5');
     expect(Str::set([1, '*']))->toBe('1,*');
+});
+
+test('parse sequence set expands values and ranges', function () {
+    expect(Str::fromSequenceSet('1:3,7,10:8'))->toBe([1, 2, 3, 7, 10, 9, 8]);
 });
 
 test('credentials', function () {
@@ -53,11 +78,36 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
 
-test('literal returns a literal indicator and the original string if it contains a newline', function () {
-    $input = "hello\nworld";
+test('charset uses atoms when possible and quotes other names', function () {
+    expect(Str::charset('UTF-8'))->toBe('UTF-8');
+    expect(Str::charset('US-ASCII'))->toBe('US-ASCII');
+    expect(Str::charset('UTF "8"'))->toBe('"UTF \\"8\\""');
+});
+
+test('charset rejects control characters', function (string $charset) {
+    expect(fn () => Str::charset($charset))->toThrow(InvalidArgumentException::class);
+})->with(["UTF\0-8", "UTF\t-8", "UTF\r-8", "UTF\n-8", "UTF\x7f-8"]);
+
+test('atom accepts valid IMAP atoms', function (string $atom) {
+    expect(Str::atom($atom))->toBe($atom);
+})->with(['QRESYNC', 'UTF8=ACCEPT', 'X-GOOD-IDEA']);
+
+test('atom rejects invalid IMAP atoms', function (string $atom) {
+    expect(fn () => Str::atom($atom))->toThrow(InvalidArgumentException::class);
+})->with(['', 'BAD CAPABILITY', "BAD\r\nCAPABILITY", 'BAD]CAPABILITY', 'BAD\\CAPABILITY']);
+
+test('mechanism accepts valid SASL mechanism names', function (string $mechanism) {
+    expect(Str::mechanism($mechanism))->toBe($mechanism);
+})->with(['PLAIN', 'XOAUTH2', 'X-CUSTOM_MECHANISM']);
+
+test('mechanism rejects invalid SASL mechanism names', function (string $mechanism) {
+    expect(fn () => Str::mechanism($mechanism))->toThrow(InvalidArgumentException::class);
+})->with(['', 'plain', 'BAD MECHANISM', "BAD\r\nMECHANISM", str_repeat('A', 21)]);
+
+test('literal preserves carriage returns and newlines using literals', function (string $input) {
     $expected = ['{'.strlen($input).'}', $input];
     expect(Str::literal($input))->toBe($expected);
-});
+})->with(["hello\nworld", "hello\rworld", "hello\r\nworld"]);
 
 test('literal handles an array of literals', function () {
     expect(Str::literal(['first', 'second']))->toBe(['"first"', '"second"']);
@@ -182,4 +232,17 @@ test('toImapUtf7 encodes mixed content correctly', function () {
     $expected = 'Work &BBoEPgRABDcEOAQ9BDA- &- Stuff';
 
     expect(Str::toImapUtf7($input))->toBe($expected);
+});
+
+test('sequence expansion preserves ascending descending and single value ranges', function () {
+    expect(Str::fromSequenceSet('1:3,9:7,5:5,4294967294:4294967295'))
+        ->toBe([1, 2, 3, 9, 8, 7, 5, 4294967294, 4294967295]);
+});
+
+test('sequence expansion handles large compact ranges', function () {
+    $values = Str::fromSequenceSet('1:100000');
+
+    expect($values)->toHaveCount(100000);
+    expect($values[0])->toBe(1);
+    expect($values[99999])->toBe(100000);
 });

@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\MessageData;
 
-interface FetchItem
+interface FetchItemInterface
 {
     /**
      * Get the unique message data item key.

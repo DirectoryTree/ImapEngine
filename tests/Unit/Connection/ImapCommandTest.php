@@ -32,6 +32,16 @@ test('redacted returns command lines with tokens redacted for safety', function 
     expect((string) $lines[0])->toBe('A002 LOGIN [redacted] [redacted]');
 });
 
+test('redacted preserves literal framing while hiding its contents', function () {
+    $cmd = new ImapCommand('A002', 'LOGIN', [['{4}', 'user']]);
+
+    $lines = $cmd->redacted()->compile();
+
+    expect($lines)->toHaveCount(2);
+    expect((string) $lines[0])->toBe('A002 LOGIN {4}');
+    expect((string) $lines[1])->toBe('[redacted]');
+});
+
 test('compile returns correct command lines with a literal token', function () {
     $cmd = new ImapCommand('A003', 'APPEND "INBOX"', [
         ['{20}', 'literal-data'],
@@ -108,4 +118,22 @@ test('compile caches result on subsequent calls', function () {
     $secondCall = $cmd->compile();
 
     expect($firstCall)->toBe($secondCall);
+});
+
+test('compile rejects invalid literal markers', function (string $marker) {
+    $cmd = new ImapCommand('A001', 'APPEND', [[$marker, 'test']]);
+
+    expect(fn () => $cmd->compile())->toThrow(InvalidArgumentException::class);
+})->with([
+    '{four}',
+    "{4}\r\nA002 LOGOUT",
+]);
+
+test('compile preserves control characters inside literal contents', function () {
+    $cmd = new ImapCommand('A001', 'APPEND', [['{12}', "hello\r\nworld"]]);
+
+    $lines = $cmd->compile();
+
+    expect((string) $lines[0])->toBe('A001 APPEND {12}');
+    expect((string) $lines[1])->toBe("hello\r\nworld");
 });

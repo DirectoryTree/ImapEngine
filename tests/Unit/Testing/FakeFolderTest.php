@@ -11,7 +11,7 @@ test('it can be created with basic properties', function () {
         ['\\HasNoChildren'],
         [new FakeMessage(1)],
         '/',
-        new FakeMailbox
+        FakeMailbox::make()
     );
 
     expect($folder)->toBeInstanceOf(FakeFolder::class);
@@ -31,8 +31,8 @@ test('it returns correct name from path', function () {
 });
 
 test('it compares folders correctly', function () {
-    $mailbox1 = new FakeMailbox(['host' => 'imap.example.com', 'username' => 'user1']);
-    $mailbox2 = new FakeMailbox(['host' => 'imap.example.com', 'username' => 'user2']);
+    $mailbox1 = FakeMailbox::make(['host' => 'imap.example.com', 'username' => 'user1']);
+    $mailbox2 = FakeMailbox::make(['host' => 'imap.example.com', 'username' => 'user2']);
 
     $folder1 = new FakeFolder('INBOX', [], [], '/', $mailbox1);
     $folder2 = new FakeFolder('INBOX', [], [], '/', $mailbox1);
@@ -72,7 +72,7 @@ test('it can set attributes', function () {
 test('it can set mailbox', function () {
     $folder = new FakeFolder('INBOX');
 
-    $mailbox = new FakeMailbox(['host' => 'imap.example.com']);
+    $mailbox = FakeMailbox::make(['host' => 'imap.example.com']);
 
     $folder->setMailbox($mailbox);
 
@@ -128,3 +128,19 @@ test('it returns stub quota values', function () {
         ],
     ]);
 });
+
+test('fake examination invalidates the previous selection', function (string $path) {
+    $mailbox = FakeMailbox::make();
+
+    $inbox = new FakeFolder('INBOX', mailbox: $mailbox);
+    $examined = new FakeFolder($path, mailbox: $mailbox);
+
+    $inbox->select();
+    expect($mailbox->selected($inbox))->toBeTrue();
+    expect($examined->examine())->toBe([]);
+    expect($mailbox->selected($inbox))->toBeFalse();
+    expect($mailbox->selected($examined))->toBeFalse();
+
+    $inbox->select();
+    expect($mailbox->selected($inbox))->toBeTrue();
+})->with(['Archive', 'INBOX']);

@@ -5,7 +5,7 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
-use DirectoryTree\ImapEngine\MessageData\FetchItem;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Support\ForwardsCalls;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Traits\Conditionable;
@@ -32,7 +32,7 @@ trait QueriesMessages
     /**
      * The items to include in message FETCH requests.
      *
-     * @var array<string, FetchItem>
+     * @var array<string, FetchItemInterface>
      */
     protected array $fetchItems = [];
 
@@ -113,7 +113,7 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function with(FetchItem ...$items): static
+    public function with(FetchItemInterface ...$items): static
     {
         foreach ($items as $item) {
             $this->fetchItems[$item->key()] = $item;
@@ -125,7 +125,7 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function without(FetchItem ...$items): static
+    public function without(FetchItemInterface ...$items): static
     {
         foreach ($items as $item) {
             unset($this->fetchItems[$item->key()]);
@@ -137,7 +137,7 @@ trait QueriesMessages
     /**
      * {@inheritDoc}
      */
-    public function only(FetchItem ...$items): static
+    public function only(FetchItemInterface ...$items): static
     {
         $this->fetchItems = [];
 

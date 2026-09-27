@@ -1,9 +1,29 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
+
+test('it examines a folder using the typed selection result', function () {
+    $mailbox = Mailbox::make();
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* 3 EXISTS',
+        '* OK [UIDVALIDITY 777] UIDs valid',
+        'TAG2 OK EXAMINE completed',
+    ]));
+
+    $folder = new Folder($mailbox, 'INBOX');
+
+    expect($folder->examine())->toBe([
+        ['*', '3', 'EXISTS'],
+        ['*', 'OK', ['UIDVALIDITY', '777'], 'UIDs', 'valid'],
+    ]);
+});
 
 test('it properly decodes name from UTF-7', function () {
     $mailbox = Mailbox::make();
@@ -213,3 +233,60 @@ test('it throws an imap capability exception when inspecting quotas when the ima
 
     $mailbox->inbox()->quota();
 })->throws(ImapCapabilityException::class);
+
+test('examining a folder invalidates the previous writable selection', function (string $path) {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        '* OK [UIDVALIDITY 100] Valid',
+        'TAG2 OK [READ-WRITE] SELECT completed',
+        '* OK [UIDVALIDITY 200] Valid',
+        'TAG3 OK [READ-ONLY] EXAMINE completed',
+        '* OK [UIDVALIDITY 300] Valid',
+        'TAG4 OK [READ-WRITE] SELECT completed',
+        '* SEARCH 7',
+        'TAG5 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $inbox = new Folder($mailbox, 'INBOX');
+    $examined = new Folder($mailbox, $path);
+
+    expect($inbox->select()->uidValidity())->toBe(100);
+    $examined->examine();
+
+    expect($mailbox->selected($inbox))->toBeFalse();
+    expect($mailbox->selected($examined))->toBeFalse();
+    expect($inbox->messages()->count())->toBe(1);
+    expect($inbox->select()->uidValidity())->toBe(300);
+
+    $stream->assertWritten('TAG3 EXAMINE "'.$path.'"');
+    $stream->assertWritten('TAG4 SELECT "INBOX"');
+    $stream->assertWritten('TAG5 UID SEARCH ALL');
+})->with(['Archive', 'INBOX']);
+
+test('failed examination still invalidates the previous selection', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        'TAG3 NO Mailbox unavailable',
+        '* OK [UIDVALIDITY 300] Valid',
+        'TAG4 OK SELECT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $inbox = new Folder($mailbox, 'INBOX');
+    $missing = new Folder($mailbox, 'Missing');
+
+    $inbox->select();
+    expect(fn () => $missing->examine())->toThrow(ImapCommandException::class);
+    expect($mailbox->selected($inbox))->toBeFalse();
+    expect($inbox->select()->uidValidity())->toBe(300);
+
+    $stream->assertWritten('TAG4 SELECT "INBOX"');
+});

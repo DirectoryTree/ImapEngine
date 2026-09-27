@@ -12,7 +12,7 @@ class FolderRepository implements FolderRepositoryInterface
     /**
      * The data items to include in the folder LIST request.
      *
-     * @var array<string, FolderDataItem>
+     * @var array<string, FolderDataItemInterface>
      */
     protected array $dataItems = [];
 
@@ -26,7 +26,7 @@ class FolderRepository implements FolderRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function with(FolderDataItem ...$items): static
+    public function with(FolderDataItemInterface ...$items): static
     {
         foreach ($items as $item) {
             $this->dataItems[$item->key()] = $item;
@@ -76,8 +76,8 @@ class FolderRepository implements FolderRepositoryInterface
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        $return = array_map(function (FolderDataItem $item) {
-            if (! $this->mailbox->hasCapability($item->capability())) {
+        $return = array_map(function (FolderDataItemInterface $item) {
+            if (! $this->mailbox->capabilities()->supports($item->capability())) {
                 throw new ImapCapabilityException(
                     "Unable to fetch {$item->key()} folder data. IMAP server does not support {$item->capability()} capability."
                 );
@@ -86,7 +86,9 @@ class FolderRepository implements FolderRepositoryInterface
             return $item->toImap();
         }, $this->dataItems);
 
-        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match), $return)->map(
+        return $this->mailbox->connection()->list($reference, Str::toImapUtf7($match), return: $return)->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('LIST')
+        )->map(
             fn (UntaggedResponse $response) => new Folder(
                 mailbox: $this->mailbox,
                 path: $response->tokenAt(4)->value,
