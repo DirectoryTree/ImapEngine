@@ -19,7 +19,15 @@ class QuickResync implements OptionInterface, RequiresEnablementInterface
         protected int $highestModSequence,
         protected array|int|string $knownUids = [],
         protected ?array $sequenceMatch = null,
-    ) {}
+    ) {
+        if ($uidValidity < 1 || $uidValidity > 4294967295) {
+            throw new InvalidArgumentException('Invalid IMAP UID validity value.');
+        }
+
+        if ($highestModSequence < 1) {
+            throw new InvalidArgumentException('Invalid IMAP modification sequence.');
+        }
+    }
 
     /**
      * {@inheritDoc}

@@ -2,6 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Store;
 
+use InvalidArgumentException;
+
 /**
  * Store flags only when messages have not changed after a modification sequence.
  *
@@ -14,7 +16,11 @@ class UnchangedSince implements ModifierInterface
      */
     public function __construct(
         protected int $modSequence
-    ) {}
+    ) {
+        if ($modSequence < 0) {
+            throw new InvalidArgumentException('Invalid IMAP modification sequence.');
+        }
+    }
 
     /**
      * {@inheritDoc}

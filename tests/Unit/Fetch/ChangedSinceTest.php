@@ -21,3 +21,14 @@ test('it rejects vanished when using message number fetch', function () {
     expect(fn () => $modifier->toImap(ImapIdentifier::MessageNumber))
         ->toThrow(InvalidArgumentException::class);
 });
+
+test('it accepts a zero modification sequence', function () {
+    $modifier = new ChangedSince(0);
+
+    expect($modifier->toImap(ImapIdentifier::Uid))->toBe('CHANGEDSINCE 0');
+});
+
+test('it rejects negative modification sequences', function () {
+    expect(fn () => new ChangedSince(-1))
+        ->toThrow(InvalidArgumentException::class);
+});

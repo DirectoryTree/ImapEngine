@@ -21,7 +21,11 @@ class ChangedSince implements ModifierInterface
     public function __construct(
         protected int $modSequence,
         protected bool $vanished = false,
-    ) {}
+    ) {
+        if ($modSequence < 0) {
+            throw new InvalidArgumentException('Invalid IMAP modification sequence.');
+        }
+    }
 
     /**
      * {@inheritDoc}
