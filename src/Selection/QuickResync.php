@@ -41,10 +41,6 @@ class QuickResync implements OptionInterface, RequiresEnablementInterface
         }
 
         if (! is_null($this->sequenceMatch)) {
-            if ($this->knownUids === []) {
-                throw new InvalidArgumentException('QRESYNC sequence match data requires known UIDs.');
-            }
-
             $parameters[] = Str::list($this->sequenceMatch());
         }
 

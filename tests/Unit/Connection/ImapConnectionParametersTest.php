@@ -247,17 +247,18 @@ test('quick resync rejects invalid sequence match data before selecting', functi
     'wildcard uids' => [['1:3', '5:*']],
 ]);
 
-test('quick resync rejects sequence match data without known uids before selecting', function () {
+test('quick resync accepts sequence match data without known uids', function () {
     $stream = new FakeStream;
-    $stream->feed('* OK Ready');
+    $stream->feed([
+        '* OK Ready',
+        'TAG1 OK SELECT completed',
+    ]);
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
+    $connection->select('INBOX', new QuickResync(777, 42, [], [[1, 2], [5, 6]]));
 
-    expect(fn () => $connection->select('INBOX', new QuickResync(777, 42, [], [[1, 2], [5, 6]])))
-        ->toThrow(InvalidArgumentException::class);
-
-    $stream->assertNotWritten('TAG1');
+    $stream->assertWritten('TAG1 SELECT "INBOX" (QRESYNC (777 42 (1:2 5:6)))');
 });
 
 test('search accepts an explicit charset separately from criteria', function (ImapIdentifier $identifier, string $command) {
