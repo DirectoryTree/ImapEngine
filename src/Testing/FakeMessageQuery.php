@@ -20,6 +20,7 @@ use DirectoryTree\ImapEngine\QueriesMessages;
 use DirectoryTree\ImapEngine\UidOrder;
 use DirectoryTree\ImapEngine\Vanished;
 use Illuminate\Support\ItemNotFoundException;
+use InvalidArgumentException;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -54,6 +55,10 @@ class FakeMessageQuery implements MessageQueryInterface
 
         if ($uids === []) {
             return new FetchResult;
+        }
+
+        if ($modSequence < 0) {
+            throw new InvalidArgumentException('Invalid IMAP modification sequence.');
         }
 
         $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';

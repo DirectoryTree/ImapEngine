@@ -347,6 +347,13 @@ test('fake synchronization also returns no changes for an empty uid set', functi
     expect($result->vanishedUids())->toBe([]);
 });
 
+test('fake synchronization rejects negative checkpoints for a non-empty uid set', function () {
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(7)]);
+
+    expect(fn () => $folder->messages()->changesSince(-1, [7]))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 test('fake synchronization returns messages that vanished after the checkpoint', function () {
     $folder = new FakeFolder(
         'INBOX',
