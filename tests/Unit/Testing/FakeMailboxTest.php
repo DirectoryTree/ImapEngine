@@ -85,6 +85,35 @@ test('it tracks enabled capabilities until reconnection', function () {
     expect($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue();
 });
 
+test('it resets connection state when disconnected', function () {
+    $folder = new FakeFolder('inbox');
+    $mailbox = FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    $mailbox->enable('QRESYNC');
+    $mailbox->select($folder);
+    $mailbox->disconnect();
+
+    expect($mailbox->selected($folder))->toBeFalse()
+        ->and($mailbox->capabilities()->supports('QRESYNC'))->toBeTrue()
+        ->and($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
+});
+
+test('it resets connection state when cloned', function () {
+    $folder = new FakeFolder('inbox');
+    $mailbox = FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    $mailbox->enable('QRESYNC');
+    $mailbox->select($folder);
+
+    $clone = clone $mailbox;
+
+    expect($clone->selected($folder))->toBeFalse()
+        ->and($clone->capabilities()->supports('QRESYNC'))->toBeTrue()
+        ->and($clone->capabilities()->enabled('QRESYNC'))->toBeFalse()
+        ->and($mailbox->selected($folder))->toBeTrue()
+        ->and($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+});
+
 test('it rejects enabling unsupported capabilities', function () {
     $mailbox = FakeMailbox::make(capabilities: ['QRESYNC']);
 

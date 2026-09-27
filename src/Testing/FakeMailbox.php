@@ -43,6 +43,30 @@ class FakeMailbox implements MailboxInterface
     }
 
     /**
+     * Prepare the cloned instance.
+     */
+    public function __clone(): void
+    {
+        $this->reset();
+    }
+
+    /**
+     * Reset the connection state.
+     */
+    protected function reset(): void
+    {
+        $this->selected = null;
+        $this->examined = null;
+
+        $this->capabilities = Capabilities::from(
+            ...array_map(
+                fn (string $capability) => Capability::make($capability),
+                $this->capabilities->all()
+            )
+        );
+    }
+
+    /**
      * Make a new fake mailbox.
      *
      * @param  FakeFolder[]  $folders
@@ -92,15 +116,7 @@ class FakeMailbox implements MailboxInterface
             $this->config['password'] = $password;
         }
 
-        $this->selected = null;
-        $this->examined = null;
-
-        $this->capabilities = Capabilities::from(
-            ...array_map(
-                fn (string $capability) => Capability::make($capability),
-                $this->capabilities->all()
-            )
-        );
+        $this->reset();
     }
 
     /**
@@ -116,7 +132,7 @@ class FakeMailbox implements MailboxInterface
      */
     public function disconnect(): void
     {
-        // Do nothing.
+        $this->reset();
     }
 
     /**

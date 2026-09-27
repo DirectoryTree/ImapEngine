@@ -1,10 +1,12 @@
 <?php
 
+use DirectoryTree\ImapEngine\BodyStructureCollection;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\Selection\QuickResync;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -379,6 +381,33 @@ test('fake synchronization returns messages that vanished after the checkpoint',
     expect($laterChanges->vanishedUids())->toBe([6]);
     expect($withoutVanished->vanishedUids())->toBe([]);
     expect($folder->messages()->get()->map(fn (FakeMessage $message) => $message->uid())->all())->toBe([7]);
+});
+
+test('fake synchronization returns only the configured fetch items', function () {
+    $bodyStructure = new BodyStructureCollection;
+
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(
+            7,
+            flags: ['\\Seen'],
+            size: 123,
+            bodyStructure: $bodyStructure,
+            modSequence: 43,
+        ),
+    ]);
+
+    FakeMailbox::make(folders: [$folder], capabilities: ['CONDSTORE']);
+
+    $message = $folder->messages()
+        ->only(MessageData::size(), MessageData::bodyStructure())
+        ->changesSince(42, [7])
+        ->messages()[0];
+
+    expect($message->uid())->toBe(7)
+        ->and($message->modSequence())->toBe(43)
+        ->and($message->size())->toBe(123)
+        ->and($message->get('BODYSTRUCTURE'))->toBe($bodyStructure)
+        ->and($message->has('FLAGS'))->toBeFalse();
 });
 
 test('fake synchronization requires the advertised capability', function () {

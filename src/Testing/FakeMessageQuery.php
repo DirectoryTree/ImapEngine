@@ -13,6 +13,8 @@ use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\FetchedMessageData;
 use DirectoryTree\ImapEngine\FetchResult;
+use DirectoryTree\ImapEngine\MessageData;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
@@ -83,11 +85,7 @@ class FakeMessageQuery implements MessageQueryInterface
         $messages = collect($this->folder->getMessages())
             ->filter(fn (FakeMessage $message) => in_array($message->uid(), $uids, true))
             ->filter(fn (FakeMessage $message) => ($message->modSequence() ?? 0) > $modSequence)
-            ->map(fn (FakeMessage $message) => new FetchedMessageData([
-                'UID' => $message->uid(),
-                'FLAGS' => $message->flags(),
-                'MODSEQ' => [$message->modSequence()],
-            ]))
+            ->map(fn (FakeMessage $message) => $this->fetchedData($message))
             ->values()
             ->all();
 
@@ -99,6 +97,39 @@ class FakeMessageQuery implements MessageQueryInterface
             $messages,
             $vanishedUids ? [new Vanished($vanishedUids, earlier: true)] : [],
         );
+    }
+
+    /**
+     * Get the fetched data for the given message.
+     */
+    protected function fetchedData(FakeMessage $message): FetchedMessageData
+    {
+        $items = $this->fetchItems ?: [MessageData::flags()];
+
+        $attributes = [
+            'UID' => $message->uid(),
+            'MODSEQ' => [$message->modSequence()],
+        ];
+
+        foreach ($items as $item) {
+            $attributes[$item->key()] = $this->fetchValue($message, $item);
+        }
+
+        return new FetchedMessageData($attributes);
+    }
+
+    /**
+     * Get the value of the fetched item for the given message.
+     */
+    protected function fetchValue(FakeMessage $message, FetchItemInterface $item): mixed
+    {
+        return match ($item->key()) {
+            'FLAGS' => $message->flags(),
+            'RFC822.SIZE' => $message->size(),
+            'MODSEQ' => [$message->modSequence()],
+            'BODYSTRUCTURE' => $message->bodyStructure(),
+            default => null,
+        };
     }
 
     /**
