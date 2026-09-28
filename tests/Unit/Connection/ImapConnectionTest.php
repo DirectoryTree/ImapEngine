@@ -4,16 +4,76 @@ use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Authentication;
 use DirectoryTree\ImapEngine\Authentication\XOAuth2;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Loggers\LoggerInterface;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\Fetch\ModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\StoreResult;
 use DirectoryTree\ImapEngine\Support\Str;
+
+test('connection reads parsed replies and logs protocol lines with optional redaction', function () {
+    $stream = new FakeStream;
+    $stream->feed(['* OK Welcome', '* 4 EXISTS']);
+    $logger = new class implements LoggerInterface
+    {
+        public array $sent = [];
+
+        public array $received = [];
+
+        public function sent(string $message): void
+        {
+            $this->sent[] = $message;
+        }
+
+        public function received(string $message): void
+        {
+            $this->received[] = $message;
+        }
+    };
+    $connection = new ImapConnection($stream, $logger);
+    $connection->connect('localhost');
+
+    $connection->write('DONE');
+    $connection->write('secret', sensitive: true);
+    $response = $connection->read();
+
+    expect($response)->toBeInstanceOf(UntaggedResponse::class);
+    expect((string) $response)->toBe('* 4 EXISTS');
+    expect($logger->sent)->toBe(['DONE', '[redacted]']);
+    expect($logger->received)->toBe(['* OK Welcome', '* 4 EXISTS']);
+    $stream->assertWritten("DONE\r\n");
+    $stream->assertWritten("secret\r\n");
+    $connection->disconnect();
+});
+
+test('connection exposes its underlying stream for transport settings', function (bool $result) {
+    $stream = new class($result) extends FakeStream
+    {
+        public ?int $timeout = null;
+
+        public function __construct(protected bool $result) {}
+
+        public function setTimeout(int $seconds): bool
+        {
+            $this->timeout = $seconds;
+
+            return $this->result;
+        }
+    };
+    $connection = new ImapConnection($stream);
+
+    expect($connection->stream())->toBe($stream);
+    expect($connection->stream()->setTimeout(120))->toBe($result);
+    expect($stream->timeout)->toBe(120);
+})->with([
+    'accepted' => true,
+    'rejected' => false,
+]);
 
 test('connect success', function () {
     $stream = new FakeStream;
@@ -183,13 +243,19 @@ test('done', function () {
 
     $stream->feed([
         '* OK Welcome to IMAP',
+        '+ idling',
+        '* 1 EXISTS',
         'TAG1 OK Completed',
     ]);
 
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    $connection->done();
+    $session = $connection->idle();
+    $idle = $session->responses(30);
+    $idle->current();
+
+    expect($session->finish())->toBeEmpty();
 
     $stream->assertWritten('DONE');
 });
@@ -874,9 +940,7 @@ test('idle', function () {
     $connection = new ImapConnection($stream);
     $connection->connect('imap.example.com');
 
-    expect(function () use ($connection) {
-        iterator_to_array($connection->idle(30));
-    })->toThrow(ImapConnectionException::class);
+    expect(iterator_to_array($connection->idle()->responses(30)))->toBeEmpty();
 
     $stream->assertWritten('TAG1 IDLE');
 });

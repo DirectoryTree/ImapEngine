@@ -5,14 +5,12 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Support\ItemNotFoundException;
 use JsonSerializable;
 
 class Folder implements Arrayable, FolderInterface, JsonSerializable
@@ -95,7 +93,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
+    public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
         if (! $this->mailbox->capabilities()->supports('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
@@ -106,37 +104,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
             $timeout = $timeout(...);
         }
 
-        // The message query to use when fetching messages.
-        $query ??= fn (MessageQuery $query) => $query;
-
-        // Fetch the message by message number.
-        $fetch = fn (int $msgn) => (
-            $query($this->messages())->findOrFail($msgn, ImapIdentifier::MessageNumber)
-        );
-
-        (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
-            function (int $msgn) use ($callback, $fetch) {
-                if (! $this->mailbox->connected()) {
-                    $this->mailbox->connect();
-                }
-
-                try {
-                    $message = $fetch($msgn);
-                } catch (ItemNotFoundException) {
-                    // The message wasn't found. We will skip
-                    // it and continue awaiting new messages.
-                    return;
-                } catch (Exception) {
-                    // Something else happened. We will attempt
-                    // reconnecting and re-fetching the message.
-                    $this->mailbox->reconnect();
-
-                    $message = $fetch($msgn);
-                }
-
-                $callback($message);
-            }
-        );
+        (new Idle(clone $this->mailbox, $this->path, $timeout, $options))->await($callback);
     }
 
     /**

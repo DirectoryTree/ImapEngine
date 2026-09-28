@@ -5,8 +5,12 @@ namespace DirectoryTree\ImapEngine\Connection;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\Data;
+use DirectoryTree\ImapEngine\Connection\Responses\Response;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
+use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Fetch\ModifierInterface as FetchModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
@@ -35,6 +39,25 @@ interface ConnectionInterface
      * Determine if the current session is connected.
      */
     public function connected(): bool;
+
+    /**
+     * Read and parse the next reply from the stream.
+     */
+    public function read(): Data|Token|Response|null;
+
+    /**
+     * Write a protocol line with CRLF, optionally redacting it from logs.
+     *
+     * This bypasses command tagging and the active IDLE guard.
+     */
+    public function write(string $data, bool $sensitive = false): void;
+
+    /**
+     * Get the underlying stream for low-level transport access.
+     *
+     * Direct IO bypasses parsing, logging, and connection state management.
+     */
+    public function stream(): StreamInterface;
 
     /**
      * Send a "LOGIN" command.
@@ -82,14 +105,7 @@ interface ConnectionInterface
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-idle-command
      */
-    public function idle(int $timeout): Generator;
-
-    /**
-     * Send the DONE continuation to finish the current IDLE command.
-     *
-     * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.3.13
-     */
-    public function done(): void;
+    public function idle(): IdleSession;
 
     /**
      * Send a "NOOP" command.

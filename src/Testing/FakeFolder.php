@@ -5,6 +5,8 @@ namespace DirectoryTree\ImapEngine\Testing;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
@@ -21,6 +23,13 @@ class FakeFolder implements FolderInterface
      * @var array<int, int>
      */
     protected array $vanished = [];
+
+    /**
+     * The mailbox events to deliver while idling.
+     *
+     * @var EventInterface[]
+     */
+    protected array $idleEvents = [];
 
     /**
      * The next UID assigned to an appended message.
@@ -107,11 +116,29 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
+    public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = value($timeout)) || $seconds <= 0) {
+            return;
         }
+
+        $selection = new FolderSelected($this->path, $this->select(true, ...$options));
+
+        foreach ([$selection, ...$this->idleEvents] as $event) {
+            if ($callback($event) === false) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Set the mailbox events to deliver after selecting the folder.
+     */
+    public function withIdleEvents(EventInterface ...$events): static
+    {
+        $this->idleEvents = $events;
+
+        return $this;
     }
 
     /**

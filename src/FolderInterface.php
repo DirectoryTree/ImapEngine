@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
 
@@ -45,9 +46,11 @@ interface FolderInterface
     public function messages(): MessageQueryInterface;
 
     /**
-     * Begin idling on the current folder for the given timeout in seconds.
+     * Watch mailbox events on a dedicated connection. Return false to stop.
+     *
+     * @param  callable(EventInterface): mixed  $callback
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void;
+    public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void;
 
     /**
      * Begin polling for new messages at the given frequency in seconds.
