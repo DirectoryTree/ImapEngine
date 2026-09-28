@@ -44,7 +44,7 @@ trait QueriesMessages
     /**
      * The methods that should be returned from query builder.
      */
-    protected array $passthru = ['toimap', 'isempty'];
+    protected array $passthru = ['toimap', 'totokens', 'isempty'];
 
     /**
      * Handle dynamic method calls into the query builder.

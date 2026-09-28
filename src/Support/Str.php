@@ -9,6 +9,14 @@ use InvalidArgumentException;
 class Str
 {
     /**
+     * Determine if the given string contains only ASCII characters.
+     */
+    public static function isAscii(string $value): bool
+    {
+        return ! preg_match('/[^\x00-\x7F]/', $value);
+    }
+
+    /**
      * Make a list with literals or nested lists.
      */
     public static function list(array $list): string

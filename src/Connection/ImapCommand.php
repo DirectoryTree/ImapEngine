@@ -86,7 +86,9 @@ class ImapCommand implements Stringable
 
                 $line = $literal;
             } else {
-                $line .= ' '.new CommandPart($token);
+                $part = (string) new CommandPart($token);
+
+                $line .= (str_starts_with($part, ')') ? '' : ' ').$part;
             }
         }
 
