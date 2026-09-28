@@ -132,16 +132,6 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the mailbox events to deliver after selecting the folder.
-     */
-    public function withIdleEvents(EventInterface ...$events): static
-    {
-        $this->idleEvents = $events;
-
-        return $this;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
@@ -262,6 +252,18 @@ class FakeFolder implements FolderInterface
         foreach ($messages as $message) {
             $this->uidNext = max($this->uidNext, $message->uid() + 1);
         }
+
+        return $this;
+    }
+
+    /**
+     * Set the events delivered after the initial folder selection.
+     *
+     * @param  EventInterface[]  $events
+     */
+    public function setIdleEvents(array $events): FakeFolder
+    {
+        $this->idleEvents = $events;
 
         return $this;
     }

@@ -104,10 +104,10 @@ test('vanished events distinguish earlier changes from live changes', function (
 ]);
 
 test('fake folders deliver supplied events and stop when requested', function () {
-    $folder = (new FakeFolder('INBOX'))->withIdleEvents(
+    $folder = (new FakeFolder('INBOX'))->setIdleEvents([
         $first = new FolderSelected('INBOX', new Result(uidNext: 2)),
         new FolderSelected('INBOX', new Result(uidNext: 3)),
-    );
+    ]);
     $received = [];
 
     $folder->idle(function (EventInterface $event) use (&$received, $first) {
