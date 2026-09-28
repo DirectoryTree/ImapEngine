@@ -24,7 +24,6 @@ test('capabilities', function () {
         'SORT',
         'IDLE',
         'MOVE',
-        'QUOTA',
     ]);
 });
 

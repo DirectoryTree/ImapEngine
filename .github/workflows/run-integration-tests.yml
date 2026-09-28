@@ -12,13 +12,12 @@ jobs:
     run-tests:
         runs-on: ${{ matrix.os }}
 
-        services:
-            greenmail:
-                image: greenmail/standalone:latest
-                env:
-                    GREENMAIL_OPTS: -Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
-                ports:
-                    - 3143:3143
+        env:
+            MAILBOX_HOST: 127.0.0.1
+            MAILBOX_PORT: ${{ matrix.port }}
+            MAILBOX_USERNAME: user@localhost.com
+            MAILBOX_PASSWORD: password
+            MAILBOX_ENCRYPTION: ""
 
         strategy:
             fail-fast: false
@@ -26,12 +25,23 @@ jobs:
                 os: [ ubuntu-latest ]
                 php: [ 8.5, 8.4, 8.3, 8.2 ]
                 dependency-version: [ prefer-stable ]
+                server: [ greenmail ]
+                port: [ 3143 ]
+                include:
+                    - os: ubuntu-latest
+                      php: 8.4
+                      dependency-version: prefer-stable
+                      server: dovecot
+                      port: 4143
 
-        name: ${{ matrix.os }} - P${{ matrix.php }} - ${{ matrix.dependency-version }}
+        name: ${{ matrix.server }} - P${{ matrix.php }} - ${{ matrix.dependency-version }}
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+
+            - name: Start IMAP server
+              run: docker compose up -d ${{ matrix.server }}
 
             - name: Cache dependencies
               uses: actions/cache@v4
@@ -48,5 +58,16 @@ jobs:
               run: |
                   composer update --${{ matrix.dependency-version }} --prefer-dist --no-interaction
 
+            - name: Wait for IMAP server
+              run: php tests/wait-for-mailbox.php
+
             - name: Execute tests
               run: vendor/bin/pest --testsuite Integration
+
+            - name: Show IMAP server logs
+              if: failure()
+              run: docker compose logs --no-color ${{ matrix.server }}
+
+            - name: Stop IMAP server
+              if: always()
+              run: docker compose down --volumes

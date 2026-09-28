@@ -249,7 +249,7 @@ test('append', function () {
     expect($message->hasAttachments())->toBeTrue();
     expect($message->attachmentCount())->toBe(1);
     expect($message->attachments()[0]->filename())->toBe('attachment.txt');
-    expect($message->flags())->toBe(['\\Seen']);
+    expect(array_values(array_diff($message->flags(), ['\\Recent'])))->toBe(['\\Seen']);
 });
 
 test('flag', function () {
@@ -328,7 +328,7 @@ test('move', function () {
         $targetFolderName = uniqid()
     );
 
-    expect($message->move($targetFolderName))->toBeNull();
+    $newUid = $message->move($targetFolderName);
 
     $targetMessages = $targetFolder->messages()
         ->with(MessageData::headers()->peek(), MessageData::text()->peek())
@@ -339,6 +339,10 @@ test('move', function () {
 
     /** @var Message $movedMessage */
     $movedMessage = $targetMessages->first();
+
+    if (! is_null($newUid)) {
+        expect($newUid)->toBe($movedMessage->uid());
+    }
 
     expect($movedMessage->from()->email())->toBe('foo@email.com');
     expect($movedMessage->text())->toBe('move test');

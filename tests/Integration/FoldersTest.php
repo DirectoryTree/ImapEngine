@@ -1,6 +1,7 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use Illuminate\Support\ItemNotFoundException;
 
@@ -41,11 +42,13 @@ test('create', function () {
     expect($folder)->toBeInstanceOf(Folder::class);
     expect($folder->path())->toBe('foo');
     expect($folder->name())->toBe('foo');
-    expect($folder->delimiter())->toBe('.');
+    expect($folder->delimiter())->toBe($folder->mailbox()->inbox()->delimiter());
 });
 
 test('first or create', function () {
     $folders = mailbox()->folders();
+
+    $count = $folders->get()->count();
 
     $first = $folders->firstOrCreate('foo');
 
@@ -55,7 +58,7 @@ test('first or create', function () {
 
     expect($second->is($first))->toBeTrue();
 
-    expect($folders->get())->toHaveCount(2);
+    expect($folders->get())->toHaveCount($count + 1);
 });
 
 test('move', function () {
@@ -103,6 +106,12 @@ test('delete', function () {
 
 test('quota', function () {
     $folder = mailbox()->inbox();
+
+    if (! $folder->mailbox()->capabilities()->supports('QUOTA')) {
+        expect(fn () => $folder->quota())->toThrow(ImapCapabilityException::class);
+
+        return;
+    }
 
     expect($folder->quota())->toBeArray();
 });
