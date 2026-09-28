@@ -2,8 +2,36 @@
 
 namespace DirectoryTree\ImapEngine\MessageData;
 
+use InvalidArgumentException;
+
 class Body implements FetchItemInterface
 {
+    /**
+     * The zero-based offset in the transfer-encoded section, or null for a full fetch.
+     */
+    protected ?int $offset = null;
+
+    /**
+     * The maximum number of transfer-encoded bytes to fetch.
+     */
+    protected ?int $length = null;
+
+    /**
+     * Fetch a byte range of the transfer-encoded section.
+     */
+    public function partial(int $offset, int $length): static
+    {
+        if ($offset < 0 || $length < 1) {
+            throw new InvalidArgumentException('Partial fetches require a non-negative offset and a positive length.');
+        }
+
+        $item = clone $this;
+        $item->offset = $offset;
+        $item->length = $length;
+
+        return $item;
+    }
+
     /**
      * Constructor.
      */
@@ -52,7 +80,7 @@ class Body implements FetchItemInterface
      */
     public function key(): string
     {
-        return "BODY[{$this->section}]";
+        return "BODY[{$this->section}]".(is_null($this->offset) ? '' : "<{$this->offset}>");
     }
 
     /**
@@ -62,6 +90,6 @@ class Body implements FetchItemInterface
     {
         $item = $this->peek ? 'BODY.PEEK' : 'BODY';
 
-        return "{$item}[{$this->section}]";
+        return "{$item}[{$this->section}]".(is_null($this->offset) ? '' : "<{$this->offset}.{$this->length}>");
     }
 }

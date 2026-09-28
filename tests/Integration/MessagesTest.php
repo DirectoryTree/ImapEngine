@@ -24,6 +24,19 @@ beforeEach(function () {
     folder()->delete();
 });
 
+test('it fetches partial body sections and hydrates partial query data', function (): void {
+    $folder = folder();
+    $uid = $folder->messages()->append(
+        "From: foo@example.com\r\nSubject: Partial body\r\nContent-Type: text/plain\r\n\r\nabcdefghij",
+    )->uid();
+
+    $message = $folder->messages()->with(MessageData::text()->partial(2, 4)->peek())->findOrFail($uid);
+
+    expect($message->data()->get('BODY[TEXT]<2>'))->toBe('cdef')
+        ->and($message->bodyPart('TEXT', offset: 7, length: 100))->toStartWith('hij')
+        ->and($message->bodyPart('TEXT', offset: 100, length: 5))->toBe('');
+});
+
 test('messages selects folder', function () {
     $folder = folder();
 

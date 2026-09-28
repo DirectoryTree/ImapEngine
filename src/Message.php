@@ -8,8 +8,10 @@ use Carbon\CarbonInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Support\BodyPartDecoder;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
+use InvalidArgumentException;
 use JsonSerializable;
 use ZBateson\MailMimeParser\Header\DateHeader;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
@@ -398,7 +400,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         if ($fetch && ! $this->hasBody()) {
             if ($part = $this->bodyStructure(fetch: true)?->text()) {
-                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+                return BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
 
@@ -416,7 +418,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         if ($fetch && ! $this->hasBody()) {
             if ($part = $this->bodyStructure(fetch: true)?->html()) {
-                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+                return BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
 
@@ -466,25 +468,39 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Fetch a specific body part by part number.
+     * Fetch a body section, optionally limited to a transfer-encoded byte range.
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string
     {
-        $key = "BODY[$partNumber]";
+        $item = MessageData::section($partNumber);
 
-        if ($peek && $this->data->has($key)) {
+        if ($length !== null) {
+            $item = $item->partial($offset, $length);
+        } elseif ($offset !== 0) {
+            throw new InvalidArgumentException('A partial fetch requires a length.');
+        }
+
+        $key = $item->key();
+
+        if ($length === null && $peek && $this->data->has($key)) {
             return $this->data->get($key);
+        }
+
+        if ($length !== null) {
+            $this->folder->select();
         }
 
         $response = $this->folder->mailbox()
             ->connection()
-            ->fetch($this->uid(), $peek ? "BODY.PEEK[$partNumber]" : "BODY[$partNumber]");
+            ->fetch($this->uid(), ($peek ? $item->peek() : $item)->toImap());
 
         if (! $data = $response->messages()[0] ?? null) {
             return null;
         }
 
-        $this->data = $this->data->merge($data);
+        if ($length === null) {
+            $this->data = $this->data->merge($data);
+        }
 
         return $data->get($key);
     }

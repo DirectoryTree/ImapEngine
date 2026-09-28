@@ -102,7 +102,7 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string
     {
         return null;
     }
