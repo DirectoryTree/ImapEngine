@@ -30,8 +30,9 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Mailbox;
+use Tests\IntegrationTestCase;
 
-uses(Tests\IntegrationTestCase::class)->in('Integration');
+uses(IntegrationTestCase::class)->in('Integration');
 
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
