@@ -1,10 +1,56 @@
 <?php
 
+use Carbon\Carbon;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
+
+test('idle completion uses the configured connection timeout', function (array $options, int $expected, bool $consume) {
+    Carbon::setTestNow('2026-09-27 12:00:00');
+    $stream = new class extends FakeStream
+    {
+        public array $timeouts = [];
+
+        public function setTimeout(int $seconds): bool
+        {
+            $this->timeouts[] = $seconds;
+
+            return true;
+        }
+    };
+    $stream->feed(['* OK Welcome', '+ idling', '* 4 EXISTS', 'TAG1 OK IDLE completed']);
+    $connection = new ImapConnection($stream);
+
+    try {
+        $connection->connect('localhost', options: $options);
+        $session = $connection->idle();
+
+        if ($consume) {
+            $responses = $session->responses(300);
+            $responses->current();
+            Carbon::setTestNow(Carbon::now()->addSeconds(301));
+        }
+
+        $stream->timeouts = [];
+        $session->finish();
+
+        expect($stream->timeouts)->not->toBeEmpty();
+        expect(array_unique($stream->timeouts))->toBe([$expected]);
+        expect($session->active())->toBeFalse();
+        $stream->assertWritten('DONE');
+    } finally {
+        $connection->disconnect();
+        Carbon::setTestNow();
+    }
+})->with([
+    'default before continuation' => [[], 30, false],
+    'short before continuation' => [['timeout' => 5], 5, false],
+    'long before continuation' => [['timeout' => 90], 90, false],
+    'short after renewal deadline' => [['timeout' => 5], 5, true],
+    'long after renewal deadline' => [['timeout' => 90], 90, true],
+]);
 
 test('an idle session owns the connection until it finishes', function () {
     $stream = new FakeStream;
