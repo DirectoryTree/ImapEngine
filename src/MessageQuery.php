@@ -434,9 +434,24 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->search([
-            $this->query->toImap(),
-        ]);
+        $charset = null;
+
+        if (! Str::isAscii($this->query->toImap())) {
+            $capabilities = $this->folder->mailbox()->capabilities();
+
+            // Dual-version servers remain in rev1 mode until rev2 is enabled.
+            // https://www.rfc-editor.org/rfc/rfc9051#appendix-A
+            $rev2 = $capabilities->enabled('IMAP4REV2')
+                || ($capabilities->has('IMAP4REV2') && ! $capabilities->has('IMAP4REV1'));
+
+            // UTF-8 sessions prohibit an explicit SEARCH charset.
+            // https://www.rfc-editor.org/rfc/rfc6855#section-3
+            if (! $capabilities->enabled('UTF8=ACCEPT') && ! $rev2) {
+                $charset = 'UTF-8';
+            }
+        }
+
+        $response = $this->connection()->search($this->query->toTokens(), charset: $charset);
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
@@ -459,9 +474,7 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->sort($sort, [
-            $this->query->toImap(),
-        ]);
+        $response = $this->connection()->sort($sort, $this->query->toTokens());
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,

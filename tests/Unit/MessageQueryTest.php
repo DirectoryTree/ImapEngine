@@ -76,11 +76,79 @@ test('find or fail throws when fetch returns no messages', function () {
     expect(fn () => $query->findOrFail(42))->toThrow(ItemNotFoundException::class);
 });
 
+test('search sends international text with the appropriate session charset', function (string $capabilities, ?string $enabled, string $charset) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY '.$capabilities,
+        'TAG2 OK CAPABILITY completed',
+        ...($enabled ? ['* ENABLED '.$enabled, 'TAG3 OK ENABLE completed'] : []),
+        '+ Ready for literal',
+        '* SEARCH 42',
+        ($enabled ? 'TAG4' : 'TAG3').' OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    if ($enabled) {
+        $mailbox->enable($enabled);
+    }
+
+    $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect($query->subject('café')->get()->first()->uid())->toBe(42);
+
+    $tag = $enabled ? 'TAG4' : 'TAG3';
+    $stream->assertWritten("{$tag} UID SEARCH {$charset}SUBJECT {5}");
+    $stream->assertWritten('café');
+})->with([
+    'rev1' => ['IMAP4rev1', null, 'CHARSET UTF-8 '],
+    'UTF-8 advertised' => ['IMAP4rev1 ENABLE UTF8=ACCEPT', null, 'CHARSET UTF-8 '],
+    'UTF-8 enabled' => ['IMAP4rev1 ENABLE UTF8=ACCEPT', 'UTF8=ACCEPT', ''],
+    'rev2 only' => ['IMAP4rev2', null, ''],
+    'dual-version server' => ['IMAP4rev1 IMAP4rev2 ENABLE', null, 'CHARSET UTF-8 '],
+    'rev2 enabled' => ['IMAP4rev1 IMAP4rev2 ENABLE', 'IMAP4REV2', ''],
+]);
+
+test('sort sends international search literals using UTF-8', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
+        '+ Ready for literal',
+        '* SORT 42',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect($query->subject('日本語')->sortBy(ImapSortKey::Subject)->get()->first()->uid())->toBe(42);
+
+    $stream->assertWritten('TAG3 UID SORT (SUBJECT) UTF-8 SUBJECT {9}');
+    $stream->assertWritten('日本語');
+});
+
 test('passthru', function () {
     $query = query();
 
     expect($query->toImap())->toBe('');
     expect($query->isEmpty())->toBeTrue();
+});
+
+test('forwards compiled search tokens from the query builder', function () {
+    $query = new MessageQuery(new Folder(new Mailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect($query->subject('café')->toTokens())->toBe([
+        'SUBJECT', ['{5}', 'café'],
+    ]);
 });
 
 test('where', function () {

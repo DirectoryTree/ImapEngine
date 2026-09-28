@@ -25,6 +25,14 @@ test('it can be created with basic properties', function () {
     expect($query)->toBeInstanceOf(FakeMessageQuery::class);
 });
 
+test('it forwards compiled search tokens from the query builder', function () {
+    $query = new FakeMessageQuery(new FakeFolder('INBOX'));
+
+    expect($query->subject('café')->toTokens())->toBe([
+        'SUBJECT', ['{5}', 'café'],
+    ]);
+});
+
 test('it returns message collection', function () {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),

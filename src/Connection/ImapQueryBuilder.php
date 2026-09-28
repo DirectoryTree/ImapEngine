@@ -357,6 +357,16 @@ class ImapQueryBuilder
      */
     public function toImap(): string
     {
+        return ltrim((string) new ImapCommand('', '', $this->toTokens()));
+    }
+
+    /**
+     * Compile the query into command tokens, including synchronizing literals.
+     *
+     * @see https://www.rfc-editor.org/rfc/rfc3501#section-4.3
+     */
+    public function toTokens(): array
+    {
         return $this->compileWheres($this->wheres);
     }
 
@@ -387,7 +397,7 @@ class ImapQueryBuilder
     }
 
     /**
-     * Prepare the where value, escaping it as needed.
+     * Prepare the where value for compilation.
      */
     protected function prepareWhereValue(mixed $value): RawQueryValue|string|null
     {
@@ -411,7 +421,7 @@ class ImapQueryBuilder
             $value = $value->format($this->dateFormat);
         }
 
-        return Str::escape($value);
+        return str_replace(["\r", "\n"], '', (string) $value);
     }
 
     /**
@@ -456,7 +466,7 @@ class ImapQueryBuilder
             ],
 
             'nested' => [
-                'expr' => $where['query']->toImap(),
+                'expr' => $where['query']->toTokens(),
                 'boolean' => $where['boolean'],
             ]
         };
@@ -467,24 +477,42 @@ class ImapQueryBuilder
      *
      * @param  'AND'|'OR'  $boolean
      */
-    protected function mergeExpressions(string $existing, string $next, string $boolean): string
+    protected function mergeExpressions(array $existing, array $next, string $boolean): array
     {
         return match ($boolean) {
             // AND is implicit – just append.
-            'AND' => $existing.' '.$next,
+            'AND' => [...$existing, ...$next],
 
             // IMAP's OR is binary; nest accordingly.
-            'OR' => 'OR ('.$existing.') ('.$next.')',
+            'OR' => ['OR', ...$this->groupExpression($existing), ...$this->groupExpression($next)],
         };
     }
 
     /**
-     * Recursively compile the wheres array into an IMAP-compatible string.
+     * Wrap an expression in parentheses without changing its literal contents.
      */
-    protected function compileWheres(array $wheres): string
+    protected function groupExpression(array $tokens): array
+    {
+        $tokens[0] = '('.$tokens[0];
+
+        $last = array_key_last($tokens);
+
+        if (is_array($tokens[$last])) {
+            $tokens[] = ')';
+        } else {
+            $tokens[$last] .= ')';
+        }
+
+        return $tokens;
+    }
+
+    /**
+     * Recursively compile the where conditions into command tokens.
+     */
+    protected function compileWheres(array $wheres): array
     {
         if (empty($wheres)) {
-            return '';
+            return [];
         }
 
         // Convert each "where" into a node for later merging.
@@ -502,26 +530,30 @@ class ImapQueryBuilder
             );
         }
 
-        return trim($combined);
+        return $combined;
     }
 
     /**
-     * Compile a basic where condition into an IMAP-compatible string.
+     * Compile a basic where condition into command tokens.
      */
-    protected function compileBasic(array $where): string
+    protected function compileBasic(array $where): array
     {
-        $part = strtoupper($where['key']);
+        $parts = [strtoupper($where['key'])];
 
         if ($where['value'] instanceof RawQueryValue) {
-            $part .= ' '.$where['value']->value;
-        } elseif ($where['value']) {
-            $part .= ' "'.Str::toImapUtf7($where['value']).'"';
+            $parts[] = $where['value']->value;
+        } elseif ($where['value'] !== null) {
+            $value = (string) new CommandPart($where['value']);
+
+            $parts[] = Str::isAscii($value)
+                ? Str::literal($value)
+                : ['{'.strlen($value).'}', $value];
         }
 
         if ($where['not']) {
-            $part = 'NOT '.$part;
+            array_unshift($parts, 'NOT');
         }
 
-        return $part;
+        return $parts;
     }
 }
