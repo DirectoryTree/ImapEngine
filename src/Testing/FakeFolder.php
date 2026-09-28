@@ -118,7 +118,7 @@ class FakeFolder implements FolderInterface
      */
     public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        if (! is_numeric($seconds = value($timeout)) || $seconds <= 0) {
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
             return;
         }
 
