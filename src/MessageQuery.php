@@ -17,6 +17,7 @@ use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
+use Generator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
 
@@ -71,6 +72,22 @@ class MessageQuery implements MessageQueryInterface
     public function get(): MessageCollection
     {
         return $this->process($this->uids());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function cursor(int $chunkSize = 10): Generator
+    {
+        $query = clone $this;
+        $uids = $query->uids();
+        $chunkSize = max(1, $chunkSize);
+
+        for ($page = 1; $page <= (int) ceil($uids->count() / $chunkSize); $page++) {
+            foreach ($query->limit($chunkSize, $page)->populate($uids) as $message) {
+                yield $message;
+            }
+        }
     }
 
     /**

@@ -1,11 +1,193 @@
 <?php
 
+use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Folder;
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
+use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
 use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\MessageInterface;
+use DirectoryTree\ImapEngine\MessageQuery;
+
+test('folder idle retrieves arrivals while events only delivers notifications', function (bool $retrieve) {
+    $application = new FakeStream;
+    $application->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* CAPABILITY IMAP4rev1 IDLE', 'TAG2 OK CAPABILITY completed',
+        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 10]', 'TAG3 OK SELECT completed',
+        '* SEARCH 7 9', 'TAG4 OK SEARCH completed',
+        '* 2 FETCH (UID 7 FLAGS (\\Seen))', '* 3 FETCH (UID 9 FLAGS ())', 'TAG5 OK FETCH completed',
+    ]);
+    $watching = new FakeStream;
+    $watching->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* 1 EXISTS', '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 7]', 'TAG3 OK SELECT completed',
+        '+ idling', '* 3 EXISTS',
+    ]);
+    $mailbox = new class([$application, $watching]) extends Mailbox
+    {
+        public function __construct(protected array $streams)
+        {
+            parent::__construct();
+        }
+
+        public function connect(?ConnectionInterface $connection = null): void
+        {
+            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
+        }
+    };
+    $folder = new Folder($mailbox, 'INBOX');
+    $received = [];
+    $uids = [];
+
+    try {
+        if ($retrieve) {
+            $folder->idle(function (MessageInterface $message) use (&$uids) {
+                $uids[] = $message->uid();
+
+                return $message->uid() !== 9;
+            }, function (MessageQuery $query) {
+                return $query->seen();
+            });
+        } else {
+            $folder->events(function (EventInterface $event) use (&$received, $application) {
+                $received[] = $event::class;
+                $application->assertNotWritten('SELECT');
+                $application->assertNotWritten('SEARCH');
+                $application->assertNotWritten('FETCH');
+
+                return ! $event instanceof MessagesExist;
+            });
+        }
+
+        expect($received)->toBe($retrieve ? [] : [FolderSelected::class, MessagesExist::class]);
+        expect($uids)->toBe($retrieve ? [7, 9] : []);
+        expect($application->opened())->toBeTrue();
+        expect($watching->opened())->toBeFalse();
+        if ($retrieve) {
+            $application->assertWritten('UID FETCH');
+            $application->assertWritten('SEEN');
+        } else {
+            $application->assertNotWritten('UID FETCH');
+        }
+        $watching->assertNotWritten('FETCH');
+        $watching->assertNotWritten('LOGOUT');
+    } finally {
+        $mailbox->connection()->disconnect();
+        $mailbox->disconnect();
+    }
+})->with(['retrieve arrivals' => true, 'observe count only' => false]);
+
+test('folder idle preserves or replaces the arrival cursor after reconnecting', function (int $validity, int $uidNext, int $expectedUid) {
+    $application = new FakeStream;
+    $application->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* CAPABILITY IMAP4rev1 IDLE', 'TAG2 OK CAPABILITY completed',
+        "* OK [UIDVALIDITY {$validity}]", 'TAG3 OK SELECT completed',
+        "* SEARCH {$expectedUid}", 'TAG4 OK SEARCH completed',
+        "* 2 FETCH (UID {$expectedUid} FLAGS ())", 'TAG5 OK FETCH completed',
+    ]);
+    $watching = new FakeStream;
+    $watching->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* 1 EXISTS', '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 7]', 'TAG3 OK SELECT completed',
+        '+ idling', '* BYE Restarting',
+    ]);
+    $reconnected = new FakeStream;
+    $reconnected->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* 2 EXISTS', "* OK [UIDVALIDITY {$validity}]", "* OK [UIDNEXT {$uidNext}]", 'TAG2 OK SELECT completed',
+        '+ idling', '* 3 EXISTS',
+    ]);
+    $mailbox = new class([$application, $watching, $reconnected]) extends Mailbox
+    {
+        public function __construct(protected array $streams)
+        {
+            parent::__construct();
+        }
+
+        public function connect(?ConnectionInterface $connection = null): void
+        {
+            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
+        }
+    };
+    $folder = new Folder($mailbox, 'INBOX');
+    $uids = [];
+    $attempts = 0;
+
+    try {
+        $folder->idle(function (MessageInterface $message) use (&$uids) {
+            $uids[] = $message->uid();
+
+            return false;
+        }, timeout: function () use (&$attempts) {
+            return ++$attempts <= 2 ? 300 : false;
+        });
+
+        expect($uids)->toBe([$expectedUid]);
+        $start = $validity === 1 ? 7 : $uidNext;
+        $application->assertWritten("UID SEARCH UID {$start}:*");
+        $watching->assertNotWritten('FETCH');
+        $reconnected->assertNotWritten('FETCH');
+    } finally {
+        $mailbox->connection()->disconnect();
+        $mailbox->disconnect();
+    }
+})->with([
+    'same validity preserves the cursor' => [1, 10, 9],
+    'changed validity replaces the cursor' => [2, 3, 3],
+]);
+
+test('folder polling propagates callback exceptions', function (string $exceptionClass) {
+    $application = new FakeStream;
+    $application->feed(['* OK Welcome', 'TAG1 OK LOGIN completed']);
+    $polling = new FakeStream;
+    $polling->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDNEXT 2]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDNEXT 3]', 'TAG5 OK SELECT completed',
+        '* SEARCH 2', 'TAG6 OK SEARCH completed',
+        '* 2 FETCH (UID 2 FLAGS ())', 'TAG7 OK FETCH completed',
+    ]);
+    $mailbox = new class([$application, $polling]) extends Mailbox
+    {
+        public function __construct(protected array $streams)
+        {
+            parent::__construct();
+        }
+
+        public function connect(?ConnectionInterface $connection = null): void
+        {
+            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
+        }
+    };
+    $mailbox->connect();
+    $folder = new Folder($mailbox, 'INBOX');
+    $exception = new $exceptionClass('Application callback failed');
+
+    try {
+        expect(fn () => $folder->poll(function () use ($exception) {
+            throw $exception;
+        }, frequency: 1))->toThrow($exception);
+    } finally {
+        $mailbox->connection()->disconnect();
+        $mailbox->disconnect();
+    }
+})->with([
+    RuntimeException::class,
+    Exception::class,
+    ImapConnectionClosedException::class,
+]);
 
 test('it examines a folder using the typed selection result', function () {
     $mailbox = Mailbox::make();

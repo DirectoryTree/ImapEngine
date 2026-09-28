@@ -50,6 +50,11 @@ class ImapConnection implements ConnectionInterface
     protected ?Result $result = null;
 
     /**
+     * The current IDLE session open on the connection.
+     */
+    protected ?IdleSession $idle = null;
+
+    /**
      * The parser instance.
      */
     protected ?ImapParser $parser = null;
@@ -174,6 +179,9 @@ class ImapConnection implements ConnectionInterface
      */
     public function disconnect(): void
     {
+        $this->idle?->invalidate();
+        $this->idle = null;
+
         $this->stream->close();
     }
 
@@ -202,6 +210,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function logout(): void
     {
+        if (! $this->connected()) {
+            return;
+        }
+
         try {
             $this->send('LOGOUT', tag: $tag);
 
@@ -631,37 +643,13 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(int $timeout): Generator
+    public function idle(): IdleSession
     {
-        $this->stream->setTimeout($timeout);
-
         $this->send('IDLE', tag: $tag);
 
-        $this->assertNextResponse(
-            fn (Response $response) => $response instanceof ContinuationResponse,
-            fn (ContinuationResponse $response) => true,
-            fn (ContinuationResponse $response) => ImapCommandException::make(new ImapCommand('', 'IDLE'), $response),
-        );
-
-        while ($response = $this->nextReply()) {
-            yield $response;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function done(): void
-    {
-        $this->write('DONE');
-
-        // After sending the DONE continuation, the server must respond with a
-        // tagged response to indicate that the IDLE command has been successfully
-        // terminated and the server is ready to accept further commands.
-        $this->assertNextResponse(
-            fn (Response $response) => $response instanceof TaggedResponse,
-            fn (TaggedResponse $response) => $response->successful(),
-            fn (TaggedResponse $response) => ImapCommandException::make(new ImapCommand('', 'DONE'), $response),
+        return $this->idle = new IdleSession(
+            new ImapCommand($tag, 'IDLE'),
+            $this,
         );
     }
 
@@ -672,6 +660,10 @@ class ImapConnection implements ConnectionInterface
      */
     public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
+        if ($this->idle?->active()) {
+            throw new LogicException('Finish the active IDLE session before sending another command.');
+        }
+
         if (! $tag) {
             $tag = 'TAG'.++$this->sequence;
         }
@@ -693,9 +685,9 @@ class ImapConnection implements ConnectionInterface
     }
 
     /**
-     * Write data to the connected stream.
+     * {@inheritDoc}
      */
-    protected function write(string $data, bool $sensitive = false): void
+    public function write(string $data, bool $sensitive = false): void
     {
         if ($this->stream->fwrite($data."\r\n") === false) {
             throw new ImapStreamException('Failed to write data to stream');
@@ -866,7 +858,7 @@ class ImapConnection implements ConnectionInterface
             throw new LogicException('No parser instance set');
         }
 
-        while ($response = $this->nextReply()) {
+        while ($response = $this->read()) {
             if (! $response instanceof Response) {
                 continue;
             }
@@ -882,9 +874,9 @@ class ImapConnection implements ConnectionInterface
     }
 
     /**
-     * Read the next reply from the stream.
+     * {@inheritDoc}
      */
-    protected function nextReply(): Data|Token|Response|null
+    public function read(): Data|Token|Response|null
     {
         if (! $reply = $this->parser->next()) {
             $meta = $this->stream->meta();
@@ -899,5 +891,13 @@ class ImapConnection implements ConnectionInterface
         $this->logger?->received($reply);
 
         return $reply;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function stream(): StreamInterface
+    {
+        return $this->stream;
     }
 }

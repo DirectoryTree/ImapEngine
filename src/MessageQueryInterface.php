@@ -11,6 +11,7 @@ use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use Generator;
 
 /**
  * @mixin ImapQueryBuilder
@@ -93,6 +94,15 @@ interface MessageQueryInterface
      * Get the messages matching the current query.
      */
     public function get(): MessageCollection;
+
+    /**
+     * Yield matching messages with at most the given number per FETCH request.
+     *
+     * The matching UIDs are loaded once. Query pagination is not applied.
+     *
+     * @return Generator<int, MessageInterface>
+     */
+    public function cursor(int $chunkSize = 10): Generator;
 
     /**
      * Get messages changed after the given modification sequence.

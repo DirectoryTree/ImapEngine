@@ -21,6 +21,7 @@ use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
 use DirectoryTree\ImapEngine\UidOrder;
 use DirectoryTree\ImapEngine\Vanished;
+use Generator;
 use Illuminate\Support\ItemNotFoundException;
 use InvalidArgumentException;
 
@@ -46,6 +47,14 @@ class FakeMessageQuery implements MessageQueryInterface
         return $this->applyOrdering(new MessageCollection(
             $this->folder->getMessages()
         ));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function cursor(int $chunkSize = 10): Generator
+    {
+        yield from $this->get();
     }
 
     /**

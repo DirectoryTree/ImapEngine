@@ -5,6 +5,8 @@ namespace DirectoryTree\ImapEngine\Testing;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
@@ -21,6 +23,13 @@ class FakeFolder implements FolderInterface
      * @var array<int, int>
      */
     protected array $vanished = [];
+
+    /**
+     * The mailbox events to deliver while idling.
+     *
+     * @var EventInterface[]
+     */
+    protected array $idleEvents = [];
 
     /**
      * The next UID assigned to an appended message.
@@ -107,10 +116,37 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
+            return;
+        }
+
+        $selection = new FolderSelected($this->path, $this->select(true, ...$options));
+
+        foreach ([$selection, ...$this->idleEvents] as $event) {
+            if ($callback($event) === false) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
+    {
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->cursor() as $message) {
+            if ($callback($message) === false) {
+                break;
+            }
         }
     }
 
@@ -119,8 +155,17 @@ class FakeFolder implements FolderInterface
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = is_callable($frequency) ? $frequency() : $frequency) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->cursor() as $message) {
+            if ($callback($message) === false) {
+                break;
+            }
         }
     }
 
@@ -235,6 +280,18 @@ class FakeFolder implements FolderInterface
         foreach ($messages as $message) {
             $this->uidNext = max($this->uidNext, $message->uid() + 1);
         }
+
+        return $this;
+    }
+
+    /**
+     * Set the events delivered after the initial folder selection.
+     *
+     * @param  EventInterface[]  $events
+     */
+    public function setIdleEvents(array $events): FakeFolder
+    {
+        $this->idleEvents = $events;
 
         return $this;
     }

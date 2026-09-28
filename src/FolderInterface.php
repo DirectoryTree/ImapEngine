@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
 
@@ -45,12 +46,37 @@ interface FolderInterface
     public function messages(): MessageQueryInterface;
 
     /**
-     * Begin idling on the current folder for the given timeout in seconds.
+     * Watch mailbox events on a dedicated connection.
+     *
+     * Events expose server responses without retrieving messages.
+     *
+     * Return false from the callback to stop. The timeout controls renewal,
+     * not the total watching duration. A callable timeout may return false
+     * or zero to stop between sessions.
+     *
+     * @param  callable(EventInterface): mixed  $callback
+     * @param  callable|int  $timeout  The renewal interval in seconds, or a callable returning it.
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void;
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void;
+
+    /**
+     * Watch for new messages using IDLE, optionally customizing their query.
+     *
+     * Existing messages are excluded. Reconnects preserve the arrival cursor
+     * unless UID validity changes. Arrivals are fetched on count notifications.
+     * Return false from the callback to stop. Callback exceptions propagate.
+     * The timeout controls IDLE renewal, not the total watching duration.
+     *
+     * @param  callable(MessageInterface): mixed  $callback
+     * @param  callable(MessageQueryInterface): MessageQueryInterface|null  $query
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void;
 
     /**
      * Begin polling for new messages at the given frequency in seconds.
+     *
+     * Return false from the callback to stop. Callback exceptions propagate.
+     * The polling connection is closed when polling stops.
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void;
 

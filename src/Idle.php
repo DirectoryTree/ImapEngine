@@ -2,172 +2,90 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use Carbon\Carbon;
-use Carbon\CarbonInterface;
-use Closure;
-use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
-use DirectoryTree\ImapEngine\Exceptions\Exception;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
-use Generator;
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
+use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 class Idle
 {
     /**
+     * The first UID that has not yet been delivered.
+     */
+    protected ?int $nextUid = null;
+
+    /**
+     * The watching connection's latest folder selection.
+     */
+    protected ?Result $selection = null;
+
+    /**
      * Constructor.
      */
     public function __construct(
-        protected Mailbox $mailbox,
-        protected string $folder,
-        protected Closure|int $timeout,
+        protected FolderInterface $folder
     ) {}
 
     /**
-     * Destructor.
+     * Await new messages, optionally customizing their query.
+     *
+     * @param  callable(MessageInterface): mixed  $callback
+     * @param  (callable(MessageQueryInterface): MessageQueryInterface)|null  $query
      */
-    public function __destruct()
+    public function await(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        $this->disconnect();
-    }
+        $this->folder->events(function (EventInterface $event) use ($callback, $query) {
+            if ($event instanceof FolderSelected) {
+                if ($this->selection === null || $this->selection->uidValidity() !== $event->selection()->uidValidity()) {
+                    $this->nextUid = $event->selection()->uidNext() ?? $this->getNextUid();
+                }
 
-    /**
-     * Await new messages on the connection.
-     */
-    public function await(callable $callback): void
-    {
-        $this->connect();
-
-        while ($ttl = $this->getNextTimeout()) {
-            try {
-                $this->listen($callback, $ttl);
-            } catch (ImapConnectionTimedOutException) {
-                $this->restart();
-            } catch (ImapConnectionClosedException) {
-                $this->reconnect();
+                $this->selection = $event->selection();
             }
-        }
+
+            if ($event instanceof MessagesExist) {
+                return $this->deliver($callback, $query);
+            }
+        }, $timeout, ...$options);
     }
 
     /**
-     * Start listening for new messages using the idle() generator.
+     * Retrieve arrivals and deliver them in UID order.
      */
-    protected function listen(callable $callback, CarbonInterface $ttl): void
+    protected function deliver(callable $callback, ?callable $query): ?bool
     {
-        // Iterate over responses yielded by the idle generator.
-        foreach ($this->idle($ttl) as $response) {
-            if (! $response instanceof UntaggedResponse) {
+        $current = $this->folder->select(true);
+
+        if ($this->selection->uidValidity() !== null && $current->uidValidity() !== $this->selection->uidValidity()) {
+            return null;
+        }
+
+        $messages = $this->folder->messages()->with(MessageData::flags());
+
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->cursor() as $message) {
+            // Reversed IMAP ranges can include an older UID when no arrivals exist.
+            if ($message->uid() < $this->nextUid) {
                 continue;
             }
 
-            if (! $token = $response->tokenAt(2)) {
-                continue;
+            if ($callback($message) === false) {
+                return false;
             }
 
-            if ($token instanceof Atom && $token->is('EXISTS')) {
-                $msgn = (int) $response->tokenAt(1)->value;
-
-                $callback($msgn);
-
-                $ttl = $this->getNextTimeout();
-            }
-
-            if ($ttl === false) {
-                break;
-            }
-
-            // If we've been idle too long, break out to restart the session.
-            if (Carbon::now()->greaterThanOrEqualTo($ttl)) {
-                $this->restart();
-
-                break;
-            }
-        }
-    }
-
-    /**
-     * Get the folder to idle.
-     */
-    protected function folder(): FolderInterface
-    {
-        return $this->mailbox->folders()->findOrFail($this->folder);
-    }
-
-    /**
-     * Issue a done command and restart the idle session.
-     */
-    protected function restart(): void
-    {
-        try {
-            // Send DONE to terminate the current IDLE session gracefully.
-            $this->done();
-        } catch (Exception) {
-            $this->reconnect();
-        }
-    }
-
-    /**
-     * Reconnect the client and restart the idle session.
-     */
-    protected function reconnect(): void
-    {
-        $this->mailbox->disconnect();
-
-        $this->connect();
-    }
-
-    /**
-     * Connect the client and select the folder to idle.
-     */
-    protected function connect(): void
-    {
-        $this->mailbox->connect();
-
-        $this->mailbox->select($this->folder(), true);
-    }
-
-    /**
-     * Disconnect the client.
-     */
-    protected function disconnect(): void
-    {
-        try {
-            // Attempt to terminate IDLE gracefully.
-            $this->done();
-        } catch (Exception) {
-            // Do nothing.
+            $this->nextUid = $message->uid() + 1;
         }
 
-        $this->mailbox->disconnect();
+        return null;
     }
 
     /**
-     * End the current IDLE session.
+     * Determine the next UID from the folder's existing messages.
      */
-    protected function done(): void
+    protected function getNextUid(): int
     {
-        $this->mailbox->connection()->done();
-    }
-
-    /**
-     * Begin a new IDLE session as a generator.
-     */
-    protected function idle(CarbonInterface $ttl): Generator
-    {
-        yield from $this->mailbox->connection()->idle(
-            (int) Carbon::now()->diffInSeconds($ttl, true)
-        );
-    }
-
-    /**
-     * Get the next timeout as a Carbon instance.
-     */
-    protected function getNextTimeout(): CarbonInterface|false
-    {
-        if (is_numeric($seconds = value($this->timeout))) {
-            return Carbon::now()->addSeconds(abs($seconds));
-        }
-
-        return false;
+        return ($this->folder->messages()->orderByUid('desc')->first()?->uid() ?? 0) + 1;
     }
 }
