@@ -636,10 +636,11 @@ test('it fetches attachments from body structure', function () {
     $mailbox->connect(ImapConnection::fake([
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
-        '* 1 FETCH (UID 1 BODY[2] {'.(strlen($encodedContent) + 2).'}',
+        'TAG2 OK Selected',
+        '* 1 FETCH (UID 1 BODY[2]<0> {'.(strlen($encodedContent) + 2).'}',
         $encodedContent,
         ')',
-        'TAG2 OK FETCH completed',
+        'TAG3 OK FETCH completed',
     ]));
 
     $folder = new Folder($mailbox, 'INBOX', [], '/');
