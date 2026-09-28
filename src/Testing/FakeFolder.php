@@ -143,7 +143,7 @@ class FakeFolder implements FolderInterface
         $messages = $this->messages();
         $messages = $query ? $query($messages) : $messages;
 
-        foreach ($messages->orderByUid()->get() as $message) {
+        foreach ($messages->orderByUid()->cursor() as $message) {
             if ($callback($message) === false) {
                 break;
             }
@@ -155,8 +155,17 @@ class FakeFolder implements FolderInterface
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = is_callable($frequency) ? $frequency() : $frequency) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->cursor() as $message) {
+            if ($callback($message) === false) {
+                break;
+            }
         }
     }
 

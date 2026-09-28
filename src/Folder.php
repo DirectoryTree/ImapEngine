@@ -119,6 +119,10 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
+        if (is_callable($frequency) && ! $frequency instanceof Closure) {
+            $frequency = $frequency(...);
+        }
+
         (new Poll(clone $this->mailbox, $this->path, $frequency))->start(
             function (MessageInterface $message) use ($callback) {
                 if (! $this->mailbox->connected()) {

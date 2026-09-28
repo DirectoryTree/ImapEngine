@@ -5,13 +5,20 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
+use DirectoryTree\ImapEngine\Selection\Result;
+use Generator;
 
 class Poll
 {
     /**
-     * The last seen message UID.
+     * The first UID that has not yet been delivered.
      */
-    protected ?int $lastSeenUid = null;
+    protected ?int $nextUid = null;
+
+    /**
+     * The polling connection's latest folder selection.
+     */
+    protected ?Result $selection = null;
 
     /**
      * Constructor.
@@ -23,37 +30,34 @@ class Poll
     ) {}
 
     /**
-     * Destructor.
-     */
-    public function __destruct()
-    {
-        $this->disconnect();
-    }
-
-    /**
      * Poll for new messages at a given frequency.
      */
     public function start(callable $callback, callable $query): void
     {
+        try {
+            foreach ($this->messages($query) as $message) {
+                if ($callback($message) === false) {
+                    break;
+                }
+            }
+        } finally {
+            $this->disconnect();
+        }
+    }
+
+    /**
+     * Yield arrivals, reconnecting when the polling connection is lost.
+     *
+     * @return Generator<int, MessageInterface>
+     */
+    protected function messages(callable $query): Generator
+    {
         $this->connect();
 
         while ($frequency = $this->getNextFrequency()) {
-            $delivering = false;
-
             try {
-                $this->check(function (MessageInterface $message) use ($callback, &$delivering) {
-                    $delivering = true;
-                    $result = $callback($message);
-                    $delivering = false;
-
-                    return $result;
-                }, $query);
-            } catch (ImapConnectionClosedException $e) {
-                // Application callback failures must not trigger a polling reconnect.
-                if ($delivering) {
-                    throw $e;
-                }
-
+                yield from $this->check($query);
+            } catch (ImapConnectionClosedException) {
                 $this->reconnect();
             }
 
@@ -62,36 +66,33 @@ class Poll
     }
 
     /**
-     * Check for new messages since the last seen UID.
+     * Check for new messages since the last delivered UID.
+     *
+     * @return Generator<int, MessageInterface>
      */
-    protected function check(callable $callback, callable $query): void
+    protected function check(callable $query): Generator
     {
         $folder = $this->folder();
 
-        // If we don't have a last seen UID, we will fetch
-        // the last one in the folder as a starting point.
-        if (! $this->lastSeenUid) {
-            $this->lastSeenUid = $folder->messages()
-                ->first()
-                ?->uid() ?? 0;
+        $this->select($folder);
 
-            return;
+        $messages = $query($folder->messages()->with(MessageData::flags()))
+            ->uid($this->nextUid.':*')
+            ->orderByUid()
+            ->cursor();
+
+        foreach ($messages as $message) {
+            // Avoid processing the same message twice on subsequent polls.
+            // Some IMAP servers will always return the last seen UID in
+            // the search results regardless of given UID search range.
+            if ($message->uid() < $this->nextUid) {
+                continue;
+            }
+
+            yield $message;
+
+            $this->nextUid = $message->uid() + 1;
         }
-
-        $query($folder->messages())
-            ->uid($this->lastSeenUid + 1, INF)
-            ->each(function (MessageInterface $message) use ($callback) {
-                // Avoid processing the same message twice on subsequent polls.
-                // Some IMAP servers will always return the last seen UID in
-                // the search results regardless of given UID search range.
-                if ($this->lastSeenUid === $message->uid()) {
-                    return;
-                }
-
-                $callback($message);
-
-                $this->lastSeenUid = $message->uid();
-            });
     }
 
     /**
@@ -119,7 +120,29 @@ class Poll
     {
         $this->mailbox->connect();
 
-        $this->mailbox->select($this->folder(), true);
+        $this->select($this->folder());
+    }
+
+    /**
+     * Select the folder and reset the arrival cursor when UID validity changes.
+     */
+    protected function select(FolderInterface $folder): void
+    {
+        $selection = $folder->select(true);
+
+        if ($this->selection === null || $this->selection->uidValidity() !== $selection->uidValidity()) {
+            $this->nextUid = $selection->uidNext() ?? $this->getNextUid($folder);
+        }
+
+        $this->selection = $selection;
+    }
+
+    /**
+     * Determine the next UID from the folder's existing messages.
+     */
+    protected function getNextUid(FolderInterface $folder): int
+    {
+        return ($folder->messages()->orderByUid('desc')->first()?->uid() ?? 0) + 1;
     }
 
     /**

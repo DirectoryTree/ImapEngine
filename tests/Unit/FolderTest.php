@@ -153,12 +153,11 @@ test('folder polling propagates callback exceptions', function (string $exceptio
     $polling->feed([
         '* OK Welcome', 'TAG1 OK LOGIN completed',
         '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        'TAG3 OK SELECT completed',
+        '* OK [UIDNEXT 2]', 'TAG3 OK SELECT completed',
         '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
-        '* SEARCH 1', 'TAG5 OK SEARCH completed',
-        '* LIST () "/" "INBOX"', 'TAG6 OK LIST completed',
-        '* SEARCH 2', 'TAG7 OK SEARCH completed',
-        '* 2 FETCH (UID 2 FLAGS ())', 'TAG8 OK FETCH completed',
+        '* OK [UIDNEXT 3]', 'TAG5 OK SELECT completed',
+        '* SEARCH 2', 'TAG6 OK SEARCH completed',
+        '* 2 FETCH (UID 2 FLAGS ())', 'TAG7 OK FETCH completed',
     ]);
     $mailbox = new class([$application, $polling]) extends Mailbox
     {

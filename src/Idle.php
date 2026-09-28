@@ -65,7 +65,7 @@ class Idle
 
         $messages = $query ? $query($messages) : $messages;
 
-        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->get() as $message) {
+        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->cursor() as $message) {
             // Reversed IMAP ranges can include an older UID when no arrivals exist.
             if ($message->uid() < $this->nextUid) {
                 continue;

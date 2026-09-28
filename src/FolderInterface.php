@@ -75,7 +75,8 @@ interface FolderInterface
     /**
      * Begin polling for new messages at the given frequency in seconds.
      *
-     * Callback exceptions propagate to the caller.
+     * Return false from the callback to stop. Callback exceptions propagate.
+     * The polling connection is closed when polling stops.
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void;
 
