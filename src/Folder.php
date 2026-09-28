@@ -5,7 +5,6 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
@@ -93,7 +92,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
         if (! $this->mailbox->capabilities()->supports('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
@@ -104,7 +103,15 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
             $timeout = $timeout(...);
         }
 
-        (new Idle(clone $this->mailbox, $this->path, $timeout, $options))->await($callback);
+        (new Watch(clone $this->mailbox, $this->path, $timeout, $options))->await($callback);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
+    {
+        (new Idle($this))->await($callback, $query, $timeout, ...$options);
     }
 
     /**
@@ -118,13 +125,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
                     $this->mailbox->connect();
                 }
 
-                try {
-                    $callback($message);
-                } catch (Exception) {
-                    // Something unexpected happened. We will attempt
-                    // reconnecting and continue polling for messages.
-                    $this->mailbox->reconnect();
-                }
+                return $callback($message);
             },
             $query ?? fn (MessageQuery $query) => $query
         );

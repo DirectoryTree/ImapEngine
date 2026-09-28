@@ -1,258 +1,76 @@
 <?php
 
-use Carbon\Carbon;
-use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
-use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
-use DirectoryTree\ImapEngine\Idle;
-use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
+use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
-use DirectoryTree\ImapEngine\Idle\Events\MessageExpunged;
-use DirectoryTree\ImapEngine\Idle\Events\MessageFetched;
 use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
 use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\MessageInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
-test('watcher delivers mailbox changes without fetching and closes when stopped', function () {
-    $stream = new FakeStream;
-    $stream->open();
-    $stream->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        '* 1 EXISTS', '* OK [UIDVALIDITY 777]', 'TAG3 OK SELECT completed',
-        '+ idling', '* 4 EXISTS', '* 2 FETCH (FLAGS (\\Seen))', '* 3 EXPUNGE',
-    ]);
+test('idle tracks arrivals across count notifications', function (?int $uidNext, int $notifications, array $responses, array $expected) {
+    $connection = ImapConnection::fake(['* OK Welcome', 'TAG1 OK LOGIN completed', ...$responses]);
     $mailbox = new Mailbox;
-    $mailbox->connect(new ImapConnection($stream));
-    $received = [];
-
-    (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use (&$received) {
-        $received[] = $event;
-
-        return ! $event instanceof MessageExpunged;
-    });
-
-    expect(array_map(fn (EventInterface $event) => $event::class, $received))->toBe([
-        FolderSelected::class, MessagesExist::class, MessageFetched::class, MessageExpunged::class,
-    ]);
-    expect($received[0]->selection()->uidValidity())->toBe(777);
-    expect($received[1]->count())->toBe(4);
-    expect($stream->opened())->toBeFalse();
-    $stream->assertNotWritten('FETCH');
-    $stream->assertNotWritten('LOGOUT');
-});
-
-test('callback connection exceptions propagate instead of causing a reconnect', function () {
-    $stream = new FakeStream;
-    $stream->open();
-    $stream->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        'TAG3 OK SELECT completed', '+ idling', '* 4 EXISTS',
-    ]);
-    $mailbox = new Mailbox;
-    $mailbox->connect(new ImapConnection($stream));
-    $exception = new ImapConnectionClosedException('Application callback failed');
-
-    expect(fn () => (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use ($exception) {
-        if ($event instanceof MessagesExist) {
-            throw $exception;
-        }
-    }))->toThrow($exception);
-
-    expect($stream->opened())->toBeFalse();
-});
-
-test('watcher emits a fresh selection after reconnecting', function () {
-    $first = new FakeStream;
-    $first->open();
-    $first->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        '* OK [UIDVALIDITY 777]', 'TAG3 OK SELECT completed',
-        '+ idling', '* BYE Restarting',
-    ]);
-    $second = new FakeStream;
-    $second->open();
-    $second->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* OK [UIDVALIDITY 888]', 'TAG2 OK SELECT completed',
-    ]);
-    $mailbox = new class([new ImapConnection($first), new ImapConnection($second)]) extends Mailbox
+    $mailbox->connect($connection);
+    $folder = new class($mailbox, 'INBOX', $uidNext, $notifications) extends Folder
     {
-        public function __construct(protected array $connections)
+        public function __construct(Mailbox $mailbox, string $path, protected ?int $uidNext, protected int $notifications)
         {
-            parent::__construct();
+            parent::__construct($mailbox, $path);
         }
 
-        public function connect(?ConnectionInterface $connection = null): void
+        public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
         {
-            parent::connect($connection ?? array_shift($this->connections));
-        }
-    };
-    $validities = [];
+            $callback(new FolderSelected($this->path, new Result(uidValidity: 1, uidNext: $this->uidNext)));
 
-    (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use (&$validities) {
-        expect($event)->toBeInstanceOf(FolderSelected::class);
-        $validities[] = $event->selection()->uidValidity();
-
-        return count($validities) < 2;
-    });
-
-    expect($validities)->toBe([777, 888]);
-    expect($first->opened())->toBeFalse();
-    expect($second->opened())->toBeFalse();
-    $second->assertWritten('TAG2 SELECT "INBOX"');
-    $second->assertNotWritten('LIST');
-});
-
-test('watcher does not resolve the folder when stopped before starting', function (bool $callable) {
-    $mailbox = new class extends Mailbox
-    {
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            throw new LogicException('The stopped watcher must not connect.');
+            for ($i = 0; $i < $this->notifications; $i++) {
+                if ($callback(new MessagesExist($this->path, new UntaggedResponse([
+                    new Atom('*'), new Number('3'), new Atom('EXISTS'),
+                ]))) === false) {
+                    break;
+                }
+            }
         }
     };
     $received = [];
-    $timeout = $callable ? fn () => false : 0;
 
-    (new Idle($mailbox, 'INBOX', $timeout))->await(function (EventInterface $event) use (&$received) {
-        $received[] = $event;
+    $folder->idle(function (MessageInterface $message) use (&$received) {
+        $received[] = $message->uid();
     });
 
-    expect($received)->toBeEmpty();
+    expect($received)->toBe($expected);
+    $connection->stream()->assertNotWritten('BODY[');
+    $connection->disconnect();
 })->with([
-    'zero interval' => false,
-    'stopped callback' => true,
+    'multiple arrivals and duplicate count notification' => [7, 2, [
+        '* OK [UIDVALIDITY 1]', 'TAG2 OK SELECT completed',
+        '* SEARCH 7 9', 'TAG3 OK SEARCH completed',
+        '* 3 FETCH (UID 9 FLAGS ())', '* 2 FETCH (UID 7 FLAGS ())', 'TAG4 OK FETCH completed',
+        '* OK [UIDVALIDITY 1]', 'TAG5 OK SELECT completed',
+        '* SEARCH 9', 'TAG6 OK SEARCH completed',
+        '* 3 FETCH (UID 9 FLAGS ())', 'TAG7 OK FETCH completed',
+    ], [7, 9]],
+    'message removed before fetch' => [7, 1, [
+        '* OK [UIDVALIDITY 1]', 'TAG2 OK SELECT completed',
+        '* SEARCH 7', 'TAG3 OK SEARCH completed', 'TAG4 OK FETCH completed',
+    ], []],
+    'application connection has different uid validity' => [7, 1, [
+        '* OK [UIDVALIDITY 2]', 'TAG2 OK SELECT completed',
+    ], []],
+    'missing uidnext snapshots existing messages' => [null, 1, [
+        '* OK [UIDVALIDITY 1]', 'TAG2 OK SELECT completed',
+        '* SEARCH 2 6', 'TAG3 OK SEARCH completed',
+        '* OK [UIDVALIDITY 1]', 'TAG4 OK SELECT completed',
+        '* SEARCH 7', 'TAG5 OK SEARCH completed',
+        '* 3 FETCH (UID 7 FLAGS ())', 'TAG6 OK FETCH completed',
+    ], [7]],
+    'initially empty folder delivers its first arrival' => [1, 1, [
+        '* OK [UIDVALIDITY 1]', 'TAG2 OK SELECT completed',
+        '* SEARCH 1', 'TAG3 OK SEARCH completed',
+        '* 1 FETCH (UID 1 FLAGS ())', 'TAG4 OK FETCH completed',
+    ], [1]],
 ]);
-
-test('watcher honors renewal intervals longer than 29 minutes', function () {
-    Carbon::setTestNow('2026-09-27 12:00:00');
-    $stream = new FakeStream;
-    $stream->open();
-    $stream->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        'TAG3 OK SELECT completed',
-        '+ idling', '* 4 EXISTS', '* 5 EXISTS', '* 3 EXPUNGE', 'TAG4 OK IDLE completed',
-        '+ idling', '* 6 EXISTS',
-    ]);
-    $mailbox = new Mailbox;
-    $mailbox->connect(new ImapConnection($stream));
-    $received = [];
-
-    try {
-        (new Idle($mailbox, 'INBOX', 3600))->await(function (EventInterface $event) use ($stream, &$received) {
-            $received[] = $event::class;
-
-            if ($event instanceof MessagesExist && $event->count() === 4) {
-                Carbon::setTestNow(Carbon::now()->addMinutes(30));
-            }
-
-            if ($event instanceof MessagesExist && $event->count() === 5) {
-                $stream->assertNotWritten('DONE');
-                Carbon::setTestNow(Carbon::now()->addMinutes(31));
-            }
-
-            return ! ($event instanceof MessagesExist && $event->count() === 6);
-        });
-    } finally {
-        Carbon::setTestNow();
-    }
-
-    expect($received)->toBe([
-        FolderSelected::class, MessagesExist::class, MessagesExist::class,
-        MessageExpunged::class, MessagesExist::class,
-    ]);
-    $stream->assertWritten('DONE');
-    $stream->assertWritten('TAG5 IDLE');
-});
-
-test('watcher reads the mailbox timeout when finishing idle', function () {
-    Carbon::setTestNow('2026-09-27 12:00:00');
-    $stream = new class extends FakeStream
-    {
-        public ?int $timeout = null;
-
-        public function setTimeout(int $seconds): bool
-        {
-            $this->timeout = $seconds;
-
-            return true;
-        }
-    };
-    $stream->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        'TAG3 OK SELECT completed',
-        '+ idling', '* 4 EXISTS', '* 3 EXPUNGE', 'TAG4 OK IDLE completed',
-    ]);
-    $mailbox = new class extends Mailbox
-    {
-        public int $timeout = 5;
-
-        public function config(?string $key = null, mixed $default = null): mixed
-        {
-            return $key === 'timeout' ? $this->timeout : parent::config($key, $default);
-        }
-    };
-    $completionTimeout = null;
-
-    try {
-        $mailbox->connect(new ImapConnection($stream));
-
-        (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use ($mailbox, $stream, &$completionTimeout) {
-            if ($event instanceof MessagesExist) {
-                $mailbox->timeout = 90;
-                Carbon::setTestNow(Carbon::now()->addSeconds(31));
-            }
-
-            if ($event instanceof MessageExpunged) {
-                $completionTimeout = $stream->timeout;
-
-                return false;
-            }
-        });
-
-        expect($completionTimeout)->toBe(90);
-        $stream->assertWritten('DONE');
-    } finally {
-        $mailbox->disconnect();
-        Carbon::setTestNow();
-    }
-});
-
-test('watcher renews busy idle sessions and preserves queued updates', function () {
-    Carbon::setTestNow('2026-09-27 12:00:00');
-    $stream = new FakeStream;
-    $stream->open();
-    $stream->feed([
-        '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
-        'TAG3 OK SELECT completed',
-        '+ idling', '* 4 EXISTS', '* 3 EXPUNGE', 'TAG4 OK IDLE completed',
-        '+ idling', '* 5 EXISTS',
-    ]);
-    $mailbox = new Mailbox;
-    $mailbox->connect(new ImapConnection($stream));
-    $received = [];
-
-    try {
-        (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use (&$received) {
-            $received[] = $event::class;
-
-            if ($event instanceof MessagesExist && $event->count() === 4) {
-                Carbon::setTestNow(Carbon::now()->addSeconds(31));
-            }
-
-            return ! ($event instanceof MessagesExist && $event->count() === 5);
-        });
-    } finally {
-        Carbon::setTestNow();
-    }
-
-    expect($received)->toBe([FolderSelected::class, MessagesExist::class, MessageExpunged::class, MessagesExist::class]);
-    $stream->assertWritten('DONE');
-    $stream->assertWritten('TAG5 IDLE');
-});

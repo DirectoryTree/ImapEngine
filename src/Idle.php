@@ -2,97 +2,90 @@
 
 namespace DirectoryTree\ImapEngine;
 
-use Closure;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
-use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
-use DirectoryTree\ImapEngine\Idle\EventFactory;
 use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
 use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
-use Generator;
+use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 class Idle
 {
     /**
+     * The first UID that has not yet been delivered.
+     */
+    protected ?int $nextUid = null;
+
+    /**
+     * The watching connection's latest folder selection.
+     */
+    protected ?Result $selection = null;
+
+    /**
      * Constructor.
      */
     public function __construct(
-        protected Mailbox $mailbox,
-        protected string $folder,
-        protected Closure|int $timeout,
-        protected array $options = [],
+        protected FolderInterface $folder
     ) {}
 
     /**
-     * Await mailbox events until the callback returns false or the timeout stops renewal.
+     * Await new messages, optionally customizing their query.
      *
-     * Callback exceptions propagate to the caller.
-     *
-     * @param  callable(EventInterface): mixed  $callback
+     * @param  callable(MessageInterface): mixed  $callback
+     * @param  (callable(MessageQueryInterface): MessageQueryInterface)|null  $query
      */
-    public function await(callable $callback): void
+    public function await(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        try {
-            foreach ($this->events() as $event) {
-                if ($callback($event) === false) {
-                    break;
+        $this->folder->events(function (EventInterface $event) use ($callback, $query) {
+            if ($event instanceof FolderSelected) {
+                if ($this->selection === null || $this->selection->uidValidity() !== $event->selection()->uidValidity()) {
+                    $this->nextUid = $event->selection()->uidNext() ?? $this->getNextUid();
                 }
+
+                $this->selection = $event->selection();
             }
-        } finally {
-            $this->disconnect();
-        }
+
+            if ($event instanceof MessagesExist) {
+                return $this->deliver($callback, $query);
+            }
+        }, $timeout, ...$options);
     }
 
     /**
-     * Yield folder selection and server response events without fetching messages.
-     *
-     * @return Generator<int, EventInterface>
+     * Retrieve arrivals and deliver them in UID order.
      */
-    protected function events(): Generator
+    protected function deliver(callable $callback, ?callable $query): ?bool
     {
-        $folder = null;
+        $current = $this->folder->select(true);
 
-        while (is_numeric($seconds = value($this->timeout)) && $seconds > 0) {
-            $folder ??= $this->mailbox->folders()->findOrFail($this->folder);
+        if ($this->selection->uidValidity() !== null && $current->uidValidity() !== $this->selection->uidValidity()) {
+            return null;
+        }
 
-            if (! $this->mailbox->selected($folder)) {
-                yield new FolderSelected($this->folder, $folder->select(true, ...$this->options));
-            }
+        $messages = $this->folder->messages()->with(MessageData::flags());
 
-            $seconds = max((int) $seconds, 1);
+        $messages = $query ? $query($messages) : $messages;
 
-            $session = $this->mailbox->connection()->idle();
-
-            try {
-                foreach ($session->responses($seconds) as $response) {
-                    yield EventFactory::fromResponse($this->folder, $response);
-                }
-            } catch (ImapConnectionTimedOutException) {
-                // End the timed-out IDLE command before starting another.
-            } catch (ImapConnectionClosedException) {
-                $this->disconnect();
-
+        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->get() as $message) {
+            // Reversed IMAP ranges can include an older UID when no arrivals exist.
+            if ($message->uid() < $this->nextUid) {
                 continue;
             }
 
-            try {
-                foreach ($session->finish($this->mailbox->config('timeout')) as $response) {
-                    yield EventFactory::fromResponse($this->folder, $response);
-                }
-            } catch (ImapConnectionClosedException|ImapConnectionTimedOutException) {
-                $this->disconnect();
+            if ($callback($message) === false) {
+                return false;
             }
+
+            $this->nextUid = $message->uid() + 1;
         }
+
+        return null;
     }
 
     /**
-     * Close the dedicated socket without sending commands during IDLE.
+     * Determine the next UID from the folder's existing messages.
      */
-    protected function disconnect(): void
+    protected function getNextUid(): int
     {
-        if ($this->mailbox->connected()) {
-            $this->mailbox->connection()->disconnect();
-        }
-
-        $this->mailbox->disconnect();
+        return ($this->folder->messages()->orderByUid('desc')->first()?->uid() ?? 0) + 1;
     }
 }

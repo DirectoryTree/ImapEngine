@@ -38,9 +38,22 @@ class Poll
         $this->connect();
 
         while ($frequency = $this->getNextFrequency()) {
+            $delivering = false;
+
             try {
-                $this->check($callback, $query);
-            } catch (ImapConnectionClosedException) {
+                $this->check(function (MessageInterface $message) use ($callback, &$delivering) {
+                    $delivering = true;
+                    $result = $callback($message);
+                    $delivering = false;
+
+                    return $result;
+                }, $query);
+            } catch (ImapConnectionClosedException $e) {
+                // Application callback failures must not trigger a polling reconnect.
+                if ($delivering) {
+                    throw $e;
+                }
+
                 $this->reconnect();
             }
 

@@ -116,7 +116,7 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
         if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
             return;
@@ -126,6 +126,25 @@ class FakeFolder implements FolderInterface
 
         foreach ([$selection, ...$this->idleEvents] as $event) {
             if ($callback($event) === false) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
+    {
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->get() as $message) {
+            if ($callback($message) === false) {
                 break;
             }
         }
