@@ -23,7 +23,9 @@ class Idle
     ) {}
 
     /**
-     * Await mailbox events. Callback exceptions propagate to the caller.
+     * Await mailbox events until the callback returns false or the timeout stops renewal.
+     *
+     * Callback exceptions propagate to the caller.
      *
      * @param  callable(EventInterface): mixed  $callback
      */
@@ -41,7 +43,9 @@ class Idle
     }
 
     /**
-     * Yield selection and unsolicited responses without fetching messages.
+     * Yield folder selection and server response events without fetching messages.
+     *
+     * @return Generator<int, EventInterface>
      */
     protected function events(): Generator
     {

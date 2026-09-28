@@ -10,7 +10,7 @@ interface EventInterface
     public function folder(): string;
 
     /**
-     * Get the protocol response type, or SELECT after connecting.
+     * Get the protocol response type, or SELECT for a folder selection event.
      */
     public function type(): string;
 }

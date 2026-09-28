@@ -101,7 +101,7 @@ interface ConnectionInterface
     public function startTls(): void;
 
     /**
-     * Send an "IDLE" command.
+     * Send an "IDLE" command and return the session managing its responses.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-idle-command
      */

@@ -40,7 +40,7 @@ class IdleSession
     protected array $pending = [];
 
     /**
-     * The deadline for renewal or completion of the DONE exchange.
+     * The deadline for receiving updates or finishing the IDLE exchange.
      */
     protected ?CarbonInterface $deadline = null;
 
@@ -78,6 +78,9 @@ class IdleSession
     /**
      * Yield unsolicited updates until completion or the renewal deadline.
      *
+     * Finish the session or disconnect before sending another command.
+     *
+     * @param  int  $timeout  The renewal interval in seconds.
      * @return Generator<int, UntaggedResponse>
      */
     public function responses(int $timeout = 300): Generator
@@ -112,6 +115,8 @@ class IdleSession
 
     /**
      * Finish IDLE and return updates not yet delivered to the caller.
+     *
+     * @param  int  $timeout  The time allowed to complete the exchange, in seconds.
      */
     public function finish(int $timeout = 30): ResponseCollection
     {
@@ -119,7 +124,7 @@ class IdleSession
             return new ResponseCollection;
         }
 
-        // Start a fresh completion deadline after the renewal interval expires.
+        // Completion has its own deadline, separate from the renewal interval.
         $this->deadline = Carbon::now()->addSeconds($timeout);
 
         try {

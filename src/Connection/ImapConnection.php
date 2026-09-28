@@ -45,14 +45,14 @@ class ImapConnection implements ConnectionInterface
     protected int $sequence = 0;
 
     /**
-     * The IDLE session currently using this connection.
-     */
-    protected ?IdleSession $idleSession = null;
-
-    /**
      * The result instance.
      */
     protected ?Result $result = null;
+
+    /**
+     * The current IDLE session open on the connection.
+     */
+    protected ?IdleSession $idle = null;
 
     /**
      * The parser instance.
@@ -179,8 +179,8 @@ class ImapConnection implements ConnectionInterface
      */
     public function disconnect(): void
     {
-        $this->idleSession?->invalidate();
-        $this->idleSession = null;
+        $this->idle?->invalidate();
+        $this->idle = null;
 
         $this->stream->close();
     }
@@ -647,7 +647,7 @@ class ImapConnection implements ConnectionInterface
     {
         $this->send('IDLE', tag: $tag);
 
-        return $this->idleSession = new IdleSession(
+        return $this->idle = new IdleSession(
             new ImapCommand($tag, 'IDLE'),
             $this,
         );
@@ -660,7 +660,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function send(string $name, array $tokens = [], ?string &$tag = null): void
     {
-        if ($this->idleSession?->active()) {
+        if ($this->idle?->active()) {
             throw new LogicException('Finish the active IDLE session before sending another command.');
         }
 

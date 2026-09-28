@@ -46,9 +46,14 @@ interface FolderInterface
     public function messages(): MessageQueryInterface;
 
     /**
-     * Watch mailbox events on a dedicated connection. Return false to stop.
+     * Watch mailbox events on a dedicated connection.
+     *
+     * Return false from the callback to stop. The timeout controls renewal,
+     * not the total watching duration. A callable timeout may return false
+     * or zero to stop between sessions.
      *
      * @param  callable(EventInterface): mixed  $callback
+     * @param  callable|int  $timeout  The renewal interval in seconds, or a callable returning it.
      */
     public function idle(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void;
 

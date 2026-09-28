@@ -15,7 +15,7 @@ class MessagesVanished extends ResponseEvent
     }
 
     /**
-     * Determine if the messages vanished before the requested checkpoint.
+     * Determine whether the server marked the VANISHED response as EARLIER.
      */
     public function earlier(): bool
     {

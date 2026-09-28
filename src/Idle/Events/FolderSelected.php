@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Selection\Result;
 class FolderSelected implements EventInterface
 {
     /**
-     * Constructor. A selection signals that the folder needs reconciliation.
+     * Constructor.
      */
     public function __construct(
         protected string $folder,
@@ -31,7 +31,7 @@ class FolderSelected implements EventInterface
     }
 
     /**
-     * Get the selection result after connecting or reconnecting.
+     * Get the result of selecting the folder.
      */
     public function selection(): Result
     {

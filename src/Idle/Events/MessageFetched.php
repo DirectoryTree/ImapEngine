@@ -16,7 +16,7 @@ class MessageFetched extends ResponseEvent
     }
 
     /**
-     * Get parsed FETCH changes using the synchronization result API.
+     * Get the parsed message data from this FETCH response.
      */
     public function changes(): FetchResult
     {
