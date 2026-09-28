@@ -56,10 +56,6 @@ class IdleSession
          * The connection used for the IDLE exchange.
          */
         protected ConnectionInterface $connection,
-        /**
-         * The configured timeout for completing the IDLE exchange.
-         */
-        protected int $completionTimeout,
     ) {}
 
     /**
@@ -117,14 +113,14 @@ class IdleSession
     /**
      * Finish IDLE and return updates not yet delivered to the caller.
      */
-    public function finish(): ResponseCollection
+    public function finish(int $timeout = 30): ResponseCollection
     {
         if (! $this->active) {
             return new ResponseCollection;
         }
 
         // Start a fresh completion deadline after the renewal interval expires.
-        $this->deadline = Carbon::now()->addSeconds($this->completionTimeout);
+        $this->deadline = Carbon::now()->addSeconds($timeout);
 
         try {
             while ($this->active && ! $this->ready) {

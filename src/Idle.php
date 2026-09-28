@@ -71,7 +71,7 @@ class Idle
             }
 
             try {
-                foreach ($session->finish() as $response) {
+                foreach ($session->finish($this->mailbox->config('timeout')) as $response) {
                     yield EventFactory::fromResponse($this->folder, $response);
                 }
             } catch (ImapConnectionClosedException|ImapConnectionTimedOutException) {

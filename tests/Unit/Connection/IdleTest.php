@@ -7,7 +7,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 
-test('idle completion uses the configured connection timeout', function (array $options, int $expected, bool $consume) {
+test('idle completion uses the supplied timeout', function (?int $timeout, int $expected, bool $consume) {
     Carbon::setTestNow('2026-09-27 12:00:00');
     $stream = new class extends FakeStream
     {
@@ -24,7 +24,7 @@ test('idle completion uses the configured connection timeout', function (array $
     $connection = new ImapConnection($stream);
 
     try {
-        $connection->connect('localhost', options: $options);
+        $connection->connect('localhost');
         $session = $connection->idle();
 
         if ($consume) {
@@ -34,7 +34,7 @@ test('idle completion uses the configured connection timeout', function (array $
         }
 
         $stream->timeouts = [];
-        $session->finish();
+        $timeout === null ? $session->finish() : $session->finish($timeout);
 
         expect($stream->timeouts)->not->toBeEmpty();
         expect(array_unique($stream->timeouts))->toBe([$expected]);
@@ -45,11 +45,11 @@ test('idle completion uses the configured connection timeout', function (array $
         Carbon::setTestNow();
     }
 })->with([
-    'default before continuation' => [[], 30, false],
-    'short before continuation' => [['timeout' => 5], 5, false],
-    'long before continuation' => [['timeout' => 90], 90, false],
-    'short after renewal deadline' => [['timeout' => 5], 5, true],
-    'long after renewal deadline' => [['timeout' => 90], 90, true],
+    'default before continuation' => [null, 30, false],
+    'short before continuation' => [5, 5, false],
+    'long before continuation' => [90, 90, false],
+    'short after renewal deadline' => [5, 5, true],
+    'long after renewal deadline' => [90, 90, true],
 ]);
 
 test('an idle session owns the connection until it finishes', function () {

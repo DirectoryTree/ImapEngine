@@ -169,6 +169,60 @@ test('watcher honors renewal intervals longer than 29 minutes', function () {
     $stream->assertWritten('TAG5 IDLE');
 });
 
+test('watcher reads the mailbox timeout when finishing idle', function () {
+    Carbon::setTestNow('2026-09-27 12:00:00');
+    $stream = new class extends FakeStream
+    {
+        public ?int $timeout = null;
+
+        public function setTimeout(int $seconds): bool
+        {
+            $this->timeout = $seconds;
+
+            return true;
+        }
+    };
+    $stream->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        'TAG3 OK SELECT completed',
+        '+ idling', '* 4 EXISTS', '* 3 EXPUNGE', 'TAG4 OK IDLE completed',
+    ]);
+    $mailbox = new class extends Mailbox
+    {
+        public int $timeout = 5;
+
+        public function config(?string $key = null, mixed $default = null): mixed
+        {
+            return $key === 'timeout' ? $this->timeout : parent::config($key, $default);
+        }
+    };
+    $completionTimeout = null;
+
+    try {
+        $mailbox->connect(new ImapConnection($stream));
+
+        (new Idle($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use ($mailbox, $stream, &$completionTimeout) {
+            if ($event instanceof MessagesExist) {
+                $mailbox->timeout = 90;
+                Carbon::setTestNow(Carbon::now()->addSeconds(31));
+            }
+
+            if ($event instanceof MessageExpunged) {
+                $completionTimeout = $stream->timeout;
+
+                return false;
+            }
+        });
+
+        expect($completionTimeout)->toBe(90);
+        $stream->assertWritten('DONE');
+    } finally {
+        $mailbox->disconnect();
+        Carbon::setTestNow();
+    }
+});
+
 test('watcher renews busy idle sessions and preserves queued updates', function () {
     Carbon::setTestNow('2026-09-27 12:00:00');
     $stream = new FakeStream;

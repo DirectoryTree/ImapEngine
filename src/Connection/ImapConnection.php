@@ -45,11 +45,6 @@ class ImapConnection implements ConnectionInterface
     protected int $sequence = 0;
 
     /**
-     * The configured connection timeout in seconds.
-     */
-    protected int $timeout = 30;
-
-    /**
      * The IDLE session currently using this connection.
      */
     protected ?IdleSession $idleSession = null;
@@ -107,8 +102,6 @@ class ImapConnection implements ConnectionInterface
      */
     public function connect(string $host, ?int $port = null, array $options = []): void
     {
-        $this->timeout = $options['timeout'] ?? 30;
-
         $transport = strtolower($options['encryption'] ?? '') ?: 'tcp';
 
         if (in_array($transport, ['ssl', 'tls'])) {
@@ -125,7 +118,7 @@ class ImapConnection implements ConnectionInterface
             $transport === 'starttls' ? 'tcp' : $transport,
             $host,
             $port,
-            $this->timeout,
+            $options['timeout'] ?? 30,
             $this->getDefaultSocketOptions(
                 $transport,
                 $options['proxy'] ?? [],
@@ -657,7 +650,6 @@ class ImapConnection implements ConnectionInterface
         return $this->idleSession = new IdleSession(
             new ImapCommand($tag, 'IDLE'),
             $this,
-            $this->timeout,
         );
     }
 
