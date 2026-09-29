@@ -15,6 +15,7 @@ jobs:
         env:
             MAILBOX_HOST: 127.0.0.1
             MAILBOX_PORT: ${{ matrix.port }}
+            MAILBOX_SERVER: ${{ matrix.server }}
             MAILBOX_USERNAME: user@localhost.com
             MAILBOX_PASSWORD: password
             MAILBOX_ENCRYPTION: ""
