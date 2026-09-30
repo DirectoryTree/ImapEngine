@@ -212,3 +212,20 @@ test('it cannot enable selection options after examining a folder', function () 
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeFalse();
     expect($mailbox->selected($archive))->toBeFalse();
 });
+
+test('cloned folders belong to and select the cloned mailbox', function () {
+    $mailbox = FakeMailbox::make(folders: [new FakeFolder('inbox')], capabilities: ['QRESYNC']);
+    $clone = clone $mailbox;
+
+    $clone->inbox()->select();
+
+    expect($clone->inbox())->not->toBe($mailbox->inbox())
+        ->and($clone->inbox()->mailbox())->toBe($clone)
+        ->and($mailbox->inbox()->mailbox())->toBe($mailbox)
+        ->and($clone->selected($clone->inbox()))->toBeTrue()
+        ->and($mailbox->selected($mailbox->inbox()))->toBeFalse();
+
+    $mailbox->enable('QRESYNC');
+
+    expect($clone->capabilities()->enabled('QRESYNC'))->toBeFalse();
+});

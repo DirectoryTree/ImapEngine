@@ -37,11 +37,18 @@ class Idle
     {
         $this->folder->events(function (EventInterface $event) use ($callback, $query) {
             if ($event instanceof FolderSelected) {
-                if ($this->selection === null || $this->selection->uidValidity() !== $event->selection()->uidValidity()) {
+                $resuming = $this->selection !== null
+                    && $this->selection->uidValidity() === $event->selection()->uidValidity();
+
+                if (! $resuming) {
                     $this->nextUid = $event->selection()->uidNext() ?? $this->getNextUid();
                 }
 
                 $this->selection = $event->selection();
+
+                if ($resuming) {
+                    return $this->deliver($callback, $query);
+                }
             }
 
             if ($event instanceof MessagesExist) {

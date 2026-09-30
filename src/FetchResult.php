@@ -5,16 +5,20 @@ namespace DirectoryTree\ImapEngine;
 use DirectoryTree\ImapEngine\Collections\FetchedResponseCollection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Collections\VanishedCollection;
+use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 
 class FetchResult
 {
     /**
      * Constructor.
+     *
+     * @param  Collection<int, FetchedMessageData>  $messages
      */
     public function __construct(
-        protected array $messages = [],
-        protected array $vanished = [],
-        protected ?ResponseCollection $responses = null,
+        protected Collection $messages = new Collection,
+        protected VanishedCollection $vanished = new VanishedCollection,
+        protected ResponseCollection $responses = new ResponseCollection,
     ) {}
 
     /**
@@ -30,7 +34,7 @@ class FetchResult
 
         return new static(
             $fetches->messages(),
-            $vanished->all(),
+            $vanished,
             $responses,
         );
     }
@@ -38,32 +42,32 @@ class FetchResult
     /**
      * Get the fetched messages.
      *
-     * @return FetchedMessageData[]
+     * @return Collection<int, FetchedMessageData>
      */
-    public function messages(): array
+    public function messages(): Collection
     {
         return $this->messages;
     }
 
     /**
      * Get the vanished message groups.
-     *
-     * @return Vanished[]
      */
-    public function vanished(): array
+    public function vanished(): VanishedCollection
     {
         return $this->vanished;
     }
 
     /**
-     * Get all vanished message UIDs.
+     * Get all unique vanished message UIDs.
+     *
+     * @return LazyCollection<int, int>
      */
-    public function vanishedUids(): array
+    public function vanishedUids(): LazyCollection
     {
-        return array_values(array_unique(array_merge(...array_map(
-            fn (Vanished $vanished) => $vanished->uids(),
-            $this->vanished,
-        ))));
+        return $this->vanished->lazy()
+            ->flatMap(fn (Vanished $vanished) => $vanished->uids())
+            ->unique()
+            ->values();
     }
 
     /**
@@ -71,6 +75,6 @@ class FetchResult
      */
     public function responses(): ResponseCollection
     {
-        return $this->responses ?? new ResponseCollection;
+        return $this->responses;
     }
 }

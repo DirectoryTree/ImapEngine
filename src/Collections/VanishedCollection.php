@@ -20,11 +20,11 @@ class VanishedCollection extends Collection
 
         return $this->map(function (Vanished $vanished) use ($matcher) {
             return new Vanished(
-                array_values(array_filter($vanished->uids(), $matcher->contains(...))),
+                $vanished->uids()->filter($matcher->contains(...))->values(),
                 $vanished->earlier(),
             );
         })->reject(
-            fn (Vanished $vanished) => empty($vanished->uids())
+            fn (Vanished $vanished) => $vanished->uids()->isEmpty()
         )->values();
     }
 }

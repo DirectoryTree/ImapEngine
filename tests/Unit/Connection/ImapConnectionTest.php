@@ -14,7 +14,6 @@ use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\Fetch\ModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\StoreResult;
-use DirectoryTree\ImapEngine\Support\Str;
 
 test('connection reads parsed replies and logs protocol lines with optional redaction', function () {
     $stream = new FakeStream;
@@ -184,10 +183,8 @@ test('authenticate success', function () {
 
     (new Authentication($connection, new XOAuth2('foo', 'bar')))->authenticate();
 
-    $credentials = Str::credentials('foo', 'bar');
-
     $stream->assertWritten('TAG1 AUTHENTICATE XOAUTH2');
-    $stream->assertWritten($credentials);
+    $stream->assertWritten('dXNlcj1mb28BYXV0aD1CZWFyZXIgYmFyAQE=');
 });
 
 test('authenticate failure', function () {
@@ -631,9 +628,9 @@ test('store flags', function () {
     $stream->assertWritten('TAG1 UID STORE 1:3 +FLAGS.SILENT (\\Seen)');
 
     expect($response)->toBeInstanceOf(StoreResult::class);
-    expect($response->successful())->toBeTrue();
-    expect($response->messages())->toBe([]);
-    expect($response->modified())->toBe([]);
+    expect($response->response()->successful())->toBeTrue();
+    expect($response->messages())->toBeEmpty();
+    expect($response->modified()->all())->toBe([]);
 });
 
 test('uid fetch with uid', function () {
@@ -965,8 +962,8 @@ test('fetch', function () {
     expect($responses)->toBeInstanceOf(FetchResult::class);
     expect($responses->messages()[0]->uid())->toBe(123);
     expect($responses->messages()[0]->flags())->toBe(['\\Seen']);
-    expect($responses->vanished())->toBe([]);
-    expect($responses->vanishedUids())->toBe([]);
+    expect($responses->vanished())->toBeEmpty();
+    expect($responses->vanishedUids()->all())->toBe([]);
     expect($responses->responses())->toHaveCount(2);
 });
 
@@ -987,7 +984,7 @@ test('fetch supports changed since with uid ranges', function () {
     $stream->assertWritten('TAG1 UID FETCH 1:* (FLAGS) (CHANGEDSINCE 42)');
     expect($result)->toBeInstanceOf(FetchResult::class);
     expect($result->messages()[0]->modSequence())->toBe(43);
-    expect($result->vanishedUids())->toBe([]);
+    expect($result->vanishedUids()->all())->toBe([]);
 });
 
 test('fetch supports changed since with message numbers and a zero checkpoint', function () {
@@ -1033,7 +1030,7 @@ test('fetch preserves raw responses while filtering unsolicited message data', f
     expect($result->vanished())->toHaveCount(2);
     expect($result->vanished()[0]->earlier())->toBeTrue();
     expect($result->vanished()[1]->earlier())->toBeFalse();
-    expect($result->vanishedUids())->toBe([1, 2, 4]);
+    expect($result->vanishedUids()->all())->toBe([1, 2, 4]);
     expect($result->responses()->contains(fn ($response) => (string) $response === '* VANISHED 2,4,99'))->toBeTrue();
     expect($result->responses())->toHaveCount(6);
     expect((string) $result->responses()->untagged()->first())->toBe('* 4 EXISTS');
@@ -1053,8 +1050,8 @@ test('fetch can return vanished uids without fetched messages', function () {
 
     $result = $connection->fetch([1, 2], 'FLAGS', modifiers: new ChangedSince(42, vanished: true));
 
-    expect($result->messages())->toBe([]);
-    expect($result->vanishedUids())->toBe([1, 2]);
+    expect($result->messages())->toBeEmpty();
+    expect($result->vanishedUids()->all())->toBe([1, 2]);
 });
 
 test('fetch combines custom modifiers into one modifier list', function () {
@@ -1079,8 +1076,8 @@ test('fetch combines custom modifiers into one modifier list', function () {
     $result = $connection->fetch([1, 2], 'FLAGS', ImapIdentifier::Uid, new ChangedSince(42), $custom);
 
     $stream->assertWritten('TAG1 UID FETCH 1:2 (FLAGS) (CHANGEDSINCE 42 X-CUSTOM)');
-    expect($result->messages())->toBe([]);
-    expect($result->vanishedUids())->toBe([]);
+    expect($result->messages())->toBeEmpty();
+    expect($result->vanishedUids()->all())->toBe([]);
 });
 
 test('fetch throws when the server rejects a modifier', function () {

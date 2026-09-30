@@ -47,6 +47,10 @@ class FakeMailbox implements MailboxInterface
      */
     public function __clone(): void
     {
+        $this->folders = $this->folders->map(
+            fn (FakeFolder $folder) => (clone $folder)->setMailbox($this)
+        );
+
         $this->reset();
     }
 
@@ -148,7 +152,7 @@ class FakeMailbox implements MailboxInterface
      */
     public function folders(): FolderRepositoryInterface
     {
-        return new FakeFolderRepository($this, $this->folders->all());
+        return new FakeFolderRepository($this, $this->folders);
     }
 
     /**

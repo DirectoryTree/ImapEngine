@@ -24,9 +24,10 @@ class FakeFolderRepository implements FolderRepositoryInterface
      */
     public function __construct(
         protected MailboxInterface $mailbox,
-        /** @var FolderInterface[] */
-        protected array $folders = []
-    ) {}
+        protected FolderCollection $folders = new FolderCollection
+    ) {
+        $this->folders = clone $folders;
+    }
 
     /**
      * {@inheritDoc}
@@ -83,7 +84,7 @@ class FakeFolderRepository implements FolderRepositoryInterface
      */
     public function get(?string $match = '*', ?string $reference = ''): FolderCollection
     {
-        $folders = FolderCollection::make($this->folders);
+        $folders = clone $this->folders;
 
         // If we're not matching all, filter the folders by the match pattern.
         if (! in_array($match, ['*', null])) {

@@ -94,7 +94,7 @@ test('quick resync selection includes the saved checkpoint', function () {
 
     $stream->assertWritten('TAG1 SELECT "INBOX" (QRESYNC (777 42 1:3,7))');
     expect($result->changes()->messages()[0]->uid())->toBe(3);
-    expect($result->changes()->vanishedUids())->toBe([2]);
+    expect($result->changes()->vanishedUids()->all())->toBe([2]);
 });
 
 test('enable sends one or more capabilities', function () {
@@ -136,9 +136,9 @@ test('fetch changes returns changed and vanished messages', function () {
     expect($changes->messages()[0]->flags())->toBe(['\\Seen']);
     expect($changes->messages()[0]->modSequence())->toBe(43);
     expect($changes->vanished())->toHaveCount(1);
-    expect($changes->vanished()[0]->uids())->toBe([3, 4, 6]);
+    expect($changes->vanished()[0]->uids()->all())->toBe([3, 4, 6]);
     expect($changes->vanished()[0]->earlier())->toBeTrue();
-    expect($changes->vanishedUids())->toBe([3, 4, 6]);
+    expect($changes->vanishedUids()->all())->toBe([3, 4, 6]);
 });
 
 test('conditional store returns updated messages', function () {
@@ -156,8 +156,8 @@ test('conditional store returns updated messages', function () {
     $result = $connection->store(7, '\\Flagged', modifiers: new UnchangedSince(43));
 
     $stream->assertWritten('TAG1 UID STORE 7 (UNCHANGEDSINCE 43) +FLAGS.SILENT (\\Flagged)');
-    expect($result->successful())->toBeTrue();
-    expect($result->modified())->toBe([]);
+    expect($result->response()->successful())->toBeTrue();
+    expect($result->modified()->all())->toBe([]);
     expect($result->messages())->toHaveCount(1);
     expect($result->messages()[0]->modSequence())->toBe(44);
 });
@@ -175,8 +175,8 @@ test('conditional store returns conflicting message uids', function () {
 
     $result = $connection->store([7, 8, 9], '\\Seen', modifiers: new UnchangedSince(43));
 
-    expect($result->successful())->toBeFalse();
-    expect($result->modified())->toBe([8, 9]);
+    expect($result->response()->successful())->toBeFalse();
+    expect($result->modified()->all())->toBe([8, 9]);
 });
 
 test('mailbox enables qresync before selecting and keeps the folder selected', function () {
@@ -344,7 +344,7 @@ test('vanished synchronization reuses qresync enabled before selection', functio
     $result = $query->changesSince(42, [7], vanished: true);
     $query->changesSince(42, [7], vanished: true);
 
-    expect($result->vanishedUids())->toBe([7]);
+    expect($result->vanishedUids()->all())->toBe([7]);
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
     $stream->assertWritten('TAG3 ENABLE QRESYNC');
     $stream->assertWritten('TAG4 SELECT "INBOX"');
@@ -415,9 +415,38 @@ test('empty synchronization sets return without capability checks or fetch comma
 
     $result = $folder->messages()->changesSince(0, [], vanished: $vanished);
 
-    expect($result->messages())->toBe([]);
-    expect($result->vanishedUids())->toBe([]);
+    expect($result->messages())->toBeEmpty();
+    expect($result->vanishedUids()->all())->toBe([]);
     expect($result->responses())->toBeEmpty();
     $stream->assertNotWritten('CAPABILITY');
     $stream->assertNotWritten('FETCH');
 })->with([false, true]);
+
+test('large vanished ranges can be consumed without expanding the entire response', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome',
+        '* VANISHED (EARLIER) 1:4294967295',
+        'TAG1 OK FETCH completed',
+    ]);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->fetch('1:*', 'FLAGS', modifiers: new ChangedSince(1, true));
+
+    expect($result->vanished()[0]->uids()->take(3)->all())->toBe([1, 2, 3]);
+    expect($result->vanished()[0]->uids()->take(3)->all())->toBe([1, 2, 3]);
+    $connection->disconnect();
+});
+
+test('large modified ranges do not expand when checking a rejected store', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome',
+        'TAG1 NO [MODIFIED 1:4294967295] Conditional STORE failed',
+    ]);
+    $connection->connect('imap.example.com');
+
+    $result = $connection->store('1:*', '\\Seen', modifiers: new UnchangedSince(1));
+
+    expect($result->response()->successful())->toBeFalse();
+    expect($result->modified()->take(3)->all())->toBe([1, 2, 3]);
+    $connection->disconnect();
+});

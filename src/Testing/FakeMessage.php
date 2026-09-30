@@ -8,7 +8,7 @@ use DirectoryTree\ImapEngine\HasFlags;
 use DirectoryTree\ImapEngine\HasMessageAccessors;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\Enum;
 
 class FakeMessage implements MessageInterface
 {
@@ -66,7 +66,7 @@ class FakeMessage implements MessageInterface
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
-        $flag = Str::enum($flag);
+        $flag = Enum::value($flag);
 
         if ($operation === '+') {
             $this->flags = array_unique([...$this->flags, $flag]);

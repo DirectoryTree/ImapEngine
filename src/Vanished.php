@@ -6,15 +6,18 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Collections\VanishedCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\SequenceSet;
+use Illuminate\Support\LazyCollection;
 
 class Vanished
 {
     /**
      * Constructor.
+     *
+     * @param  LazyCollection<int, int>  $uids
      */
     public function __construct(
-        protected array $uids,
+        protected LazyCollection $uids,
         protected bool $earlier = false,
     ) {}
 
@@ -29,7 +32,7 @@ class Vanished
         $sequenceSet = $response->tokenAt($earlier ? 3 : 2);
 
         return new static(
-            Str::fromSequenceSet($sequenceSet->value),
+            SequenceSet::parse($sequenceSet->value),
             $earlier,
         );
     }
@@ -48,8 +51,10 @@ class Vanished
 
     /**
      * Get the vanished message UIDs.
+     *
+     * @return LazyCollection<int, int>
      */
-    public function uids(): array
+    public function uids(): LazyCollection
     {
         return $this->uids;
     }

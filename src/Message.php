@@ -9,7 +9,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Support\BodyPartDecoder;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\Enum;
 use Illuminate\Contracts\Support\Arrayable;
 use InvalidArgumentException;
 use JsonSerializable;
@@ -179,7 +179,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
-        $flag = Str::enum($flag);
+        $flag = Enum::value($flag);
 
         $result = $this->folder->mailbox()
             ->connection()
@@ -494,7 +494,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->fetch($this->uid(), ($peek ? $item->peek() : $item)->toImap());
 
-        if (! $data = $response->messages()[0] ?? null) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 
@@ -566,7 +566,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->fetch($this->uid(), 'BODY.PEEK[HEADER]');
 
-        if (! $data = $response->messages()[0] ?? null) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 
@@ -585,7 +585,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             ->connection()
             ->fetch($this->uid(), 'BODYSTRUCTURE');
 
-        if (! $data = $response->messages()[0] ?? null) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 

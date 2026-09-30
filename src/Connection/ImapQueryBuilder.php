@@ -7,6 +7,8 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
+use DirectoryTree\ImapEngine\Support\Enum;
+use DirectoryTree\ImapEngine\Support\SequenceSet;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class ImapQueryBuilder
@@ -287,7 +289,7 @@ class ImapQueryBuilder
             $to = self::MAX_UID;
         }
 
-        return $this->where(ImapSearchKey::Uid, new RawQueryValue(Str::set($from, $to)));
+        return $this->where(ImapSearchKey::Uid, new RawQueryValue(SequenceSet::format($from, $to)));
     }
 
     /**
@@ -385,7 +387,7 @@ class ImapQueryBuilder
     {
         $value = $this->prepareWhereValue($value);
 
-        $column = Str::enum($column);
+        $column = Enum::value($column);
 
         $this->wheres[] = [
             'type' => 'basic',
@@ -546,7 +548,7 @@ class ImapQueryBuilder
             $value = (string) new CommandPart($where['value']);
 
             $parts[] = Str::isAscii($value)
-                ? Str::literal($value)
+                ? CommandArgument::literal($value)
                 : ['{'.strlen($value).'}', $value];
         }
 

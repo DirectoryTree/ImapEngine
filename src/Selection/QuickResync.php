@@ -2,7 +2,8 @@
 
 namespace DirectoryTree\ImapEngine\Selection;
 
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Connection\CommandArgument;
+use DirectoryTree\ImapEngine\Support\SequenceSet;
 use InvalidArgumentException;
 
 class QuickResync implements OptionInterface, RequiresEnablementInterface
@@ -49,10 +50,10 @@ class QuickResync implements OptionInterface, RequiresEnablementInterface
         }
 
         if (! is_null($this->sequenceMatch)) {
-            $parameters[] = Str::list($this->sequenceMatch());
+            $parameters[] = CommandArgument::list($this->sequenceMatch());
         }
 
-        return 'QRESYNC '.Str::list($parameters);
+        return 'QRESYNC '.CommandArgument::list($parameters);
     }
 
     /**
@@ -60,7 +61,7 @@ class QuickResync implements OptionInterface, RequiresEnablementInterface
      */
     protected function sequenceSet(array|int|string $set): string
     {
-        $set = Str::set($set);
+        $set = SequenceSet::format($set);
 
         if ($set === '$' || str_contains($set, '*')) {
             throw new InvalidArgumentException('Invalid QRESYNC UID set.');

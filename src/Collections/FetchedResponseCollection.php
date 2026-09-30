@@ -55,12 +55,12 @@ class FetchedResponseCollection extends Collection
     /**
      * Get the fetched message data.
      *
-     * @return FetchedMessageData[]
+     * @return Collection<int, FetchedMessageData>
      */
-    public function messages(): array
+    public function messages(): Collection
     {
-        return $this->map(
+        return $this->toBase()->map(
             fn (FetchedResponse $fetch) => $fetch->data()
-        )->values()->all();
+        )->values();
     }
 }

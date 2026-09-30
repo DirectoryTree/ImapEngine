@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapParser;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
@@ -54,7 +55,7 @@ test('idle events preserve counts sequence numbers and synchronization changes',
     $vanished = new MessagesVanished('INBOX', $parser->next());
     expect($vanished)->toBeInstanceOf(MessagesVanished::class);
     expect($vanished->type())->toBe('VANISHED');
-    expect($vanished->uids())->toBe([7, 8, 9]);
+    expect($vanished->uids()->all())->toBe([7, 8, 9]);
     expect($vanished->earlier())->toBeTrue();
 
     $flags = new MessageFetched('INBOX', $parser->next());
@@ -112,7 +113,7 @@ test('vanished events distinguish earlier changes from live changes', function (
     $event = new MessagesVanished('INBOX', $parser->next());
 
     expect($event)->toBeInstanceOf(MessagesVanished::class);
-    expect($event->uids())->toBe([7, 8, 9, 12]);
+    expect($event->uids()->all())->toBe([7, 8, 9, 12]);
     expect($event->earlier())->toBe($earlier);
 })->with([
     'live removal' => ['* VANISHED 7:9,12', false],
@@ -120,10 +121,10 @@ test('vanished events distinguish earlier changes from live changes', function (
 ]);
 
 test('fake folders let selection callbacks query configured messages without supplying events', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         $first = new FakeMessage(7, flags: ['\\Seen']),
         $second = new FakeMessage(8),
-    ]);
+    ]));
     $received = [];
     $messages = [];
 
@@ -146,7 +147,7 @@ test('fake folder event callbacks can query messages explicitly', function () {
     $event = new MessagesExist('INBOX', new UntaggedResponse([
         new Atom('*'), new Number('10'), new Atom('EXISTS'),
     ]));
-    $folder = (new FakeFolder('INBOX', messages: [$message]))->setIdleEvents([$event]);
+    $folder = (new FakeFolder('INBOX', messages: new MessageCollection([$message])))->setIdleEvents([$event]);
     $received = [];
 
     $folder->events(function (EventInterface $event) use ($folder, &$received) {
@@ -184,7 +185,7 @@ test('fake folders deliver supplied events and stop when requested', function ()
 });
 
 test('fake folder idle delivers configured messages and supports query customization and stopping', function () {
-    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(9), $first = new FakeMessage(7)]);
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([new FakeMessage(9), $first = new FakeMessage(7)]));
     $received = [];
     $queried = false;
 

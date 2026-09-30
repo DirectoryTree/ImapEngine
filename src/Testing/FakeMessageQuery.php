@@ -6,6 +6,7 @@ use BackedEnum;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\AppendResult;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Collections\VanishedCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
@@ -23,6 +24,7 @@ use DirectoryTree\ImapEngine\UidOrder;
 use DirectoryTree\ImapEngine\Vanished;
 use Generator;
 use Illuminate\Support\ItemNotFoundException;
+use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
 
 class FakeMessageQuery implements MessageQueryInterface
@@ -44,9 +46,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->applyOrdering(new MessageCollection(
-            $this->folder->getMessages()
-        ));
+        return $this->applyOrdering($this->folder->getMessages());
     }
 
     /**
@@ -91,12 +91,11 @@ class FakeMessageQuery implements MessageQueryInterface
             );
         }
 
-        $messages = collect($this->folder->getMessages())
+        $messages = $this->folder->getMessages()->toBase()
             ->filter(fn (FakeMessage $message) => in_array($message->uid(), $uids, true))
             ->filter(fn (FakeMessage $message) => ($message->modSequence() ?? 0) > $modSequence)
             ->map(fn (FakeMessage $message) => $this->fetchedData($message))
-            ->values()
-            ->all();
+            ->values();
 
         $vanishedUids = $vanished
             ? $this->folder->vanishedSince($modSequence, $uids)
@@ -104,7 +103,9 @@ class FakeMessageQuery implements MessageQueryInterface
 
         return new FetchResult(
             $messages,
-            $vanishedUids ? [new Vanished($vanishedUids, earlier: true)] : [],
+            new VanishedCollection($vanishedUids
+                ? [new Vanished(new LazyCollection($vanishedUids), earlier: true)]
+                : []),
         );
     }
 
@@ -146,9 +147,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function count(): int
     {
-        return count(
-            $this->folder->getMessages()
-        );
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -281,7 +280,7 @@ class FakeMessageQuery implements MessageQueryInterface
             return $this->get()->find($id);
         }
 
-        return collect($this->folder->getMessages())
+        return $this->folder->getMessages()
             ->sortBy(fn (FakeMessage $message) => $message->uid())
             ->values()
             ->get($id - 1);
@@ -301,7 +300,7 @@ class FakeMessageQuery implements MessageQueryInterface
         }
 
         $this->folder->setMessages(
-            $messages->values()->all()
+            $messages->values()
         );
     }
 
@@ -310,7 +309,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -318,7 +317,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function markRead(): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -326,7 +325,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function markUnread(): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -334,7 +333,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function markFlagged(): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -342,7 +341,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function unmarkFlagged(): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -350,9 +349,9 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function delete(bool $expunge = false): int
     {
-        $count = count($this->folder->getMessages());
+        $count = $this->folder->getMessages()->count();
 
-        $this->folder->setMessages([]);
+        $this->folder->setMessages(new MessageCollection);
 
         return $count;
     }
@@ -362,7 +361,7 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function move(string $folder, bool $expunge = false): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 
     /**
@@ -370,6 +369,6 @@ class FakeMessageQuery implements MessageQueryInterface
      */
     public function copy(string $folder): int
     {
-        return count($this->folder->getMessages());
+        return $this->folder->getMessages()->count();
     }
 }

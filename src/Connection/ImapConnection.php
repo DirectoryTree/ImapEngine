@@ -29,7 +29,7 @@ use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result as SelectionResult;
 use DirectoryTree\ImapEngine\Store\ModifierInterface as StoreModifierInterface;
 use DirectoryTree\ImapEngine\StoreResult;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\SequenceSet;
 use DirectoryTree\ImapEngine\Vanished;
 use Exception;
 use Generator;
@@ -198,7 +198,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function login(string $user, string $password): TaggedResponse
     {
-        $this->send('LOGIN', Str::literal([$user, $password]), $tag);
+        $this->send('LOGIN', CommandArgument::literal([$user, $password]), $tag);
 
         return $this->assertTaggedResponse($tag, exception: fn (TaggedResponse $response) => (
             ImapCommandException::make($this->result->command()->redacted(), $response)
@@ -228,7 +228,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function authenticate(string $mechanism, ?string $initial = null): Generator
     {
-        $tokens = [Str::mechanism($mechanism)];
+        $tokens = [CommandArgument::mechanism($mechanism)];
 
         if ($initial !== null) {
             $tokens[] = $initial === '' ? '=' : base64_encode($initial);
@@ -277,7 +277,7 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('At least one capability is required.');
         }
 
-        $this->send('ENABLE', array_map([Str::class, 'atom'], $capabilities), $tag);
+        $this->send('ENABLE', array_map([CommandArgument::class, 'atom'], $capabilities), $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -307,10 +307,10 @@ class ImapConnection implements ConnectionInterface
      */
     protected function examineOrSelect(string $command = 'EXAMINE', string $folder = 'INBOX', array $options = []): SelectionResult
     {
-        $tokens = [Str::literal($folder)];
+        $tokens = [CommandArgument::literal($folder)];
 
         if ($options) {
-            $tokens[] = Str::list(array_map(
+            $tokens[] = CommandArgument::list(array_map(
                 fn (OptionInterface $option) => $option->toImap(),
                 $options,
             ));
@@ -333,8 +333,8 @@ class ImapConnection implements ConnectionInterface
         }
 
         $this->send('STATUS', [
-            Str::literal($folder),
-            Str::list(Str::atoms($items)),
+            CommandArgument::literal($folder),
+            CommandArgument::list(CommandArgument::atoms($items)),
         ], $tag);
 
         $this->assertTaggedResponse($tag);
@@ -349,7 +349,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function create(string $folder): ResponseCollection
     {
-        $this->send('CREATE', [Str::literal($folder)], $tag);
+        $this->send('CREATE', [CommandArgument::literal($folder)], $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -363,7 +363,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function delete(string $folder): TaggedResponse
     {
-        $this->send('DELETE', [Str::literal($folder)], tag: $tag);
+        $this->send('DELETE', [CommandArgument::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -373,7 +373,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function rename(string $oldPath, string $newPath): TaggedResponse
     {
-        $this->send('RENAME', Str::literal([$oldPath, $newPath]), tag: $tag);
+        $this->send('RENAME', CommandArgument::literal([$oldPath, $newPath]), tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -383,7 +383,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function subscribe(string $folder): TaggedResponse
     {
-        $this->send('SUBSCRIBE', [Str::literal($folder)], tag: $tag);
+        $this->send('SUBSCRIBE', [CommandArgument::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -393,7 +393,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function unsubscribe(string $folder): TaggedResponse
     {
-        $this->send('UNSUBSCRIBE', [Str::literal($folder)], tag: $tag);
+        $this->send('UNSUBSCRIBE', [CommandArgument::literal($folder)], tag: $tag);
 
         return $this->assertTaggedResponse($tag);
     }
@@ -403,7 +403,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function getQuota(string $root): UntaggedResponse
     {
-        $this->send('GETQUOTA', [Str::literal($root)], tag: $tag);
+        $this->send('GETQUOTA', [CommandArgument::literal($root)], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -417,7 +417,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function getQuotaRoot(string $mailbox): ResponseCollection
     {
-        $this->send('GETQUOTAROOT', [Str::literal($mailbox)], tag: $tag);
+        $this->send('GETQUOTAROOT', [CommandArgument::literal($mailbox)], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -435,15 +435,15 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('At least one mailbox pattern is required.');
         }
 
-        $tokens = $selection ? [Str::list(Str::atoms($selection))] : [];
+        $tokens = $selection ? [CommandArgument::list(CommandArgument::atoms($selection))] : [];
 
-        $tokens[] = Str::literal($reference);
+        $tokens[] = CommandArgument::literal($reference);
 
-        array_push($tokens, ...(is_array($pattern) ? Str::literalList($pattern) : [Str::literal($pattern)]));
+        array_push($tokens, ...(is_array($pattern) ? CommandArgument::literalList($pattern) : [CommandArgument::literal($pattern)]));
 
         if ($return) {
             $tokens[] = 'RETURN';
-            $tokens[] = Str::list(Str::atoms($return));
+            $tokens[] = CommandArgument::list(CommandArgument::atoms($return));
         }
 
         $this->send('LIST', $tokens, $tag);
@@ -460,14 +460,14 @@ class ImapConnection implements ConnectionInterface
     {
         $tokens = [];
 
-        $tokens[] = Str::literal($folder);
+        $tokens[] = CommandArgument::literal($folder);
 
         if ($flags) {
-            $tokens[] = Str::list(array_map([Str::class, 'flag'], $flags));
+            $tokens[] = CommandArgument::list(array_map([CommandArgument::class, 'flag'], $flags));
         }
 
         if ($date) {
-            $tokens[] = Str::literal($date->format('d-M-Y H:i:s O'));
+            $tokens[] = CommandArgument::literal($date->format('d-M-Y H:i:s O'));
         }
 
         $tokens[] = ['{'.strlen($message).'}', $message];
@@ -485,8 +485,8 @@ class ImapConnection implements ConnectionInterface
     public function copy(array|int|string $set, string $folder, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse
     {
         $this->send($identifier === ImapIdentifier::Uid ? 'UID COPY' : 'COPY', [
-            Str::set($set),
-            Str::literal($folder),
+            SequenceSet::format($set),
+            CommandArgument::literal($folder),
         ], $tag);
 
         return $this->assertTaggedResponse($tag);
@@ -498,8 +498,8 @@ class ImapConnection implements ConnectionInterface
     public function move(array|int|string $set, string $folder, ImapIdentifier $identifier = ImapIdentifier::Uid): TaggedResponse
     {
         $this->send($identifier === ImapIdentifier::Uid ? 'UID MOVE' : 'MOVE', [
-            Str::set($set),
-            Str::literal($folder),
+            SequenceSet::format($set),
+            CommandArgument::literal($folder),
         ], $tag);
 
         return $this->assertTaggedResponse($tag);
@@ -514,17 +514,17 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('Invalid IMAP store mode.');
         }
 
-        $tokens = [Str::set($set)];
+        $tokens = [SequenceSet::format($set)];
 
         if ($modifiers) {
-            $tokens[] = Str::list(array_map(
+            $tokens[] = CommandArgument::list(array_map(
                 fn (StoreModifierInterface $modifier) => $modifier->toImap(),
                 $modifiers,
             ));
         }
 
         $tokens[] = $mode.'FLAGS'.($silent ? '.SILENT' : '');
-        $tokens[] = Str::list(array_map([Str::class, 'flag'], (array) $flags));
+        $tokens[] = CommandArgument::list(array_map([CommandArgument::class, 'flag'], (array) $flags));
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID STORE' : 'STORE', $tokens, $tag);
 
@@ -534,7 +534,7 @@ class ImapConnection implements ConnectionInterface
 
         $result = StoreResult::fromResponses($responses, $response, $fetches);
 
-        if ($response->status()->is('BAD') || ($response->failed() && empty($result->modified()))) {
+        if ($response->status()->is('BAD') || ($response->failed() && $result->modified()->isEmpty())) {
             throw ImapCommandException::make($this->result->command(), $response);
         }
 
@@ -550,7 +550,7 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('At least one search criterion is required.');
         }
 
-        $tokens = $charset === null ? $criteria : ['CHARSET', Str::charset($charset), ...$criteria];
+        $tokens = $charset === null ? $criteria : ['CHARSET', CommandArgument::charset($charset), ...$criteria];
 
         $this->send($identifier === ImapIdentifier::Uid ? 'UID SEARCH' : 'SEARCH', $tokens, tag: $tag);
 
@@ -570,7 +570,7 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('At least one search criterion is required.');
         }
 
-        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", Str::charset($charset), ...$criteria], tag: $tag);
+        $this->send($identifier === ImapIdentifier::Uid ? 'UID SORT' : 'SORT', ["({$sort->toImap()})", CommandArgument::charset($charset), ...$criteria], tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -605,7 +605,7 @@ class ImapConnection implements ConnectionInterface
             $values[] = $value;
         }
 
-        $this->send('ID', $parameters === null ? ['NIL'] : Str::literalList($values), tag: $tag);
+        $this->send('ID', $parameters === null ? ['NIL'] : CommandArgument::literalList($values), tag: $tag);
 
         $this->assertTaggedResponse($tag);
 
@@ -621,7 +621,7 @@ class ImapConnection implements ConnectionInterface
     {
         $this->send(
             $uids === null ? 'EXPUNGE' : 'UID EXPUNGE',
-            $uids === null ? [] : [Str::set($uids)],
+            $uids === null ? [] : [SequenceSet::format($uids)],
             $tag,
         );
 
@@ -715,12 +715,12 @@ class ImapConnection implements ConnectionInterface
         }, array_values((array) $items)));
 
         $tokens = [
-            Str::set($set),
-            Str::list($items),
+            SequenceSet::format($set),
+            CommandArgument::list($items),
         ];
 
         if ($modifiers) {
-            $tokens[] = Str::list(array_map(
+            $tokens[] = CommandArgument::list(array_map(
                 fn (FetchModifierInterface $modifier) => $modifier->toImap($identifier),
                 $modifiers,
             ));

@@ -43,7 +43,7 @@ test('changed since returns updated and new messages but not unchanged messages'
 
         $changes = $reader->connection()->fetch('1:*', ['UID', 'FLAGS', 'MODSEQ'], modifiers: new ChangedSince($checkpoint->highestModSequence()));
 
-        $messages = collect($changes->messages())->keyBy(fn ($message) => $message->uid());
+        $messages = $changes->messages()->keyBy(fn ($message) => $message->uid());
 
         expect($messages->keys()->all())->toEqualCanonicalizing([$updated, $added]);
         expect($messages->has($unchanged))->toBeFalse();
@@ -81,9 +81,9 @@ test('quick resync reconciles changed and vanished messages after reconnecting',
 
         expect($selection->uidValidity())->toBe($checkpoint->uidValidity());
         expect($selection->highestModSequence())->toBeGreaterThan($checkpoint->highestModSequence());
-        expect($selection->changes()->vanishedUids())->toBe([$removed]);
+        expect($selection->changes()->vanishedUids()->all())->toBe([$removed]);
 
-        $messages = collect($selection->changes()->messages())->keyBy(fn ($message) => $message->uid());
+        $messages = $selection->changes()->messages()->keyBy(fn ($message) => $message->uid());
 
         expect($messages->has($updated))->toBeTrue();
         expect($messages[$updated]->flags())->toContain('\\Seen');
@@ -109,7 +109,7 @@ test('conditional flag updates reject stale checkpoints and accept current check
 
         $result = $reader->connection()->store($uid, ['\\Flagged'], modifiers: new UnchangedSince($checkpoint->highestModSequence()));
 
-        expect($result->modified())->toBe([$uid]);
+        expect($result->modified()->all())->toBe([$uid]);
 
         $current = $reader->connection()->fetch($uid, ['UID', 'FLAGS', 'MODSEQ'])->messages()[0];
 
@@ -117,8 +117,8 @@ test('conditional flag updates reject stale checkpoints and accept current check
 
         $result = $reader->connection()->store($uid, ['\\Flagged'], modifiers: new UnchangedSince($current->modSequence()));
 
-        expect($result->successful())->toBeTrue();
-        expect($result->modified())->toBe([]);
+        expect($result->response()->successful())->toBeTrue();
+        expect($result->modified()->all())->toBe([]);
 
         $current = $reader->connection()->fetch($uid, ['UID', 'FLAGS'])->messages()[0];
 

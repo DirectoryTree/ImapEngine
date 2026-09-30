@@ -74,3 +74,43 @@ test('idle tracks arrivals across count notifications', function (?int $uidNext,
         '* 1 FETCH (UID 1 FLAGS ())', 'TAG4 OK FETCH completed',
     ], [1]],
 ]);
+
+test('idle reconciles a reconnect selection before waiting for another notification', function (int $validity, array $expected, mixed $stopped) {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* OK [UIDVALIDITY 1]', 'TAG2 OK SELECT completed',
+        '* SEARCH 7', 'TAG3 OK SEARCH completed',
+        '* 1 FETCH (UID 7 FLAGS ())', 'TAG4 OK FETCH completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+    $folder = new class($mailbox, 'INBOX', $validity) extends Folder
+    {
+        public function __construct(Mailbox $mailbox, string $path, protected int $validity)
+        {
+            parent::__construct($mailbox, $path);
+        }
+
+        public mixed $stopped = null;
+
+        public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
+        {
+            $callback(new FolderSelected($this->path, new Result(uidValidity: 1, uidNext: 7)));
+            $this->stopped = $callback(new FolderSelected($this->path, new Result(uidValidity: $this->validity, uidNext: 8)));
+        }
+    };
+    $received = [];
+
+    $folder->idle(function (MessageInterface $message) use (&$received) {
+        $received[] = $message->uid();
+
+        return false;
+    });
+
+    expect($received)->toBe($expected);
+    expect($folder->stopped)->toBe($stopped);
+    $connection->disconnect();
+})->with([
+    'unchanged validity delivers pending arrivals and honors stop' => [1, [7], false],
+    'changed validity starts a new arrival baseline' => [2, [], null],
+]);

@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
@@ -42,14 +43,20 @@ class FakeFolder implements FolderInterface
     public function __construct(
         protected string $path = '',
         protected array $attributes = [],
-        /** @var FakeMessage[] */
-        protected array $messages = [],
+        protected MessageCollection $messages = new MessageCollection,
         protected string $delimiter = '/',
         protected ?MailboxInterface $mailbox = null,
     ) {
-        $uids = array_map(fn (FakeMessage $message) => $message->uid(), $messages);
+        $this->messages = clone $messages;
+        $this->uidNext = ($messages->max(fn (FakeMessage $message) => $message->uid()) ?? 0) + 1;
+    }
 
-        $this->uidNext = $uids ? max($uids) + 1 : 1;
+    /**
+     * Keep the cloned folder's message collection independent.
+     */
+    public function __clone(): void
+    {
+        $this->messages = clone $this->messages;
     }
 
     /**
@@ -270,12 +277,10 @@ class FakeFolder implements FolderInterface
 
     /**
      * Set the folder's fake messages.
-     *
-     * @param  FakeMessage[]  $messages
      */
-    public function setMessages(array $messages): FakeFolder
+    public function setMessages(MessageCollection $messages): FakeFolder
     {
-        $this->messages = $messages;
+        $this->messages = clone $messages;
 
         foreach ($messages as $message) {
             $this->uidNext = max($this->uidNext, $message->uid() + 1);
@@ -298,12 +303,10 @@ class FakeFolder implements FolderInterface
 
     /**
      * Get the folder's fake messages.
-     *
-     * @return FakeMessage[]
      */
-    public function getMessages(): array
+    public function getMessages(): MessageCollection
     {
-        return $this->messages;
+        return clone $this->messages;
     }
 
     /**
@@ -311,7 +314,7 @@ class FakeFolder implements FolderInterface
      */
     public function addMessage(FakeMessage $message): void
     {
-        $this->messages[] = $message;
+        $this->messages->push($message);
         $this->uidNext = max($this->uidNext, $message->uid() + 1);
     }
 
@@ -328,10 +331,9 @@ class FakeFolder implements FolderInterface
      */
     public function vanish(int $uid, int $modSequence): FakeFolder
     {
-        $this->messages = array_values(array_filter(
-            $this->messages,
-            fn (FakeMessage $message) => $message->uid() !== $uid,
-        ));
+        $this->messages = $this->messages
+            ->reject(fn (FakeMessage $message) => $message->uid() === $uid)
+            ->values();
 
         $this->vanished[$uid] = $modSequence;
         $this->uidNext = max($this->uidNext, $uid + 1);

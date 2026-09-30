@@ -3,13 +3,16 @@
 namespace DirectoryTree\ImapEngine\Idle\Events;
 
 use DirectoryTree\ImapEngine\Vanished;
+use Illuminate\Support\LazyCollection;
 
 class MessagesVanished extends ResponseEvent
 {
     /**
      * Get the vanished message UIDs.
+     *
+     * @return LazyCollection<int, int>
      */
-    public function uids(): array
+    public function uids(): LazyCollection
     {
         return Vanished::fromResponse($this->response)->uids();
     }

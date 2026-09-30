@@ -26,7 +26,7 @@ test('store supports adding removing and replacing flags', function (?string $mo
 
     $stream->assertWritten("TAG1 UID STORE 1:2,4 $item (\\Seen)");
     expect($result)->toBeInstanceOf(StoreResult::class);
-    expect($result->successful())->toBeTrue();
+    expect($result->response()->successful())->toBeTrue();
 })->with([
     'add' => ['+', false, '+FLAGS'],
     'remove' => ['-', false, '-FLAGS'],
@@ -54,7 +54,7 @@ test('non silent store retains fetched messages and raw responses', function () 
     expect($result->messages()[0]->uid())->toBe(7);
     expect($result->messages()[0]->flags())->toBe(['\\Seen']);
     expect($result->responses())->toHaveCount(2);
-    expect($result->modified())->toBe([]);
+    expect($result->modified()->all())->toBe([]);
 });
 
 test('silent store retains returned modification sequences', function () {
@@ -92,10 +92,10 @@ test('conditional store returns conflicting message numbers', function (string $
     );
 
     $stream->assertWritten('TAG1 STORE 1:3 (UNCHANGEDSINCE 43) FLAGS (\\Seen)');
-    expect($result->modified())->toBe([2, 3]);
+    expect($result->modified()->all())->toBe([2, 3]);
     expect($result->messages()[0]->flags())->toBe(['\\Seen']);
     expect($result->messages()[0]->modSequence())->toBe(44);
-    expect($result->successful())->toBe($status === 'OK');
+    expect($result->response()->successful())->toBe($status === 'OK');
 })->with(['OK', 'NO']);
 
 test('store rejects failures that are not conditional conflicts', function (string $response) {
@@ -137,7 +137,7 @@ test('store combines modifiers in one list and preserves a zero checkpoint', fun
     $result = $connection->store(7, '\\Seen', '+', true, ImapIdentifier::Uid, new UnchangedSince(0), $custom);
 
     $stream->assertWritten('TAG1 UID STORE 7 (UNCHANGEDSINCE 0 X-CUSTOM) +FLAGS.SILENT (\\Seen)');
-    expect($result->modified())->toBe([7]);
+    expect($result->modified()->all())->toBe([7]);
 });
 
 test('search supports both identifier types without changing search criteria', function (ImapIdentifier $identifier, string $command) {

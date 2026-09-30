@@ -78,7 +78,7 @@ test('fetch and store filter large sparse message sets', function (string $comma
         ? $connection->fetch($set, 'FLAGS')
         : $connection->store($set, '\\Seen', silent: false);
 
-    expect(array_map(fn ($message) => $message->uid(), $result->messages()))->toBe([1, 1001, 1999]);
+    expect($result->messages()->map(fn ($message) => $message->uid())->all())->toBe([1, 1001, 1999]);
 })->with(['fetch', 'store']);
 
 test('fetch and store filter overlapping message ranges', function (string $command, ImapIdentifier $identifier) {
@@ -100,7 +100,7 @@ test('fetch and store filter overlapping message ranges', function (string $comm
         ? $connection->fetch('10:5,1:7,20:18', 'FLAGS', identifier: $identifier)
         : $connection->store('10:5,1:7,20:18', '\\Seen', silent: false, identifier: $identifier);
 
-    expect(array_map(fn ($message) => $message->uid(), $result->messages()))->toBe([4, 7, 10, 19]);
+    expect($result->messages()->map(fn ($message) => $message->uid())->all())->toBe([4, 7, 10, 19]);
 })->with(['fetch', 'store'])->with([ImapIdentifier::Uid, ImapIdentifier::MessageNumber]);
 
 test('server resolved sets do not discard potentially requested messages', function (string $set, string $command) {

@@ -16,6 +16,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Fetch\ChangedSince;
 use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use DirectoryTree\ImapEngine\Support\Enum;
 use DirectoryTree\ImapEngine\Support\Str;
 use Generator;
 use Illuminate\Support\Collection;
@@ -136,7 +137,7 @@ class MessageQuery implements MessageQueryInterface
     public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
         return $this->connection()->append(
-            $this->folder->path(), $message, (array) Str::enums($flags), $date,
+            $this->folder->path(), $message, (array) Enum::values($flags), $date,
         );
     }
 
@@ -269,7 +270,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->store($uids, (array) Str::enums($flag), mode: $operation);
+        $this->connection()->store($uids, (array) Enum::values($flag), mode: $operation);
 
         if ($expunge) {
             $this->folder->expunge($uids);
@@ -380,8 +381,10 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Fetch a given id collection.
+     *
+     * @return Collection<int, FetchedMessageData>
      */
-    protected function fetch(Collection $messages): array
+    protected function fetch(Collection $messages): Collection
     {
         if ($this->ordering instanceof UidOrder) {
             $messages = match ($this->ordering->direction) {
@@ -400,17 +403,16 @@ class MessageQuery implements MessageQueryInterface
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
                 $uid => new FetchedMessageData(['UID' => (int) $uid]),
-            ])->all();
+            ]);
         }
 
-        $fetched = (new Collection($this->connection()->fetch($uids->all(), $fetch)->messages()))
+        $fetched = $this->connection()->fetch($uids->all(), $fetch)->messages()
             ->keyBy(fn (FetchedMessageData $data) => $data->uid());
 
         return $uids
             ->map(fn (string|int $uid) => $fetched->get($uid))
             ->filter()
-            ->mapWithKeys(fn (FetchedMessageData $data) => [$data->uid() => $data])
-            ->all();
+            ->mapWithKeys(fn (FetchedMessageData $data) => [$data->uid() => $data]);
     }
 
     /**
@@ -488,7 +490,7 @@ class MessageQuery implements MessageQueryInterface
     protected function id(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?FetchedMessageData
     {
         try {
-            return $this->connection()->fetch($id, 'UID', identifier: $identifier)->messages()[0] ?? null;
+            return $this->connection()->fetch($id, 'UID', identifier: $identifier)->messages()->first();
         } catch (ImapCommandException $e) {
             // IMAP servers may return an error if the message number is not found.
             // If the identifier being used is a message number, and the message
