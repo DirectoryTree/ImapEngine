@@ -78,7 +78,8 @@ test('it only expunges the deleted message', function () {
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
         'TAG2 OK STORE completed',
-        'TAG3 OK UID EXPUNGE completed',
+        'TAG3 OK SELECT completed',
+        'TAG4 OK UID EXPUNGE completed',
     ]);
 
     $connection = new ImapConnection($stream);
@@ -97,7 +98,7 @@ test('it only expunges the deleted message', function () {
     $message->delete(expunge: true);
 
     $stream->assertWritten('TAG2 UID STORE 42 +FLAGS.SILENT (\Deleted)');
-    $stream->assertWritten('TAG3 UID EXPUNGE 42');
+    $stream->assertWritten('TAG4 UID EXPUNGE 42');
 });
 
 test('it throws exception when server does not support MOVE or UIDPLUS capabilities', function () {

@@ -53,3 +53,11 @@ test('list handles nested arrays recursively', function () {
 test('list returns empty parentheses for an empty array', function () {
     expect(CommandArgument::list([]))->toBe('()');
 });
+
+test('literal preserves control and non-ASCII bytes', function (string $input) {
+    expect(CommandArgument::literal($input))->toBe(['{'.strlen($input).'}', $input]);
+})->with(["password\tvalue", "value\x01", "value\x7f", 'café', "value\xff"]);
+
+test('literal rejects NUL bytes', function () {
+    expect(fn () => CommandArgument::literal("pass\0word"))->toThrow(InvalidArgumentException::class);
+});

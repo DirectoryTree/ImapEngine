@@ -2,11 +2,13 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
 use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
 use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
 use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
 use DirectoryTree\ImapEngine\Selection\OptionInterface;
 use DirectoryTree\ImapEngine\Selection\Result;
+use Generator;
 
 class Idle
 {
@@ -62,22 +64,7 @@ class Idle
      */
     protected function deliver(callable $callback, ?callable $query): ?bool
     {
-        $current = $this->folder->select(true);
-
-        if ($this->selection->uidValidity() !== null && $current->uidValidity() !== $this->selection->uidValidity()) {
-            return null;
-        }
-
-        $messages = $this->folder->messages()->with(MessageData::flags());
-
-        $messages = $query ? $query($messages) : $messages;
-
-        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->cursor() as $message) {
-            // Reversed IMAP ranges can include an older UID when no arrivals exist.
-            if ($message->uid() < $this->nextUid) {
-                continue;
-            }
-
+        foreach ($this->messages($query) as $message) {
             if ($callback($message) === false) {
                 return false;
             }
@@ -86,6 +73,47 @@ class Idle
         }
 
         return null;
+    }
+
+    /**
+     * Retrieve arrivals, retrying once if the application connection is lost.
+     *
+     * @return Generator<int, MessageInterface>
+     */
+    protected function messages(?callable $query): Generator
+    {
+        try {
+            yield from $this->fetch($query);
+        } catch (ImapConnectionClosedException) {
+            $this->folder->mailbox()->reconnect();
+
+            yield from $this->fetch($query);
+        }
+    }
+
+    /**
+     * Fetch arrivals that belong to the watching connection's UID validity.
+     *
+     * @return Generator<int, MessageInterface>
+     */
+    protected function fetch(?callable $query): Generator
+    {
+        $current = $this->folder->select(true);
+
+        if ($this->selection->uidValidity() !== null && $current->uidValidity() !== $this->selection->uidValidity()) {
+            return;
+        }
+
+        $messages = $this->folder->messages()->with(MessageData::flags());
+
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->uid($this->nextUid.':*')->orderByUid()->cursor() as $message) {
+            // Reversed IMAP ranges can include an older UID when no arrivals exist.
+            if ($message->uid() >= $this->nextUid) {
+                yield $message;
+            }
+        }
     }
 
     /**

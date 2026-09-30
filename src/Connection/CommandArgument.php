@@ -40,7 +40,11 @@ class CommandArgument
             return $result;
         }
 
-        if (str_contains($string, "\r") || str_contains($string, "\n")) {
+        if (str_contains($string, "\0")) {
+            throw new InvalidArgumentException('IMAP strings cannot contain NUL bytes.');
+        }
+
+        if (preg_match('/[^\x20-\x7E]/', $string)) {
             return ['{'.strlen($string).'}', $string];
         }
 

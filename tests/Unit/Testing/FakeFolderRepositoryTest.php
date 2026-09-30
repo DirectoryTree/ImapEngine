@@ -138,18 +138,27 @@ test('it resolves special-use folders from the collection', function () {
     expect($folders->findBySpecialUse(ImapSpecialUse::All)?->name())->toBe('All Mail');
 });
 
-test('folder collections remain independent of inputs and returned snapshots', function () {
+test('folder collections share storage while returned snapshots remain independent', function () {
     $inbox = new FakeFolder('INBOX');
     $folders = new FolderCollection([$inbox]);
     $repository = new FakeFolderRepository(FakeMailbox::make(), $folders);
     $snapshot = $repository->get();
 
-    $folders->pop();
     $archive = $repository->create('Archive');
 
     expect($snapshot->all())->toBe([$inbox]);
+    expect($folders->all())->toBe([$inbox, $archive]);
 
     $snapshot->pop();
 
     expect($repository->get()->all())->toBe([$inbox, $archive]);
+});
+
+test('created folders persist across mailbox repositories', function () {
+    $mailbox = FakeMailbox::make();
+    $archive = $mailbox->folders()->create('Archive');
+
+    expect($mailbox->folders()->find('Archive'))->toBe($archive);
+    expect($mailbox->folders()->firstOrCreate('Archive'))->toBe($archive);
+    expect($archive->mailbox())->toBe($mailbox);
 });

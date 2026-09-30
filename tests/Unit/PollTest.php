@@ -1,137 +1,123 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
-use DirectoryTree\ImapEngine\Folder;
-use DirectoryTree\ImapEngine\FolderInterface;
-use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Poll;
-use DirectoryTree\ImapEngine\Testing\FakeMessage;
+use Tests\Support\ScriptedMailbox;
 
 test('poll propagates callback exceptions without reconnecting', function (string $exceptionClass) {
-    $poll = new class(new Mailbox, 'INBOX', 1) extends Poll
-    {
-        public int $reconnects = 0;
-
-        public bool $disconnected = false;
-
-        protected function disconnect(): void
-        {
-            $this->disconnected = true;
-        }
-
-        protected function connect(): void {}
-
-        protected function check(callable $query): Generator
-        {
-            yield new FakeMessage(1);
-        }
-
-        protected function reconnect(): void
-        {
-            $this->reconnects++;
-            throw new RuntimeException('Unexpected reconnect');
-        }
-    };
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDNEXT 1]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDNEXT 2]', 'TAG5 OK SELECT completed',
+        '* SEARCH 1', 'TAG6 OK SEARCH completed',
+        '* 1 FETCH (UID 1 FLAGS ())', 'TAG7 OK FETCH completed',
+        '* BYE Logging out', 'TAG8 OK LOGOUT completed',
+    ]);
+    $mailbox = new ScriptedMailbox($connection);
     $exception = new $exceptionClass('Callback failed');
 
-    expect(fn () => $poll->start(function () use ($exception) {
+    expect(fn () => (new Poll($mailbox, 'INBOX', 1))->start(function () use ($exception) {
         throw $exception;
     }, fn ($query) => $query))->toThrow($exception);
-    expect($poll->reconnects)->toBe(0);
-    expect($poll->disconnected)->toBeTrue();
+
+    expect($mailbox->connected())->toBeFalse();
+    expect($connection->stream()->opened())->toBeFalse();
+    $connection->stream()->assertWritten('TAG8 LOGOUT');
 })->with([RuntimeException::class, Exception::class, ImapConnectionClosedException::class]);
 
 test('poll still reconnects when retrieving messages loses the connection', function () {
-    $poll = new class(new Mailbox, 'INBOX', 1) extends Poll
-    {
-        public int $reconnects = 0;
-
-        protected function connect(): void {}
-
-        protected function check(callable $query): Generator
-        {
-            throw new ImapConnectionClosedException('Connection lost');
-        }
-
-        protected function reconnect(): void
-        {
-            $this->reconnects++;
-            $this->frequency = 0;
-        }
-    };
-
-    $poll->start(fn () => null, fn ($query) => $query);
-
-    expect($poll->reconnects)->toBe(1);
-});
-
-test('poll stops and disconnects immediately when the callback returns false', function () {
-    $poll = new class(new Mailbox, 'INBOX', 60) extends Poll
-    {
-        public bool $disconnected = false;
-
-        protected function connect(): void {}
-
-        protected function check(callable $query): Generator
-        {
-            yield new FakeMessage(1);
-            throw new RuntimeException('Polling should have stopped');
-        }
-
-        protected function disconnect(): void
-        {
-            $this->disconnected = true;
-        }
-    };
+    $first = (new FakeStream)->disconnectWhenEmpty()->feed([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 1]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', 'TAG5 OK SELECT completed',
+    ]);
+    $second = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 2]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', 'TAG5 OK SELECT completed',
+        '* SEARCH 1', 'TAG6 OK SEARCH completed',
+        '* 1 FETCH (UID 1 FLAGS ())', 'TAG7 OK FETCH completed',
+        '* BYE Logging out', 'TAG8 OK LOGOUT completed',
+    ]);
+    $mailbox = new ScriptedMailbox(new ImapConnection($first), $second);
     $received = [];
 
-    $poll->start(function ($message) use (&$received) {
+    (new Poll($mailbox, 'INBOX', 1))->start(function ($message) use (&$received) {
         $received[] = $message->uid();
 
         return false;
     }, fn ($query) => $query);
 
     expect($received)->toBe([1]);
-    expect($poll->disconnected)->toBeTrue();
+    expect($mailbox->connected())->toBeFalse();
+    $first->assertWritten('TAG6 UID SEARCH UID 1:*');
+    $second->stream()->assertWritten('TAG6 UID SEARCH UID 1:*');
+    expect($second->stream()->opened())->toBeFalse();
+});
+
+test('poll stops and disconnects immediately when the callback returns false', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDNEXT 1]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDNEXT 3]', 'TAG5 OK SELECT completed',
+        '* SEARCH 1 2', 'TAG6 OK SEARCH completed',
+        '* 1 FETCH (UID 1 FLAGS ())', '* 2 FETCH (UID 2 FLAGS ())', 'TAG7 OK FETCH completed',
+        '* BYE Logging out', 'TAG8 OK LOGOUT completed',
+    ]);
+    $mailbox = new ScriptedMailbox($connection);
+    $received = [];
+
+    (new Poll($mailbox, 'INBOX', 60))->start(function ($message) use (&$received) {
+        $received[] = $message->uid();
+
+        return false;
+    }, fn ($query) => $query);
+
+    expect($received)->toBe([1]);
+    expect($mailbox->connected())->toBeFalse();
+    expect($connection->stream()->opened())->toBeFalse();
+    $connection->stream()->assertWritten('TAG8 LOGOUT');
 });
 
 test('poll preserves or resets its uid baseline when selecting again', function (int $validity, int $uidNext, array $expected) {
     $connection = ImapConnection::fake([
         '* OK Welcome', 'TAG1 OK LOGIN completed',
-        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 1]', 'TAG2 OK SELECT completed',
-        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 4]', 'TAG3 OK SELECT completed',
-        '* SEARCH 3 1 2', 'TAG4 OK SEARCH completed',
-        '* 3 FETCH (UID 3 FLAGS ())', '* 1 FETCH (UID 1 FLAGS ())', '* 2 FETCH (UID 2 FLAGS ())', 'TAG5 OK FETCH completed',
-        "* OK [UIDVALIDITY {$validity}]", "* OK [UIDNEXT {$uidNext}]", 'TAG6 OK SELECT completed',
-        '* SEARCH 1 3 4', 'TAG7 OK SEARCH completed',
-        '* 1 FETCH (UID 1 FLAGS ())', '* 3 FETCH (UID 3 FLAGS ())', '* 4 FETCH (UID 4 FLAGS ())', 'TAG8 OK FETCH completed',
+        '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 1]', 'TAG3 OK SELECT completed',
+        '* LIST () "/" "INBOX"', 'TAG4 OK LIST completed',
+        '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 4]', 'TAG5 OK SELECT completed',
+        '* SEARCH 3 1 2', 'TAG6 OK SEARCH completed',
+        '* 3 FETCH (UID 3 FLAGS ())', '* 1 FETCH (UID 1 FLAGS ())', '* 2 FETCH (UID 2 FLAGS ())', 'TAG7 OK FETCH completed',
+        '* LIST () "/" "INBOX"', 'TAG8 OK LIST completed',
+        "* OK [UIDVALIDITY {$validity}]", "* OK [UIDNEXT {$uidNext}]", 'TAG9 OK SELECT completed',
+        '* SEARCH 1 3 4', 'TAG10 OK SEARCH completed',
+        '* 1 FETCH (UID 1 FLAGS ())', '* 3 FETCH (UID 3 FLAGS ())', '* 4 FETCH (UID 4 FLAGS ())', 'TAG11 OK FETCH completed',
+        '* BYE Logging out', 'TAG12 OK LOGOUT completed',
     ]);
-    $mailbox = new Mailbox;
-    $mailbox->connect($connection);
-    $poll = new class($mailbox, 'INBOX', 1) extends Poll
-    {
-        public function initialize(): void
-        {
-            $this->select(new Folder($this->mailbox, $this->folder));
-        }
+    $mailbox = new ScriptedMailbox($connection);
+    $received = [];
 
-        protected function folder(): FolderInterface
-        {
-            return new Folder($this->mailbox, $this->folder);
-        }
+    (new Poll($mailbox, 'INBOX', 1))->start(function ($message) use (&$received) {
+        $received[] = $message->uid();
 
-        public function read(): array
-        {
-            return iterator_to_array($this->check(fn ($query) => $query));
-        }
-    };
-    $poll->initialize();
+        return $message->uid() !== 4;
+    }, fn ($query) => $query);
 
-    expect(array_map(fn ($message) => $message->uid(), $poll->read()))->toBe([1, 2, 3]);
-    expect(array_map(fn ($message) => $message->uid(), $poll->read()))->toBe($expected);
-    $connection->disconnect();
+    expect($received)->toBe([1, 2, 3, ...$expected]);
+    $start = $validity === 1 ? 4 : $uidNext;
+    $connection->stream()->assertWritten("TAG10 UID SEARCH UID {$start}:*");
+    expect($connection->stream()->opened())->toBeFalse();
 })->with([
     'same validity excludes delivered and older UIDs' => [1, 5, [4]],
     'changed validity starts a new baseline' => [2, 3, [3, 4]],

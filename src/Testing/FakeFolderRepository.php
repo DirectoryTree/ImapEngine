@@ -25,9 +25,7 @@ class FakeFolderRepository implements FolderRepositoryInterface
     public function __construct(
         protected MailboxInterface $mailbox,
         protected FolderCollection $folders = new FolderCollection
-    ) {
-        $this->folders = clone $folders;
-    }
+    ) {}
 
     /**
      * {@inheritDoc}

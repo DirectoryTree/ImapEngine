@@ -1,6 +1,5 @@
 <?php
 
-use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
@@ -14,6 +13,7 @@ use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQuery;
+use Tests\Support\ScriptedMailbox;
 
 test('folder idle retrieves arrivals while events only delivers notifications', function (bool $retrieve) {
     $application = new FakeStream;
@@ -31,18 +31,7 @@ test('folder idle retrieves arrivals while events only delivers notifications', 
         '* 1 EXISTS', '* OK [UIDVALIDITY 1]', '* OK [UIDNEXT 7]', 'TAG3 OK SELECT completed',
         '+ idling', '* 3 EXISTS',
     ]);
-    $mailbox = new class([$application, $watching]) extends Mailbox
-    {
-        public function __construct(protected array $streams)
-        {
-            parent::__construct();
-        }
-
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
-        }
-    };
+    $mailbox = new ScriptedMailbox(new ImapConnection($application), new ImapConnection($watching));
     $folder = new Folder($mailbox, 'INBOX');
     $received = [];
     $uids = [];
@@ -107,18 +96,7 @@ test('folder idle preserves or replaces the arrival cursor after reconnecting', 
         '* 2 EXISTS', "* OK [UIDVALIDITY {$validity}]", "* OK [UIDNEXT {$uidNext}]", 'TAG2 OK SELECT completed',
         '+ idling', '* 3 EXISTS',
     ]);
-    $mailbox = new class([$application, $watching, $reconnected]) extends Mailbox
-    {
-        public function __construct(protected array $streams)
-        {
-            parent::__construct();
-        }
-
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
-        }
-    };
+    $mailbox = new ScriptedMailbox(new ImapConnection($application), new ImapConnection($watching), new ImapConnection($reconnected));
     $folder = new Folder($mailbox, 'INBOX');
     $uids = [];
     $attempts = 0;
@@ -159,18 +137,7 @@ test('folder polling propagates callback exceptions', function (string $exceptio
         '* SEARCH 2', 'TAG6 OK SEARCH completed',
         '* 2 FETCH (UID 2 FLAGS ())', 'TAG7 OK FETCH completed',
     ]);
-    $mailbox = new class([$application, $polling]) extends Mailbox
-    {
-        public function __construct(protected array $streams)
-        {
-            parent::__construct();
-        }
-
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            parent::connect($connection ?? new ImapConnection(array_shift($this->streams)));
-        }
-    };
+    $mailbox = new ScriptedMailbox(new ImapConnection($application), new ImapConnection($polling));
     $mailbox->connect();
     $folder = new Folder($mailbox, 'INBOX');
     $exception = new $exceptionClass('Application callback failed');
@@ -472,3 +439,19 @@ test('failed examination still invalidates the previous selection', function () 
 
     $stream->assertWritten('TAG4 SELECT "INBOX"');
 });
+
+test('expunge selects its own folder before removing messages', function (?int $uid) {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        'TAG2 OK SELECT completed', 'TAG3 OK SELECT completed',
+        '* 2 EXPUNGE', 'TAG4 OK EXPUNGE completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+    (new Folder($mailbox, 'Other'))->select();
+
+    expect((new Folder($mailbox, 'INBOX'))->expunge($uid))->toBe(['2']);
+    $connection->stream()->assertWritten('TAG3 SELECT "INBOX"');
+    $connection->stream()->assertWritten($uid === null ? "TAG4 EXPUNGE\r\n" : "TAG4 UID EXPUNGE 7\r\n");
+    $connection->disconnect();
+})->with([null, 7]);

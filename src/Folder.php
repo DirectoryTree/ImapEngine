@@ -220,6 +220,8 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function expunge(array|int|null $uids = null): array
     {
+        $this->select();
+
         return $this->mailbox->connection()->expunge($uids)->map(
             fn (UntaggedResponse $response) => $response->tokenAt(1)->value
         )->all();

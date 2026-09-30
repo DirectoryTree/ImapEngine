@@ -1,7 +1,6 @@
 <?php
 
 use Carbon\Carbon;
-use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionClosedException;
@@ -12,6 +11,7 @@ use DirectoryTree\ImapEngine\Idle\Events\MessageFetched;
 use DirectoryTree\ImapEngine\Idle\Events\MessagesExist;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Watch;
+use Tests\Support\ScriptedMailbox;
 
 test('watcher delivers mailbox changes without fetching and closes when stopped', function () {
     $stream = new FakeStream;
@@ -78,18 +78,7 @@ test('watcher emits a fresh selection after reconnecting', function () {
         '* OK Welcome', 'TAG1 OK LOGIN completed',
         '* OK [UIDVALIDITY 888]', 'TAG2 OK SELECT completed',
     ]);
-    $mailbox = new class([new ImapConnection($first), new ImapConnection($second)]) extends Mailbox
-    {
-        public function __construct(protected array $connections)
-        {
-            parent::__construct();
-        }
-
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            parent::connect($connection ?? array_shift($this->connections));
-        }
-    };
+    $mailbox = new ScriptedMailbox(new ImapConnection($first), new ImapConnection($second));
     $validities = [];
 
     (new Watch($mailbox, 'INBOX', 30))->await(function (EventInterface $event) use (&$validities) {
@@ -107,13 +96,7 @@ test('watcher emits a fresh selection after reconnecting', function () {
 });
 
 test('watcher does not resolve the folder when stopped before starting', function (bool $callable) {
-    $mailbox = new class extends Mailbox
-    {
-        public function connect(?ConnectionInterface $connection = null): void
-        {
-            throw new LogicException('The stopped watcher must not connect.');
-        }
-    };
+    $mailbox = new ScriptedMailbox;
     $received = [];
     $timeout = $callable ? fn () => false : 0;
 
@@ -171,17 +154,7 @@ test('watcher honors renewal intervals longer than 29 minutes', function () {
 
 test('watcher reads the mailbox timeout when finishing idle', function () {
     Carbon::setTestNow('2026-09-27 12:00:00');
-    $stream = new class extends FakeStream
-    {
-        public ?int $timeout = null;
-
-        public function setTimeout(int $seconds): bool
-        {
-            $this->timeout = $seconds;
-
-            return true;
-        }
-    };
+    $stream = new FakeStream;
     $stream->feed([
         '* OK Welcome', 'TAG1 OK LOGIN completed',
         '* LIST () "/" "INBOX"', 'TAG2 OK LIST completed',
@@ -209,7 +182,7 @@ test('watcher reads the mailbox timeout when finishing idle', function () {
             }
 
             if ($event instanceof MessageExpunged) {
-                $completionTimeout = $stream->timeout;
+                $completionTimeout = $stream->timeout();
 
                 return false;
             }

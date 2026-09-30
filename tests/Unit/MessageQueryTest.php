@@ -264,7 +264,8 @@ test('destroy with expunge only expunges the given messages', function () {
         '* OK Welcome to IMAP',
         'TAG1 OK Logged in',
         'TAG2 OK UID STORE completed',
-        'TAG3 OK UID EXPUNGE completed',
+        'TAG3 OK SELECT completed',
+        'TAG4 OK UID EXPUNGE completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -274,7 +275,7 @@ test('destroy with expunge only expunges the given messages', function () {
     query($mailbox)->destroy([1, 2, 3], expunge: true);
 
     $stream->assertWritten('TAG2 UID STORE 1:3 +FLAGS.SILENT (\Deleted)');
-    $stream->assertWritten('TAG3 UID EXPUNGE 1:3');
+    $stream->assertWritten('TAG4 UID EXPUNGE 1:3');
 });
 
 test('orderByUid returns messages in ascending UID order', function () {
@@ -641,7 +642,8 @@ test('delete with expunge also expunges folder', function () {
         '* SEARCH 1 2',
         'TAG2 OK SEARCH completed',
         'TAG3 OK UID STORE completed',
-        'TAG4 OK UID EXPUNGE completed',
+        'TAG4 OK SELECT completed',
+        'TAG5 OK UID EXPUNGE completed',
     ]);
 
     $mailbox = Mailbox::make();
@@ -654,7 +656,7 @@ test('delete with expunge also expunges folder', function () {
 
     expect($count)->toBe(2);
     $stream->assertWritten('TAG3 UID STORE 1:2 +FLAGS.SILENT (\Deleted)');
-    $stream->assertWritten('TAG4 UID EXPUNGE 1:2');
+    $stream->assertWritten('TAG5 UID EXPUNGE 1:2');
 });
 
 test('move moves all matching messages to folder', function () {
