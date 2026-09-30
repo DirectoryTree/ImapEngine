@@ -3,27 +3,21 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use Generator;
 
 /**
  * @mixin ImapQueryBuilder
  */
 interface MessageQueryInterface
 {
-    /**
-     * Don't mark messages as read when fetching.
-     */
-    public function leaveUnread(): MessageQueryInterface;
-
-    /**
-     * Mark all messages as read when fetching.
-     */
-    public function markAsRead(): MessageQueryInterface;
-
     /**
      * Set the limit and page for the current query.
      */
@@ -50,139 +44,36 @@ interface MessageQueryInterface
     public function setPage(int $page): MessageQueryInterface;
 
     /**
-     * Determine if the body of messages is being fetched.
+     * Add items to the message FETCH request.
      */
-    public function isFetchingBody(): bool;
+    public function with(FetchItemInterface ...$items): static;
 
     /**
-     * Determine if the flags of messages is being fetched.
+     * Remove items from the message FETCH request.
      */
-    public function isFetchingFlags(): bool;
+    public function without(FetchItemInterface ...$items): static;
 
     /**
-     * Determine if the headers of messages is being fetched.
+     * Replace the items in the message FETCH request.
      */
-    public function isFetchingHeaders(): bool;
+    public function only(FetchItemInterface ...$items): static;
 
     /**
-     * Determine if the size of messages is being fetched.
+     * Order messages locally by UID, replacing any server-side sort criteria.
      */
-    public function isFetchingSize(): bool;
+    public function orderByUid(
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static;
 
     /**
-     * Determine if the body structure of messages is being fetched.
+     * Add a server-side sort criterion using RFC 5256.
+     *
+     * Subsequent calls are used as tie-breakers in the order they are added.
      */
-    public function isFetchingBodyStructure(): bool;
-
-    /**
-     * Fetch the flags of messages.
-     */
-    public function withFlags(): MessageQueryInterface;
-
-    /**
-     * Fetch the body of messages.
-     */
-    public function withBody(): MessageQueryInterface;
-
-    /**
-     * Fetch the headers of messages.
-     */
-    public function withHeaders(): MessageQueryInterface;
-
-    /**
-     * Fetch the size of messages.
-     */
-    public function withSize(): MessageQueryInterface;
-
-    /**
-     * Fetch the body structure of messages.
-     */
-    public function withBodyStructure(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the body of messages.
-     */
-    public function withoutBody(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the headers of messages.
-     */
-    public function withoutHeaders(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the flags of messages.
-     */
-    public function withoutFlags(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the size of messages.
-     */
-    public function withoutSize(): MessageQueryInterface;
-
-    /**
-     * Don't fetch the body structure of messages.
-     */
-    public function withoutBodyStructure(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order.
-     */
-    public function setFetchOrder(string $fetchOrder): MessageQueryInterface;
-
-    /**
-     * Get the fetch order.
-     */
-    public function getFetchOrder(): string;
-
-    /**
-     * Set the fetch order to 'ascending'.
-     */
-    public function setFetchOrderAsc(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to 'descending'.
-     */
-    public function setFetchOrderDesc(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to show oldest messages first (ascending).
-     */
-    public function oldest(): MessageQueryInterface;
-
-    /**
-     * Set the fetch order to show newest messages first (descending).
-     */
-    public function newest(): MessageQueryInterface;
-
-    /**
-     * Set the sort key for server-side sorting (RFC 5256).
-     */
-    public function setSortKey(ImapSortKey|string|null $key): MessageQueryInterface;
-
-    /**
-     * Get the sort key for server-side sorting.
-     */
-    public function getSortKey(): ?ImapSortKey;
-
-    /**
-     * Set the sort direction for server-side sorting.
-     */
-    public function setSortDirection(string $direction): MessageQueryInterface;
-
-    /**
-     * Get the sort direction for server-side sorting.
-     */
-    public function getSortDirection(): string;
-
-    /**
-     * Sort messages by a field using server-side sorting (RFC 5256).
-     */
-    public function sortBy(ImapSortKey|string $key, string $direction = 'asc'): MessageQueryInterface;
-
-    /**
-     * Sort messages by a field in descending order using server-side sorting.
-     */
-    public function sortByDesc(ImapSortKey|string $key): MessageQueryInterface;
+    public function sortBy(
+        ImapSortKey|string $key,
+        SortDirection|string $direction = SortDirection::Ascending,
+    ): static;
 
     /**
      * Count all available messages matching the current search criteria.
@@ -205,9 +96,25 @@ interface MessageQueryInterface
     public function get(): MessageCollection;
 
     /**
+     * Yield matching messages with at most the given number per FETCH request.
+     *
+     * The matching UIDs are loaded once. Query pagination is not applied.
+     *
+     * @return Generator<int, MessageInterface>
+     */
+    public function cursor(int $chunkSize = 10): Generator;
+
+    /**
+     * Get messages changed after the given modification sequence.
+     *
+     * Requesting vanished messages requires enabling QRESYNC before selecting a folder.
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult;
+
+    /**
      * Append a new message to the folder.
      */
-    public function append(string $message, mixed $flags = null): int;
+    public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult;
 
     /**
      * Execute a callback over each message via a chunked query.
@@ -227,12 +134,12 @@ interface MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface;
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface;
 
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface;
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface;
 
     /**
      * Destroy the given messages.

@@ -3,20 +3,22 @@
 namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
+use DateTimeInterface;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
-use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
-use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
-use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
-use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Fetch\ChangedSince;
+use DirectoryTree\ImapEngine\MessageData\FetchItemInterface;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use DirectoryTree\ImapEngine\Support\Enum;
 use DirectoryTree\ImapEngine\Support\Str;
+use Generator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
 
@@ -33,7 +35,9 @@ class MessageQuery implements MessageQueryInterface
     public function __construct(
         protected FolderInterface $folder,
         protected ImapQueryBuilder $query,
-    ) {}
+    ) {
+        $this->ordering = new UidOrder(SortDirection::Descending);
+    }
 
     /**
      * Count all available messages matching the current search criteria.
@@ -68,22 +72,73 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->sortKey ? $this->sort() : $this->search());
+        return $this->process($this->uids());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function cursor(int $chunkSize = 10): Generator
+    {
+        $query = clone $this;
+        $uids = $query->uids();
+        $chunkSize = max(1, $chunkSize);
+
+        for ($page = 1; $page <= (int) ceil($uids->count() / $chunkSize); $page++) {
+            foreach ($query->limit($chunkSize, $page)->populate($uids) as $message) {
+                yield $message;
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changesSince(int $modSequence, array|int $uids, bool $vanished = false): FetchResult
+    {
+        if ($uids === []) {
+            return new FetchResult;
+        }
+
+        $capability = $vanished ? 'QRESYNC' : 'CONDSTORE';
+
+        $mailbox = $this->folder->mailbox();
+
+        $supported = $mailbox->capabilities()->supports($capability)
+            || ($capability === 'CONDSTORE' && $mailbox->capabilities()->supports('QRESYNC'));
+
+        if (! $supported) {
+            throw new ImapCapabilityException(
+                "Unable to fetch message changes. IMAP server does not support $capability capability."
+            );
+        }
+
+        if ($vanished && ! $mailbox->capabilities()->enabled('QRESYNC')) {
+            throw new ImapCapabilityException(
+                'Enable QRESYNC before selecting a folder to request vanished messages.'
+            );
+        }
+
+        $items = array_map(
+            fn (FetchItemInterface $item) => $item->toImap(),
+            $this->fetchItems,
+        );
+
+        if (empty($items)) {
+            $items[] = MessageData::flags()->toImap();
+        }
+
+        return $this->connection()->fetch($uids, $items, modifiers: new ChangedSince($modSequence, $vanished));
     }
 
     /**
      * Append a new message to the folder.
      */
-    public function append(string $message, mixed $flags = null): int
+    public function append(string $message, mixed $flags = null, ?DateTimeInterface $date = null): AppendResult
     {
-        $response = $this->connection()->append(
-            $this->folder->path(), $message, (array) Str::enums($flags),
+        return $this->connection()->append(
+            $this->folder->path(), $message, (array) Enum::values($flags), $date,
         );
-
-        return (int) $response // TAG4 OK [APPENDUID <uidvalidity> <uid>] APPEND completed.
-            ->tokenAt(2) // [APPENDUID <uidvalidity> <uid>]
-            ->tokenAt(2) // <uid>
-            ->value;
     }
 
     /**
@@ -108,8 +163,8 @@ class MessageQuery implements MessageQueryInterface
         $startChunk = max($startChunk, 1);
         $chunkSize = max($chunkSize, 1);
 
-        // Get all search result tokens once.
-        $messages = $this->search();
+        // Get all ordered result tokens once.
+        $messages = $this->uids();
 
         // Calculate how many chunks there are
         $totalChunks = (int) ceil($messages->count() / $chunkSize);
@@ -167,34 +222,25 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Find a message by the given identifier type or throw an exception.
      */
-    public function findOrFail(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): MessageInterface
+    public function findOrFail(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): MessageInterface
     {
-        /** @var UntaggedResponse $response */
-        $response = $this->id($id, $identifier)->firstOrFail();
+        $data = $this->id($id, $identifier) ?? throw new ItemNotFoundException;
 
-        $uid = $response->tokenAt(3) // ListData
-            ->tokenAt(1) // Atom
-            ->value; // UID
-
-        return $this->process(new MessageCollection([$uid]))->firstOrFail();
+        return $this->process(new MessageCollection([$data->uid()]))->firstOrFail();
     }
 
     /**
      * Find a message by the given identifier type.
      */
-    public function find(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ?MessageInterface
+    public function find(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?MessageInterface
     {
-        $response = $this->id($id, $identifier)->first();
+        $data = $this->id($id, $identifier);
 
-        if (! $response instanceof UntaggedResponse) {
+        if (! $data) {
             return null;
         }
 
-        $uid = $response->tokenAt(3) // ListData
-            ->tokenAt(1) // Atom
-            ->value; // UID
-
-        return $this->process(new MessageCollection([$uid]))->first();
+        return $this->process(new MessageCollection([$data->uid()]))->first();
     }
 
     /**
@@ -206,10 +252,10 @@ class MessageQuery implements MessageQueryInterface
 
         $this->folder->mailbox()
             ->connection()
-            ->store([ImapFlag::Deleted->value], $uids, mode: '+');
+            ->store($uids, [ImapFlag::Deleted->value], mode: '+');
 
         if ($expunge) {
-            $this->folder->expunge();
+            $this->folder->expunge($uids);
         }
     }
 
@@ -224,14 +270,10 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->store(
-            (array) Str::enums($flag),
-            $uids,
-            mode: $operation
-        );
+        $this->connection()->store($uids, (array) Enum::values($flag), mode: $operation);
 
         if ($expunge) {
-            $this->folder->expunge();
+            $this->folder->expunge($uids);
         }
 
         return count($uids);
@@ -288,11 +330,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->move($folder, $uids);
-
-        if ($expunge) {
-            $this->folder->expunge();
-        }
+        $this->connection()->move($uids, $folder);
 
         return count($uids);
     }
@@ -308,7 +346,7 @@ class MessageQuery implements MessageQueryInterface
             return 0;
         }
 
-        $this->connection()->copy($folder, $uids);
+        $this->connection()->copy($uids, $folder);
 
         return count($uids);
     }
@@ -334,17 +372,8 @@ class MessageQuery implements MessageQueryInterface
 
         $messages->total($uids->count());
 
-        foreach ($this->fetch($uids) as $uid => $response) {
-            $messages->push(
-                $this->newMessage(
-                    $uid,
-                    $response['flags'] ?? [],
-                    $response['head'] ?? '',
-                    $response['body'] ?? '',
-                    $response['size'] ?? null,
-                    $response['bodystructure'] ?? null,
-                )
-            );
+        foreach ($this->fetch($uids) as $data) {
+            $messages->push($data->toMessage($this->folder));
         }
 
         return $messages;
@@ -352,84 +381,49 @@ class MessageQuery implements MessageQueryInterface
 
     /**
      * Fetch a given id collection.
+     *
+     * @return Collection<int, FetchedMessageData>
      */
-    protected function fetch(Collection $messages): array
+    protected function fetch(Collection $messages): Collection
     {
-        // Only apply client-side sorting when not using server-side sorting.
-        // When sortKey is set, the IMAP SORT command already returns UIDs
-        // in the correct order, so we should preserve that order.
-        if (! $this->sortKey) {
-            $messages = match ($this->fetchOrder) {
-                'asc' => $messages->sort(SORT_NUMERIC),
-                'desc' => $messages->sortDesc(SORT_NUMERIC),
+        if ($this->ordering instanceof UidOrder) {
+            $messages = match ($this->ordering->direction) {
+                SortDirection::Ascending => $messages->sort(SORT_NUMERIC),
+                SortDirection::Descending => $messages->sortDesc(SORT_NUMERIC),
             };
         }
 
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
-        $fetch = [];
-
-        if ($this->fetchFlags) {
-            $fetch[] = 'FLAGS';
-        }
-
-        if ($this->fetchSize) {
-            $fetch[] = 'RFC822.SIZE';
-        }
-
-        if ($this->fetchHeaders) {
-            $fetch[] = $this->fetchAsUnread
-                ? 'BODY.PEEK[HEADER]'
-                : 'BODY[HEADER]';
-        }
-
-        if ($this->fetchBody) {
-            $fetch[] = $this->fetchAsUnread
-                ? 'BODY.PEEK[TEXT]'
-                : 'BODY[TEXT]';
-        }
-
-        if ($this->fetchBodyStructure) {
-            $fetch[] = 'BODYSTRUCTURE';
-        }
+        $fetch = array_map(
+            fn (FetchItemInterface $item) => $item->toImap(),
+            $this->fetchItems,
+        );
 
         if (empty($fetch)) {
             return $uids->mapWithKeys(fn (string|int $uid) => [
-                $uid => [
-                    'size' => null,
-                    'flags' => [],
-                    'head' => '',
-                    'body' => '',
-                    'bodystructure' => null,
-                ],
-            ])->all();
+                $uid => new FetchedMessageData(['UID' => (int) $uid]),
+            ]);
         }
 
-        return $this->connection()->fetch($fetch, $uids->all())->mapWithKeys(function (UntaggedResponse $response) {
-            $data = $response->tokenAt(3);
+        $fetched = $this->connection()->fetch($uids->all(), $fetch)->messages()
+            ->keyBy(fn (FetchedMessageData $data) => $data->uid());
 
-            if (! $data instanceof ListData) {
-                throw new RuntimeException(sprintf(
-                    'Expected instance of %s at index 3 in FETCH response, got %s',
-                    ListData::class,
-                    get_debug_type($data)
-                ));
-            }
+        return $uids
+            ->map(fn (string|int $uid) => $fetched->get($uid))
+            ->filter()
+            ->mapWithKeys(fn (FetchedMessageData $data) => [$data->uid() => $data]);
+    }
 
-            $uid = $data->lookup('UID')->value;
-
-            $size = $data->lookup('RFC822.SIZE')?->value;
-
-            return [
-                $uid => [
-                    'size' => $size ? (int) $size : null,
-                    'flags' => $data->lookup('FLAGS')?->values() ?? [],
-                    'head' => $data->lookup('[HEADER]')->value ?? '',
-                    'body' => $data->lookup('[TEXT]')->value ?? '',
-                    'bodystructure' => $data->lookup('BODYSTRUCTURE'),
-                ],
-            ];
-        })->all();
+    /**
+     * Get the ordered message UIDs.
+     */
+    protected function uids(): Collection
+    {
+        return match (true) {
+            $this->ordering instanceof UidOrder => $this->search(),
+            $this->ordering instanceof ImapSort => $this->sort($this->ordering),
+        };
     }
 
     /**
@@ -442,9 +436,24 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->search([
-            $this->query->toImap(),
-        ]);
+        $charset = null;
+
+        if (! Str::isAscii($this->query->toImap())) {
+            $capabilities = $this->folder->mailbox()->capabilities();
+
+            // Dual-version servers remain in rev1 mode until rev2 is enabled.
+            // https://www.rfc-editor.org/rfc/rfc9051#appendix-A
+            $rev2 = $capabilities->enabled('IMAP4REV2')
+                || ($capabilities->has('IMAP4REV2') && ! $capabilities->has('IMAP4REV1'));
+
+            // UTF-8 sessions prohibit an explicit SEARCH charset.
+            // https://www.rfc-editor.org/rfc/rfc6855#section-3
+            if (! $capabilities->enabled('UTF8=ACCEPT') && ! $rev2) {
+                $charset = 'UTF-8';
+            }
+        }
+
+        $response = $this->connection()->search($this->query->toTokens(), charset: $charset);
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
@@ -455,9 +464,9 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Execute an IMAP UID SORT request using RFC 5256.
      */
-    protected function sort(): Collection
+    protected function sort(ImapSort $sort): Collection
     {
-        if (! in_array('SORT', $this->folder->mailbox()->capabilities())) {
+        if (! $this->folder->mailbox()->capabilities()->supports('SORT')) {
             throw new ImapCapabilityException(
                 'Unable to sort messages. IMAP server does not support SORT capability.'
             );
@@ -467,11 +476,7 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->sort(
-            $this->sortKey,
-            $this->sortDirection,
-            [$this->query->toImap()]
-        );
+        $response = $this->connection()->sort($sort, $this->query->toTokens());
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
@@ -482,33 +487,25 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Get the UID for the given identifier.
      */
-    protected function id(int $id, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+    protected function id(int $id, ImapIdentifier $identifier = ImapIdentifier::Uid): ?FetchedMessageData
     {
         try {
-            return $this->connection()->uid([$id], $identifier);
+            return $this->connection()->fetch($id, 'UID', identifier: $identifier)->messages()->first();
         } catch (ImapCommandException $e) {
             // IMAP servers may return an error if the message number is not found.
             // If the identifier being used is a message number, and the message
             // number is in the command tokens, we can assume this has occurred
-            // and safely ignore the error and return an empty collection.
+            // and safely ignore the error and return null.
             if (
-                $identifier === ImapFetchIdentifier::MessageNumber
+                $identifier === ImapIdentifier::MessageNumber
                 && in_array($id, $e->command()->tokens())
             ) {
-                return ResponseCollection::make();
+                return null;
             }
 
             // Otherwise, re-throw the exception.
             throw $e;
         }
-    }
-
-    /**
-     * Make a new message from given raw components.
-     */
-    protected function newMessage(int $uid, array $flags, string $head, string $body, ?int $size = null, ?ListData $bodystructure = null): Message
-    {
-        return new Message($this->folder, $uid, $flags, $head, $body, $size, $bodystructure);
     }
 
     /**

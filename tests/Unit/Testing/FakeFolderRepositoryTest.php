@@ -1,25 +1,29 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Enums\ImapSpecialUse;
+use DirectoryTree\ImapEngine\FolderData;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 use Illuminate\Support\ItemNotFoundException;
 
 test('it can be created with basic properties', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $folders = [
         'inbox' => new FakeFolder('inbox'),
         'sent' => new FakeFolder('sent'),
     ];
 
-    $repository = new FakeFolderRepository($mailbox, $folders);
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection($folders));
 
     expect($repository)->toBeInstanceOf(FakeFolderRepository::class);
 });
 
 test('it can find folder by path', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
     $sent = new FakeFolder('sent');
 
@@ -28,7 +32,7 @@ test('it can find folder by path', function () {
         'sent' => $sent,
     ];
 
-    $repository = new FakeFolderRepository($mailbox, $folders);
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection($folders));
 
     expect($repository->find('inbox'))->toBe($inbox);
     expect($repository->find('sent'))->toBe($sent);
@@ -36,15 +40,17 @@ test('it can find folder by path', function () {
 });
 
 test('it throws exception when folder not found with findOrFail', function () {
-    $mailbox = new FakeMailbox;
-    $repository = new FakeFolderRepository($mailbox, []);
+    $mailbox = FakeMailbox::make();
+
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection([]));
 
     $repository->findOrFail('nonexistent');
 })->throws(ItemNotFoundException::class);
 
 test('it can create new folder', function () {
-    $mailbox = new FakeMailbox;
-    $repository = new FakeFolderRepository($mailbox, []);
+    $mailbox = FakeMailbox::make();
+
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection([]));
 
     $folder = $repository->create('new_folder');
 
@@ -54,10 +60,11 @@ test('it can create new folder', function () {
 });
 
 test('it can find or create folder', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
 
-    $repository = new FakeFolderRepository($mailbox, ['inbox' => $inbox]);
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection(['inbox' => $inbox]));
 
     // Should find existing folder
     $found = $repository->firstOrCreate('inbox');
@@ -70,7 +77,8 @@ test('it can find or create folder', function () {
 });
 
 test('it can get folders with pattern matching', function () {
-    $mailbox = new FakeMailbox;
+    $mailbox = FakeMailbox::make();
+
     $inbox = new FakeFolder('inbox');
     $sent = new FakeFolder('sent');
     $drafts = new FakeFolder('drafts');
@@ -83,7 +91,7 @@ test('it can get folders with pattern matching', function () {
         'archive' => $archive,
     ];
 
-    $repository = new FakeFolderRepository($mailbox, $folders);
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection($folders));
 
     // Get all folders
     $allFolders = $repository->get();
@@ -98,4 +106,59 @@ test('it can get folders with pattern matching', function () {
     // Test with a pattern that should match nothing
     $noMatches = $repository->get('nonexistent*');
     expect($noMatches)->toBeEmpty();
+});
+
+test('it resolves special-use folders from the collection', function () {
+    $mailbox = FakeMailbox::make();
+
+    $sentByName = new FakeFolder('Sent');
+    $sentByAttribute = new FakeFolder('Outgoing', [ImapSpecialUse::Sent->value]);
+
+    $repository = new FakeFolderRepository($mailbox, new FolderCollection([
+        $sentByName,
+        $sentByAttribute,
+        new FakeFolder('Drafts', [ImapSpecialUse::Drafts->value]),
+        new FakeFolder('Starred', [ImapSpecialUse::Flagged->value]),
+        new FakeFolder('Junk Email', [ImapSpecialUse::Junk->value]),
+        new FakeFolder('Deleted Items', [ImapSpecialUse::Trash->value]),
+        new FakeFolder('Archive', [ImapSpecialUse::Archive->value]),
+        new FakeFolder('[Gmail]/All Mail', [ImapSpecialUse::All->value]),
+    ]));
+
+    $folders = $repository
+        ->with(FolderData::SpecialUse)
+        ->get();
+
+    expect($folders->findBySpecialUse(ImapSpecialUse::Sent))->toBe($sentByAttribute);
+    expect($folders->findBySpecialUse(ImapSpecialUse::Drafts)?->name())->toBe('Drafts');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Flagged)?->name())->toBe('Starred');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Junk)?->name())->toBe('Junk Email');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Trash)?->name())->toBe('Deleted Items');
+    expect($folders->findBySpecialUse(ImapSpecialUse::Archive)?->name())->toBe('Archive');
+    expect($folders->findBySpecialUse(ImapSpecialUse::All)?->name())->toBe('All Mail');
+});
+
+test('folder collections share storage while returned snapshots remain independent', function () {
+    $inbox = new FakeFolder('INBOX');
+    $folders = new FolderCollection([$inbox]);
+    $repository = new FakeFolderRepository(FakeMailbox::make(), $folders);
+    $snapshot = $repository->get();
+
+    $archive = $repository->create('Archive');
+
+    expect($snapshot->all())->toBe([$inbox]);
+    expect($folders->all())->toBe([$inbox, $archive]);
+
+    $snapshot->pop();
+
+    expect($repository->get()->all())->toBe([$inbox, $archive]);
+});
+
+test('created folders persist across mailbox repositories', function () {
+    $mailbox = FakeMailbox::make();
+    $archive = $mailbox->folders()->create('Archive');
+
+    expect($mailbox->folders()->find('Archive'))->toBe($archive);
+    expect($mailbox->folders()->firstOrCreate('Archive'))->toBe($archive);
+    expect($archive->mailbox())->toBe($mailbox);
 });

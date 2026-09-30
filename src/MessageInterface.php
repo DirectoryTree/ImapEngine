@@ -21,6 +21,11 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function size(): ?int;
 
     /**
+     * Get the message modification sequence.
+     */
+    public function modSequence(): ?int;
+
+    /**
      * Get the message date and time.
      */
     public function date(): ?CarbonInterface;
@@ -138,9 +143,9 @@ interface MessageInterface extends FlaggableInterface, Stringable
     public function hasBodyStructure(): bool;
 
     /**
-     * Fetch a specific body part by part number.
+     * Fetch a body section, optionally limited to a transfer-encoded byte range.
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string;
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string;
 
     /**
      * Determine if the message is the same as another message.

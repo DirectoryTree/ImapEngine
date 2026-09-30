@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\DraftMessage;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Message;
+use DirectoryTree\ImapEngine\MessageData;
 use DirectoryTree\ImapEngine\MessageQuery;
 use Illuminate\Support\ItemNotFoundException;
 
@@ -21,6 +22,19 @@ function folder(): Folder
 
 beforeEach(function () {
     folder()->delete();
+});
+
+test('it fetches partial body sections and hydrates partial query data', function (): void {
+    $folder = folder();
+    $uid = $folder->messages()->append(
+        "From: foo@example.com\r\nSubject: Partial body\r\nContent-Type: text/plain\r\n\r\nabcdefghij",
+    )->uid();
+
+    $message = $folder->messages()->with(MessageData::text()->partial(2, 4)->peek())->findOrFail($uid);
+
+    expect($message->data()->get('BODY[TEXT]<2>'))->toBe('cdef')
+        ->and($message->bodyPart('TEXT', offset: 7, length: 100))->toStartWith('hij')
+        ->and($message->bodyPart('TEXT', offset: 100, length: 5))->toBe('');
 });
 
 test('messages selects folder', function () {
@@ -51,7 +65,7 @@ test('first', function () {
 
     $uid = $folder->messages()->append(
         new DraftMessage(from: 'foo@example.com', text: 'hello world'),
-    );
+    )->uid();
 
     expect($folder->messages()->first()->uid())->toBe($uid);
 });
@@ -61,7 +75,7 @@ test('first or fail', function () {
 
     $uid = $folder->messages()->append(
         new DraftMessage(from: 'foo@example.com', text: 'hello world'),
-    );
+    )->uid();
 
     $message = $folder->messages()->firstOrFail();
 
@@ -82,7 +96,7 @@ test('find', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $message = $folder->messages()->find($uid);
 
@@ -97,7 +111,7 @@ test('find or fail', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $message = $folder->messages()->findOrFail($uid);
 
@@ -118,7 +132,7 @@ test('get without fetches', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $messages = $folder->messages()->get();
 
@@ -134,17 +148,17 @@ test('get with fetches', function (callable $callback) {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $messages = $callback($folder->messages())->get();
 
     expect($messages->count())->toBe(1);
     expect($messages->first()->uid())->toBe($uid);
 })->with([
-    fn (MessageQuery $query) => $query->withBody(),
-    fn (MessageQuery $query) => $query->withFlags(),
-    fn (MessageQuery $query) => $query->withHeaders(),
-    fn (MessageQuery $query) => $query->withSize(),
+    fn (MessageQuery $query) => $query->with(MessageData::text()->peek()),
+    fn (MessageQuery $query) => $query->with(MessageData::flags()),
+    fn (MessageQuery $query) => $query->with(MessageData::headers()->peek()),
+    fn (MessageQuery $query) => $query->with(MessageData::size()),
 ]);
 
 test('get with size', function () {
@@ -157,14 +171,14 @@ test('get with size', function () {
             subject: 'Test Subject',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     // Fetch without size - should be null
     $messagesWithoutSize = $folder->messages()->get();
     expect($messagesWithoutSize->first()->size())->toBeNull();
 
     // Fetch with size - should have a value
-    $messagesWithSize = $folder->messages()->withSize()->get();
+    $messagesWithSize = $folder->messages()->with(MessageData::size())->get();
     $message = $messagesWithSize->first();
 
     expect($message->size())->toBeInt();
@@ -185,10 +199,10 @@ test('size reflects actual message size', function () {
         text: str_repeat('This is a longer message with more content. ', 100),
     );
 
-    $uid1 = $folder->messages()->append($shortMessage);
-    $uid2 = $folder->messages()->append($longMessage);
+    $uid1 = $folder->messages()->append($shortMessage)->uid();
+    $uid2 = $folder->messages()->append($longMessage)->uid();
 
-    $messages = $folder->messages()->withSize()->get();
+    $messages = $folder->messages()->with(MessageData::size())->get();
 
     $short = $messages->find($uid1);
     $long = $messages->find($uid2);
@@ -216,12 +230,14 @@ test('append', function () {
             date: $datetime = Carbon::now()->subYear(),
         ),
         ['\\Seen'],
-    );
+    )->uid();
 
     $message = $messages
-        ->withHeaders()
-        ->withFlags()
-        ->withBody()
+        ->with(
+            MessageData::headers()->peek(),
+            MessageData::flags(),
+            MessageData::text()->peek(),
+        )
         ->find($uid);
 
     expect($message->from()->email())->toBe('foo@email.com');
@@ -233,7 +249,7 @@ test('append', function () {
     expect($message->hasAttachments())->toBeTrue();
     expect($message->attachmentCount())->toBe(1);
     expect($message->attachments()[0]->filename())->toBe('attachment.txt');
-    expect($message->flags())->toBe(['\\Seen']);
+    expect(array_values(array_diff($message->flags(), ['\\Recent'])))->toBe(['\\Seen']);
 });
 
 test('flag', function () {
@@ -246,20 +262,20 @@ test('flag', function () {
             from: 'foo@email.com',
             text: 'flag test'
         )
-    );
+    )->uid();
 
     // Initially, message should not be marked as seen.
-    $message = $messages->withFlags()->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeFalse();
 
     // Mark message as seen.
     $message->markSeen();
-    $message = $messages->withFlags()->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeTrue();
 
     // Unmark message as seen.
     $message->unmarkSeen();
-    $message = $messages->withFlags()->find($uid);
+    $message = $messages->with(MessageData::flags())->find($uid);
     expect($message->isSeen())->toBeFalse();
 });
 
@@ -273,9 +289,9 @@ test('copy', function () {
             from: 'foo@email.com',
             text: 'copy test'
         )
-    );
+    )->uid();
 
-    $message = $messages->withHeaders()->withBody()->find($uid);
+    $message = $messages->with(MessageData::headers()->peek(), MessageData::text()->peek())->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
         $targetFolderName = uniqid()
@@ -287,8 +303,7 @@ test('copy', function () {
     expect($newUid)->toBeGreaterThan(0);
 
     $copiedMessage = $targetFolder->messages()
-        ->withBody()
-        ->withHeaders()
+        ->with(MessageData::text()->peek(), MessageData::headers()->peek())
         ->findOrFail($newUid);
 
     expect($copiedMessage->from()->email())->toBe('foo@email.com');
@@ -305,19 +320,18 @@ test('move', function () {
             from: 'foo@email.com',
             text: 'move test'
         )
-    );
+    )->uid();
 
-    $message = $messages->withHeaders()->withBody()->find($uid);
+    $message = $messages->with(MessageData::headers()->peek(), MessageData::text()->peek())->find($uid);
 
     $targetFolder = $folder->mailbox()->folders()->firstOrCreate(
         $targetFolderName = uniqid()
     );
 
-    expect($message->move($targetFolderName))->toBeNull();
+    $newUid = $message->move($targetFolderName);
 
     $targetMessages = $targetFolder->messages()
-        ->withHeaders()
-        ->withBody()
+        ->with(MessageData::headers()->peek(), MessageData::text()->peek())
         ->get();
 
     expect($folder->messages()->count())->toBe(0);
@@ -325,6 +339,10 @@ test('move', function () {
 
     /** @var Message $movedMessage */
     $movedMessage = $targetMessages->first();
+
+    if (! is_null($newUid)) {
+        expect($newUid)->toBe($movedMessage->uid());
+    }
 
     expect($movedMessage->from()->email())->toBe('foo@email.com');
     expect($movedMessage->text())->toBe('move test');
@@ -338,13 +356,13 @@ test('delete', function () {
             from: 'foo@email.com',
             text: 'delete test'
         )
-    );
+    )->uid();
 
     $message = $messages->find($uid);
 
     $message->delete();
 
-    expect($messages->withFlags()->find($uid)->isDeleted())->toBeTrue();
+    expect($messages->with(MessageData::flags())->find($uid)->isDeleted())->toBeTrue();
 });
 
 test('retrieves messages using or statement', function () {
@@ -355,14 +373,14 @@ test('retrieves messages using or statement', function () {
             from: 'foo@email.com',
             text: $firstUuid = uniqid(),
         ),
-    );
+    )->uid();
 
     $secondUid = $folder->messages()->append(
         new DraftMessage(
             from: 'foo@email.com',
             text: $secondUuid = uniqid(),
         ),
-    );
+    )->uid();
 
     $results = $folder->messages()
         ->where(fn (ImapQueryBuilder $q) => $q->body($firstUuid))
@@ -383,7 +401,7 @@ test('retrieves messages by flag', function (string $flag, string $criteria) {
             text: 'hello world',
         ),
         [$flag],
-    );
+    )->uid();
 
     expect(
         $folder->messages()
@@ -415,14 +433,13 @@ test('marks messages as read when fetching', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $folder->messages()
-        ->markAsRead()
-        ->withHeaders()
+        ->with(MessageData::headers())
         ->get();
 
-    $message = $folder->messages()->withFlags()->find($uid);
+    $message = $folder->messages()->with(MessageData::flags())->find($uid);
 
     expect($message->isSeen())->toBeTrue();
 });
@@ -435,14 +452,13 @@ test('leaves messages unread when fetching', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $folder->messages()
-        ->leaveUnread()
-        ->withHeaders()
+        ->with(MessageData::headers()->peek())
         ->get();
 
-    $message = $folder->messages()->withFlags()->find($uid);
+    $message = $folder->messages()->with(MessageData::flags())->find($uid);
 
     expect($message->isSeen())->toBeFalse();
 });
@@ -455,11 +471,11 @@ test('querying for unseen messages', function () {
             from: 'foo@email.com',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     expect($folder->messages()->unseen()->count())->toBe(1);
 
-    $folder->messages()->withFlags()->find($uid)->markSeen();
+    $folder->messages()->with(MessageData::flags())->find($uid)->markSeen();
 
     expect($folder->messages()->unseen()->count())->toBe(0);
 });
@@ -473,7 +489,7 @@ test('sort by subject', function () {
             subject: 'AAA First alphabetically',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     $uid2 = $folder->messages()->append(
         new DraftMessage(
@@ -481,7 +497,7 @@ test('sort by subject', function () {
             subject: 'ZZZ Last alphabetically',
             text: 'hello world',
         ),
-    );
+    )->uid();
 
     // Ascending order: AAA should come before ZZZ
     $messagesAsc = $folder->messages()->sortBy('subject', 'asc')->get();

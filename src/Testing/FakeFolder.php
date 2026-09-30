@@ -2,11 +2,16 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
+use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
+use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
@@ -14,16 +19,45 @@ class FakeFolder implements FolderInterface
     use ComparesFolders;
 
     /**
+     * The modification sequence at which each message vanished.
+     *
+     * @var array<int, int>
+     */
+    protected array $vanished = [];
+
+    /**
+     * The mailbox events to deliver while idling.
+     *
+     * @var EventInterface[]
+     */
+    protected array $idleEvents = [];
+
+    /**
+     * The next UID assigned to an appended message.
+     */
+    protected int $uidNext;
+
+    /**
      * Constructor.
      */
     public function __construct(
         protected string $path = '',
-        protected array $flags = [],
-        /** @var FakeMessage[] */
-        protected array $messages = [],
+        protected array $attributes = [],
+        protected MessageCollection $messages = new MessageCollection,
         protected string $delimiter = '/',
         protected ?MailboxInterface $mailbox = null,
-    ) {}
+    ) {
+        $this->messages = clone $messages;
+        $this->uidNext = ($messages->max(fn (FakeMessage $message) => $message->uid()) ?? 0) + 1;
+    }
+
+    /**
+     * Keep the cloned folder's message collection independent.
+     */
+    public function __clone(): void
+    {
+        $this->messages = clone $this->messages;
+    }
 
     /**
      * {@inheritDoc}
@@ -44,9 +78,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function flags(): array
+    public function attributes(): array
     {
-        return $this->flags;
+        return $this->attributes;
     }
 
     /**
@@ -81,7 +115,7 @@ class FakeFolder implements FolderInterface
     public function messages(): MessageQueryInterface
     {
         // Ensure the folder is selected.
-        $this->select(true);
+        $this->select();
 
         return new FakeMessageQuery($this);
     }
@@ -89,10 +123,37 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
+            return;
+        }
+
+        $selection = new FolderSelected($this->path, $this->select(true, ...$options));
+
+        foreach ([$selection, ...$this->idleEvents] as $event) {
+            if ($callback($event) === false) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
+    {
+        if (! is_numeric($seconds = is_callable($timeout) ? $timeout() : $timeout) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->cursor() as $message) {
+            if ($callback($message) === false) {
+                break;
+            }
         }
     }
 
@@ -101,8 +162,17 @@ class FakeFolder implements FolderInterface
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
-        foreach ($this->messages as $message) {
-            $callback($message);
+        if (! is_numeric($seconds = is_callable($frequency) ? $frequency() : $frequency) || $seconds <= 0) {
+            return;
+        }
+
+        $messages = $this->messages();
+        $messages = $query ? $query($messages) : $messages;
+
+        foreach ($messages->orderByUid()->cursor() as $message) {
+            if ($callback($message) === false) {
+                break;
+            }
         }
     }
 
@@ -117,9 +187,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false): void
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
-        $this->mailbox?->select($this, $force);
+        return $this->mailbox?->select($this, $force, ...$options) ?? new Result;
     }
 
     /**
@@ -135,13 +205,15 @@ class FakeFolder implements FolderInterface
      */
     public function examine(): array
     {
+        $this->mailbox?->examine($this);
+
         return [];
     }
 
     /**
      * {@inheritDoc}
      */
-    public function expunge(): array
+    public function expunge(array|int|null $uids = null): array
     {
         return [];
     }
@@ -184,11 +256,11 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the folder's flags.
+     * Set the folder's attributes.
      */
-    public function setFlags(array $flags): FakeFolder
+    public function setAttributes(array $attributes): FakeFolder
     {
-        $this->flags = $flags;
+        $this->attributes = $attributes;
 
         return $this;
     }
@@ -204,33 +276,85 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Set the folder's messages.
-     *
-     * @param  FakeMessage[]  $messages
+     * Set the folder's fake messages.
      */
-    public function setMessages(array $messages): FakeFolder
+    public function setMessages(MessageCollection $messages): FakeFolder
     {
-        $this->messages = $messages;
+        $this->messages = clone $messages;
+
+        foreach ($messages as $message) {
+            $this->uidNext = max($this->uidNext, $message->uid() + 1);
+        }
 
         return $this;
     }
 
     /**
-     * Get the folder's messages.
+     * Set the events delivered after the initial folder selection.
      *
-     * @return FakeMessage[]
+     * @param  EventInterface[]  $events
      */
-    public function getMessages(): array
+    public function setIdleEvents(array $events): FakeFolder
     {
-        return $this->messages;
+        $this->idleEvents = $events;
+
+        return $this;
     }
 
     /**
-     * Add a message to the folder.
+     * Get the folder's fake messages.
+     */
+    public function getMessages(): MessageCollection
+    {
+        return clone $this->messages;
+    }
+
+    /**
+     * Add a fake message to the folder.
      */
     public function addMessage(FakeMessage $message): void
     {
-        $this->messages[] = $message;
+        $this->messages->push($message);
+        $this->uidNext = max($this->uidNext, $message->uid() + 1);
+    }
+
+    /**
+     * Get and increment the next message UID.
+     */
+    public function nextUid(): int
+    {
+        return $this->uidNext++;
+    }
+
+    /**
+     * Record a message as vanished at the given modification sequence.
+     */
+    public function vanish(int $uid, int $modSequence): FakeFolder
+    {
+        $this->messages = $this->messages
+            ->reject(fn (FakeMessage $message) => $message->uid() === $uid)
+            ->values();
+
+        $this->vanished[$uid] = $modSequence;
+        $this->uidNext = max($this->uidNext, $uid + 1);
+
+        return $this;
+    }
+
+    /**
+     * Get the requested message UIDs that vanished after the checkpoint.
+     *
+     * @param  int[]  $uids
+     * @return int[]
+     */
+    public function vanishedSince(int $modSequence, array $uids): array
+    {
+        return array_keys(array_filter(
+            $this->vanished,
+            fn (int $vanishedAt, int $uid) => $vanishedAt > $modSequence
+                && in_array($uid, $uids, true),
+            ARRAY_FILTER_USE_BOTH,
+        ));
     }
 
     /**

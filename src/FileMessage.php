@@ -35,6 +35,14 @@ class FileMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
+    public function modSequence(): ?int
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
         throw new BadMethodCallException('FileMessage does not support flagging');
@@ -84,7 +92,7 @@ class FileMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string
     {
         throw new BadMethodCallException('FileMessage does not support fetching body parts');
     }

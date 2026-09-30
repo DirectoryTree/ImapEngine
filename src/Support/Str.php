@@ -2,146 +2,14 @@
 
 namespace DirectoryTree\ImapEngine\Support;
 
-use BackedEnum;
-use Illuminate\Support\Collection;
-
 class Str
 {
     /**
-     * Make a list with literals or nested lists.
+     * Determine if the given string contains only ASCII characters.
      */
-    public static function list(array $list): string
+    public static function isAscii(string $value): bool
     {
-        $values = [];
-
-        foreach ($list as $value) {
-            if (is_array($value)) {
-                $values[] = static::list($value);
-            } else {
-                $values[] = $value;
-            }
-        }
-
-        return sprintf('(%s)', implode(' ', $values));
-    }
-
-    /**
-     * Make one or more literals.
-     */
-    public static function literal(array|string $string): array|string
-    {
-        if (is_array($string)) {
-            $result = [];
-
-            foreach ($string as $value) {
-                $result[] = static::literal($value);
-            }
-
-            return $result;
-        }
-
-        if (str_contains($string, "\n")) {
-            return ['{'.strlen($string).'}', $string];
-        }
-
-        return '"'.static::escape($string).'"';
-    }
-
-    /**
-     * Resolve the value of the given enums.
-     */
-    public static function enums(BackedEnum|array|string|null $enums = null): array|string|null
-    {
-        if (is_null($enums)) {
-            return null;
-        }
-
-        if (is_array($enums)) {
-            return array_map([static::class, 'enums'], $enums);
-        }
-
-        return Str::enum($enums);
-    }
-
-    /**
-     * Resolve the value of the given enum.
-     */
-    public static function enum(BackedEnum|string $enum): string
-    {
-        if ($enum instanceof BackedEnum) {
-            return $enum->value;
-        }
-
-        return (string) $enum;
-    }
-
-    /**
-     * Make an IMAP sequence set.
-     */
-    public static function set(int|string|array $from, int|float|string|null $to = null): string
-    {
-        if (is_array($from)) {
-            return static::toSequenceSet($from);
-        }
-
-        // At this point, $from is an integer. No upper bound provided, return $from as a string.
-        if (is_null($to)) {
-            return (string) $from;
-        }
-
-        // If the upper bound is infinite, use the '*' notation.
-        if ($to == INF) {
-            return $from.':*';
-        }
-
-        // Otherwise, return a typical range string.
-        return $from.':'.$to;
-    }
-
-    /**
-     * Convert the values into an IMAP sequence set.
-     *
-     * @param  array<int, int|string>  $values
-     */
-    protected static function toSequenceSet(array $values): string
-    {
-        return Collection::make(array_values($values))
-            ->chunkWhile(function (int|string $value, int $key, Collection $range) {
-                $previous = $range->last();
-
-                if (! is_numeric($value) || ! is_numeric($previous)) {
-                    return false;
-                }
-
-                $difference = (int) $value - (int) $previous;
-                $direction = (int) $previous <=> (int) $range->first();
-
-                return in_array($difference, [-1, 1], true)
-                    && ($range->count() === 1 || $difference === $direction);
-            })
-            ->map(fn (Collection $range) => static::toSequenceRange(
-                $range->first(),
-                $range->last(),
-            ))
-            ->implode(',');
-    }
-
-    /**
-     * Convert the values into an IMAP sequence range.
-     */
-    protected static function toSequenceRange(int|string $start, int|string $end): string
-    {
-        return (string) $start === (string) $end
-            ? (string) $start
-            : $start.':'.$end;
-    }
-
-    /**
-     * Make a credentials string for use in the AUTHENTICATE command.
-     */
-    public static function credentials(string $user, string $token): string
-    {
-        return base64_encode("user=$user\1auth=Bearer $token\1\1");
+        return ! preg_match('/[^\x00-\x7F]/', $value);
     }
 
     /**

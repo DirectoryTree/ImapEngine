@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine;
 
+use DirectoryTree\ImapEngine\Support\LazyBodyPartStream;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
@@ -63,7 +64,7 @@ class Attachment implements Arrayable, JsonSerializable
                 $part->id(),
                 $part->contentType(),
                 $part->disposition()?->type()?->value,
-                new Support\LazyBodyPartStream($message, $part),
+                new LazyBodyPartStream($message, $part),
             );
         }
 
@@ -137,7 +138,23 @@ class Attachment implements Arrayable, JsonSerializable
      */
     public function save(string $path): false|int
     {
-        return file_put_contents($path, $this->contents());
+        if ($this->contentStream->isSeekable()) {
+            $this->contentStream->rewind();
+        }
+
+        if (! $resource = fopen($path, 'wb')) {
+            return false;
+        }
+
+        $destination = Utils::streamFor($resource);
+
+        try {
+            Utils::copyToStream($this->contentStream, $destination);
+
+            return $destination->tell();
+        } finally {
+            $destination->close();
+        }
     }
 
     /**

@@ -8,8 +8,10 @@ use Carbon\CarbonInterface;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\MessageResponseParser;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\BodyPartDecoder;
+use DirectoryTree\ImapEngine\Support\Enum;
 use Illuminate\Contracts\Support\Arrayable;
+use InvalidArgumentException;
 use JsonSerializable;
 use ZBateson\MailMimeParser\Header\DateHeader;
 use ZBateson\MailMimeParser\Header\HeaderConsts;
@@ -33,12 +35,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function __construct(
         protected FolderInterface $folder,
-        protected int $uid,
-        protected array $flags,
-        protected string $head,
-        protected string $body,
-        protected ?int $size = null,
-        protected ?ListData $bodyStructureData = null,
+        protected FetchedMessageData $data,
     ) {}
 
     /**
@@ -47,7 +44,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function __sleep(): array
     {
         // We don't want to serialize the parsed message.
-        return ['folder', 'uid', 'flags', 'head', 'body', 'size'];
+        return ['folder', 'data'];
     }
 
     /**
@@ -59,11 +56,19 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
+     * Get all data fetched for the message.
+     */
+    public function data(): FetchedMessageData
+    {
+        return $this->data;
+    }
+
+    /**
      * Get the message's identifier.
      */
     public function uid(): int
     {
-        return $this->uid;
+        return $this->data->uid();
     }
 
     /**
@@ -71,7 +76,15 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function size(): ?int
     {
-        return $this->size;
+        return $this->data->size();
+    }
+
+    /**
+     * Get the message modification sequence.
+     */
+    public function modSequence(): ?int
+    {
+        return $this->data->modSequence();
     }
 
     /**
@@ -79,7 +92,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function flags(): array
     {
-        return $this->flags;
+        return $this->data->flags();
     }
 
     /**
@@ -87,11 +100,11 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function head(bool $fetch = false): string
     {
-        if (! $this->head && $fetch) {
-            $this->head = $this->fetchHead() ?? '';
+        if (! $this->data->has('BODY[HEADER]') && $fetch) {
+            $this->fetchHead();
         }
 
-        return $this->head;
+        return $this->data->head();
     }
 
     /**
@@ -99,7 +112,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function hasHead(): bool
     {
-        return ! empty($this->head);
+        return $this->head() !== '';
     }
 
     /**
@@ -107,7 +120,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function body(): string
     {
-        return $this->body;
+        return $this->data->body();
     }
 
     /**
@@ -115,7 +128,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function hasBody(): bool
     {
-        return ! empty($this->body);
+        return $this->body() !== '';
     }
 
     /**
@@ -127,18 +140,20 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
             return $this->bodyStructure;
         }
 
-        if (! $this->bodyStructureData && $fetch) {
-            $this->bodyStructureData = $this->fetchBodyStructureData();
+        if (! $this->data->has('BODYSTRUCTURE') && $fetch) {
+            $this->fetchBodyStructureData();
         }
 
-        if (! $tokens = $this->bodyStructureData?->tokens()) {
+        $structure = $this->data->bodyStructure();
+
+        if (! $tokens = $structure?->tokens()) {
             return null;
         }
 
         // If the first token is a list, it's a multipart message.
         return $this->bodyStructure = head($tokens) instanceof ListData
-            ? BodyStructureCollection::fromListData($this->bodyStructureData)
-            : new BodyStructureCollection(parts: [BodyStructurePart::fromListData($this->bodyStructureData)]);
+            ? BodyStructureCollection::fromListData($structure)
+            : new BodyStructureCollection(parts: [BodyStructurePart::fromListData($structure)]);
     }
 
     /**
@@ -146,7 +161,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function hasBodyStructure(): bool
     {
-        return (bool) $this->bodyStructureData;
+        return ! is_null($this->data->bodyStructure());
     }
 
     /**
@@ -155,7 +170,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function is(MessageInterface $message): bool
     {
         return $message instanceof self
-            && $this->uid === $message->uid
+            && $this->uid() === $message->uid()
             && $this->folder->is($message->folder);
     }
 
@@ -164,20 +179,32 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
-        $flag = Str::enum($flag);
+        $flag = Enum::value($flag);
 
-        $this->folder->mailbox()
+        $result = $this->folder->mailbox()
             ->connection()
-            ->store($flag, $this->uid, mode: $operation);
+            ->store($this->uid(), $flag, mode: $operation);
 
-        if ($expunge) {
-            $this->folder->expunge();
+        $receivedFlags = false;
+
+        foreach ($result->messages() as $data) {
+            $receivedFlags = $receivedFlags || $data->has('FLAGS');
+
+            $this->data = $this->data->merge($data);
         }
 
-        $this->flags = match ($operation) {
-            '+' => array_unique(array_merge($this->flags, [$flag])),
-            '-' => array_diff($this->flags, [$flag]),
-        };
+        if ($expunge) {
+            $this->folder->expunge($this->uid());
+        }
+
+        if (! $receivedFlags) {
+            $this->data = $this->data->merge([
+                'FLAGS' => match ($operation) {
+                    '+' => array_unique(array_merge($this->flags(), [$flag])),
+                    '-' => array_diff($this->flags(), [$flag]),
+                },
+            ]);
+        }
     }
 
     /**
@@ -187,15 +214,13 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         $mailbox = $this->folder->mailbox();
 
-        $capabilities = $mailbox->capabilities();
-
-        if (! in_array('UIDPLUS', $capabilities)) {
+        if (! $mailbox->capabilities()->supports('UIDPLUS')) {
             throw new ImapCapabilityException(
                 'Unable to copy message. IMAP server does not support UIDPLUS capability'
             );
         }
 
-        $response = $mailbox->connection()->copy($folder, $this->uid);
+        $response = $mailbox->connection()->copy($this->uid(), $folder);
 
         return MessageResponseParser::getUidFromCopy($response);
     }
@@ -209,19 +234,13 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         $mailbox = $this->folder->mailbox();
 
-        $capabilities = $mailbox->capabilities();
-
         switch (true) {
-            case in_array('MOVE', $capabilities):
-                $response = $mailbox->connection()->move($folder, $this->uid);
-
-                if ($expunge) {
-                    $this->folder->expunge();
-                }
+            case $mailbox->capabilities()->supports('MOVE'):
+                $response = $mailbox->connection()->move($this->uid(), $folder);
 
                 return MessageResponseParser::getUidFromCopy($response);
 
-            case in_array('UIDPLUS', $capabilities):
+            case $mailbox->capabilities()->supports('UIDPLUS'):
                 $uid = $this->copy($folder);
 
                 $this->delete($expunge);
@@ -381,7 +400,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         if ($fetch && ! $this->hasBody()) {
             if ($part = $this->bodyStructure(fetch: true)?->text()) {
-                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+                return BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
 
@@ -399,7 +418,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     {
         if ($fetch && ! $this->hasBody()) {
             if ($part = $this->bodyStructure(fetch: true)?->html()) {
-                return Support\BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
+                return BodyPartDecoder::text($part, $this->bodyPart($part->partNumber()));
             }
         }
 
@@ -449,25 +468,41 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     }
 
     /**
-     * Fetch a specific body part by part number.
+     * Fetch a body section, optionally limited to a transfer-encoded byte range.
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string
     {
+        $item = MessageData::section($partNumber);
+
+        if ($length !== null) {
+            $item = $item->partial($offset, $length);
+        } elseif ($offset !== 0) {
+            throw new InvalidArgumentException('A partial fetch requires a length.');
+        }
+
+        $key = $item->key();
+
+        if ($length === null && $peek && $this->data->has($key)) {
+            return $this->data->get($key);
+        }
+
+        if ($length !== null) {
+            $this->folder->select();
+        }
+
         $response = $this->folder->mailbox()
             ->connection()
-            ->bodyPart($partNumber, $this->uid, $peek);
+            ->fetch($this->uid(), ($peek ? $item->peek() : $item)->toImap());
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 
-        $data = $response->first()->tokenAt(3);
-
-        if (! $data instanceof ListData) {
-            return null;
+        if ($length === null) {
+            $this->data = $this->data->merge($data);
         }
 
-        return $data->lookup("[$partNumber]")?->value;
+        return $data->get($key);
     }
 
     /**
@@ -491,13 +526,7 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
      */
     public function toArray(): array
     {
-        return [
-            'uid' => $this->uid,
-            'flags' => $this->flags,
-            'head' => $this->head,
-            'body' => $this->body,
-            'size' => $this->size,
-        ];
+        return $this->data->toArray();
     }
 
     /**
@@ -506,8 +535,8 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
     public function __toString(): string
     {
         return implode("\r\n\r\n", array_filter([
-            rtrim($this->head),
-            ltrim($this->body),
+            rtrim($this->head()),
+            ltrim($this->body()),
         ]));
     }
 
@@ -535,19 +564,15 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->bodyHeader($this->uid);
+            ->fetch($this->uid(), 'BODY.PEEK[HEADER]');
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 
-        $data = $response->first()->tokenAt(3);
+        $this->data = $this->data->merge($data);
 
-        if (! $data instanceof ListData) {
-            return null;
-        }
-
-        return $data->lookup('[HEADER]')?->value;
+        return $data->get('BODY[HEADER]');
     }
 
     /**
@@ -558,18 +583,14 @@ class Message implements Arrayable, JsonSerializable, MessageInterface
         $response = $this->folder
             ->mailbox()
             ->connection()
-            ->bodyStructure($this->uid);
+            ->fetch($this->uid(), 'BODYSTRUCTURE');
 
-        if ($response->isEmpty()) {
+        if (! $data = $response->messages()->first()) {
             return null;
         }
 
-        $data = $response->first()->tokenAt(3);
+        $this->data = $this->data->merge($data);
 
-        if (! $data instanceof ListData) {
-            return null;
-        }
-
-        return $data->lookup('BODYSTRUCTURE');
+        return $data->bodyStructure();
     }
 }
