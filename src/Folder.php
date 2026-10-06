@@ -222,9 +222,10 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     {
         $this->select();
 
-        return $this->mailbox->connection()->expunge($uids)->map(
-            fn (UntaggedResponse $response) => $response->tokenAt(1)->value
-        )->all();
+        return $this->mailbox->connection()->expunge($uids)
+            ->filter(fn (UntaggedResponse $response) => $response->tokenAt(2)->is('EXPUNGE'))
+            ->map(fn (UntaggedResponse $response) => $response->tokenAt(1)->value)
+            ->all();
     }
 
     /**
