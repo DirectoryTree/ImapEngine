@@ -30,6 +30,9 @@ use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Mailbox;
+use Tests\IntegrationTestCase;
+
+uses(IntegrationTestCase::class)->in('Integration');
 
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
@@ -53,7 +56,7 @@ function stub(string $filename): string
 
 function mailbox(array $config = []): Mailbox
 {
-    return new Mailbox([
+    $mailbox = new Mailbox([
         ...$config,
         'host' => getenv('MAILBOX_HOST'),
         'port' => getenv('MAILBOX_PORT'),
@@ -61,6 +64,10 @@ function mailbox(array $config = []): Mailbox
         'password' => getenv('MAILBOX_PASSWORD'),
         'encryption' => getenv('MAILBOX_ENCRYPTION'),
     ]);
+
+    test()->mailboxes = [...test()->mailboxes, $mailbox];
+
+    return $mailbox;
 }
 
 function parseBodyStructureResponse(string $response): ListData

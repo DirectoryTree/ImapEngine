@@ -1,7 +1,16 @@
 services:
     greenmail:
-        image: greenmail/standalone:latest
+        image: greenmail/standalone:2.1.14
         environment:
             - GREENMAIL_OPTS=-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled -Dgreenmail.verbose
         ports:
-            - "3143:3143"
+            - "127.0.0.1:3143:3143"
+
+    dovecot:
+        image: dovecot/dovecot:2.4.3
+        environment:
+            USER_PASSWORD: password
+        volumes:
+            - ./tests/docker/dovecot.conf:/etc/dovecot/conf.d/99-test.conf:ro
+        ports:
+            - "127.0.0.1:4143:31143"

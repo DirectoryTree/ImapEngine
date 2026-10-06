@@ -4,7 +4,7 @@ namespace DirectoryTree\ImapEngine;
 
 use BackedEnum;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\Enum;
 
 trait HasFlags
 {
@@ -173,7 +173,7 @@ trait HasFlags
      */
     public function hasFlag(BackedEnum|string $flag): bool
     {
-        return in_array(Str::enum($flag), $this->flags());
+        return in_array(Enum::value($flag), $this->flags());
     }
 
     /**

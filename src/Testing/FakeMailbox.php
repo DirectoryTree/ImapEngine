@@ -2,11 +2,19 @@
 
 namespace DirectoryTree\ImapEngine\Testing;
 
+use DirectoryTree\ImapEngine\Capabilities;
+use DirectoryTree\ImapEngine\Capability;
+use DirectoryTree\ImapEngine\Collections\FolderCollection;
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\FolderRepositoryInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\RequiresEnablementInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 
 class FakeMailbox implements MailboxInterface
 {
@@ -16,17 +24,67 @@ class FakeMailbox implements MailboxInterface
     protected ?FolderInterface $selected = null;
 
     /**
+     * The currently examined folder.
+     */
+    protected ?FolderInterface $examined = null;
+
+    /**
      * Constructor.
      */
-    public function __construct(
-        protected array $config = [],
-        /** @var FakeFolder[] */
-        protected array $folders = [],
-        protected array $capabilities = [],
+    protected function __construct(
+        protected array $config,
+        protected FolderCollection $folders,
+        protected Capabilities $capabilities,
     ) {
+        /** @var FakeFolder $folder */
         foreach ($folders as $folder) {
             $folder->setMailbox($this);
         }
+    }
+
+    /**
+     * Prepare the cloned instance.
+     */
+    public function __clone(): void
+    {
+        $this->folders = $this->folders->map(
+            fn (FakeFolder $folder) => (clone $folder)->setMailbox($this)
+        );
+
+        $this->reset();
+    }
+
+    /**
+     * Reset the connection state.
+     */
+    protected function reset(): void
+    {
+        $this->selected = null;
+        $this->examined = null;
+
+        $this->capabilities = Capabilities::from(
+            ...array_map(
+                fn (string $capability) => Capability::make($capability),
+                $this->capabilities->all()
+            )
+        );
+    }
+
+    /**
+     * Make a new fake mailbox.
+     *
+     * @param  FakeFolder[]  $folders
+     * @param  string[]  $capabilities
+     */
+    public static function make(array $config = [], array $folders = [], array $capabilities = []): static
+    {
+        return new static(
+            $config,
+            new FolderCollection($folders),
+            Capabilities::from(
+                ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+            ),
+        );
     }
 
     /**
@@ -34,10 +92,6 @@ class FakeMailbox implements MailboxInterface
      */
     public function config(?string $key = null, mixed $default = null): mixed
     {
-        if (is_null($key)) {
-            return $this->config;
-        }
-
         return data_get($this->config, $key, $default);
     }
 
@@ -60,9 +114,13 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function reconnect(): void
+    public function reconnect(?string $password = null): void
     {
-        // Do nothing.
+        if ($password !== null) {
+            $this->config['password'] = $password;
+        }
+
+        $this->reset();
     }
 
     /**
@@ -78,7 +136,7 @@ class FakeMailbox implements MailboxInterface
      */
     public function disconnect(): void
     {
-        // Do nothing.
+        $this->reset();
     }
 
     /**
@@ -100,7 +158,7 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function capabilities(): array
+    public function capabilities(): Capabilities
     {
         return $this->capabilities;
     }
@@ -108,9 +166,80 @@ class FakeMailbox implements MailboxInterface
     /**
      * {@inheritDoc}
      */
-    public function select(FolderInterface $folder, bool $force = false): void
+    public function enable(string ...$capabilities): ResponseCollection
     {
+        $current = $this->capabilities();
+
+        $requested = Capabilities::from(
+            ...array_map(fn (string $capability) => Capability::make($capability), $capabilities)
+        );
+
+        foreach ($requested->all() as $capability) {
+            if (! $current->has($capability)) {
+                throw new ImapCapabilityException(
+                    "Unable to enable capability [$capability]. IMAP server does not support it."
+                );
+            }
+        }
+
+        $requested = array_values(array_filter(
+            $requested->all(),
+            fn (string $capability) => ! $current->enabled($capability),
+        ));
+
+        if (empty($requested)) {
+            return new ResponseCollection;
+        }
+
+        if ($this->selected || $this->examined) {
+            throw new ImapCapabilityException(
+                'Unable to enable capabilities while a folder is selected or examined. Reconnect before enabling them.'
+            );
+        }
+
+        $items = $current->items();
+
+        foreach ($requested as $capability) {
+            $items[$capability] = Capability::make($capability, enabled: true);
+        }
+
+        $this->capabilities = Capabilities::from(...array_values($items));
+
+        return new ResponseCollection;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
+    {
+        foreach ($options as $option) {
+            if (! $this->capabilities()->supports($option->capability())) {
+                throw new ImapCapabilityException(
+                    "Unable to select folder with [{$option->capability()}]. IMAP server does not support it."
+                );
+            }
+
+            if ($option instanceof RequiresEnablementInterface) {
+                $this->enable($option->capability());
+            }
+        }
+
+        $this->examined = null;
         $this->selected = $folder;
+
+        return new Result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function examine(FolderInterface $folder): Result
+    {
+        $this->selected = null;
+        $this->examined = $folder;
+
+        return new Result;
     }
 
     /**

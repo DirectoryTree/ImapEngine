@@ -2,7 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Enums;
 
-enum ImapFetchIdentifier
+enum ImapIdentifier
 {
     case Uid;
     case MessageNumber;

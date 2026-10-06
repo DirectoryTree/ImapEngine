@@ -46,6 +46,46 @@ class FakeStream implements StreamInterface
     ];
 
     /**
+     * The failure to report once all queued responses have been read.
+     */
+    protected ?string $failureWhenEmpty = null;
+
+    /**
+     * The most recently configured read timeout.
+     */
+    protected ?int $timeout = null;
+
+    /**
+     * Simulate a disconnection after the queued responses are consumed.
+     */
+    public function disconnectWhenEmpty(): self
+    {
+        $this->failureWhenEmpty = 'eof';
+
+        return $this;
+    }
+
+    /**
+     * Simulate a timeout after the queued responses are consumed.
+     */
+    public function timeoutWhenEmpty(): self
+    {
+        $this->failureWhenEmpty = 'timed_out';
+
+        return $this;
+    }
+
+    /**
+     * Apply the scripted failure when there are no responses left to read.
+     */
+    protected function failWhenEmpty(): void
+    {
+        if (! $this->buffer && $this->failureWhenEmpty !== null) {
+            $this->meta[$this->failureWhenEmpty] = true;
+        }
+    }
+
+    /**
      * Feed a line to the stream buffer with a newline character.
      */
     public function feed(array|string $lines): self
@@ -99,6 +139,8 @@ class FakeStream implements StreamInterface
      */
     public function open(?string $transport = null, ?string $host = null, ?int $port = null, ?int $timeout = null, array $options = []): bool
     {
+        $this->timeout = $timeout;
+
         $this->connection = compact('transport', 'host', 'port', 'timeout', 'options');
 
         return true;
@@ -122,8 +164,10 @@ class FakeStream implements StreamInterface
             return false;
         }
 
-        if ($this->meta['eof'] && empty($this->buffer)) {
-            return false; // EOF and no data left. Indicate end of stream.
+        $this->failWhenEmpty();
+
+        if ($this->meta['timed_out'] || ($this->meta['eof'] && empty($this->buffer))) {
+            return false;
         }
 
         $data = implode('', $this->buffer);
@@ -155,6 +199,8 @@ class FakeStream implements StreamInterface
         if (! $this->opened()) {
             return false;
         }
+
+        $this->failWhenEmpty();
 
         // Simulate timeout/eof checks.
         if ($this->meta['timed_out'] || $this->meta['eof']) {
@@ -199,7 +245,17 @@ class FakeStream implements StreamInterface
      */
     public function setTimeout(int $seconds): bool
     {
+        $this->timeout = $seconds;
+
         return true;
+    }
+
+    /**
+     * Get the most recently configured read timeout.
+     */
+    public function timeout(): ?int
+    {
+        return $this->timeout;
     }
 
     /**

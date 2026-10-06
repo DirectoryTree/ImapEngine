@@ -1,27 +1,43 @@
 <?php
 
+use DirectoryTree\ImapEngine\BodyStructureCollection;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
+use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Enums\SortDirection;
+use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\MessageData;
+use DirectoryTree\ImapEngine\Selection\QuickResync;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
+use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 use DirectoryTree\ImapEngine\Testing\FakeMessage;
 use DirectoryTree\ImapEngine\Testing\FakeMessageQuery;
 use Illuminate\Support\ItemNotFoundException;
 
 test('it can be created with basic properties', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
     expect($query)->toBeInstanceOf(FakeMessageQuery::class);
 });
 
+test('it forwards compiled search tokens from the query builder', function () {
+    $query = new FakeMessageQuery(new FakeFolder('INBOX'));
+
+    expect($query->subject('café')->toTokens())->toBe([
+        'SUBJECT', ['{5}', 'café'],
+    ]);
+});
+
 test('it returns message collection', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
     $collection = $query->get();
@@ -30,12 +46,54 @@ test('it returns message collection', function () {
     expect($collection)->toHaveCount(2);
 });
 
+test('it orders messages by uid', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
+        new FakeMessage(2),
+        new FakeMessage(1),
+        new FakeMessage(3),
+    ]));
+
+    $query = new FakeMessageQuery($folder);
+
+    $ascending = $query
+        ->orderByUid()
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    $descending = $query
+        ->orderByUid(SortDirection::Descending)
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    expect($ascending)->toBe([1, 2, 3])
+        ->and($descending)->toBe([3, 2, 1]);
+});
+
+test('it applies server sort criteria', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
+        new FakeMessage(1, contents: "Subject: Zebra\r\n\r\n"),
+        new FakeMessage(2, contents: "Subject: Apple\r\n\r\n"),
+    ]));
+
+    $query = new FakeMessageQuery($folder);
+
+    $uids = $query
+        ->sortBy(ImapSortKey::Subject)
+        ->get()
+        ->map(fn (FakeMessage $message) => $message->uid())
+        ->all();
+
+    expect($uids)->toBe([2, 1]);
+});
+
 test('it counts messages correctly', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
@@ -43,17 +101,17 @@ test('it counts messages correctly', function () {
 });
 
 test('it returns first message', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
     $first = $query->first();
 
     expect($first)->toBeInstanceOf(FakeMessage::class);
-    expect($first->uid())->toBe(1);
+    expect($first->uid())->toBe(2);
 });
 
 test('it returns null when no messages exist for first()', function () {
@@ -74,35 +132,47 @@ test('it auto-increments uid when appending messages', function () {
     $folder = new FakeFolder('INBOX');
     $query = new FakeMessageQuery($folder);
 
-    $uid1 = $query->append('First message');
-    expect($uid1)->toBe(1);
+    $result1 = $query->append('First message');
+    expect($result1->uid())->toBe(1);
 
-    $uid2 = $query->append('Second message');
-    expect($uid2)->toBe(2);
+    $result2 = $query->append('Second message');
+    expect($result2->uid())->toBe(2);
 
-    $uid3 = $query->append('Third message');
-    expect($uid3)->toBe(3);
+    $result3 = $query->append('Third message');
+    expect($result3->uid())->toBe(3);
 
     expect($query->count())->toBe(3);
 });
 
 test('it continues auto-incrementing from last message uid', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(5),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
-    $uid = $query->append('New message');
-    expect($uid)->toBe(6);
+    $result = $query->append('New message');
+    expect($result->uid())->toBe(6);
+});
+
+test('it does not reuse vanished message uids when appending', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
+        new FakeMessage(5),
+    ]));
+
+    $folder->vanish(uid: 5, modSequence: 42);
+
+    $query = new FakeMessageQuery($folder);
+
+    expect($query->append('New message')->uid())->toBe(6);
 });
 
 test('it can find message by uid', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
@@ -110,6 +180,20 @@ test('it can find message by uid', function () {
 
     expect($message)->toBeInstanceOf(FakeMessage::class);
     expect($message->uid())->toBe(2);
+});
+
+test('it can find a message by message number', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
+        new FakeMessage(30),
+        new FakeMessage(10),
+        new FakeMessage(20),
+    ]));
+
+    $query = new FakeMessageQuery($folder);
+
+    expect($query->find(2, ImapIdentifier::MessageNumber)?->uid())->toBe(20);
+    expect($query->findOrFail(3, ImapIdentifier::MessageNumber)->uid())->toBe(30);
+    expect($query->find(4, ImapIdentifier::MessageNumber))->toBeNull();
 });
 
 test('it returns null when message not found', function () {
@@ -124,10 +208,10 @@ test('it returns null when message not found', function () {
 });
 
 test('it throws exception when message not found with findOrFail', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
@@ -135,11 +219,11 @@ test('it throws exception when message not found with findOrFail', function () {
 })->throws(ItemNotFoundException::class);
 
 test('it can destroy messages by uid', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
@@ -154,12 +238,12 @@ test('it can destroy messages by uid', function () {
 });
 
 test('it can destroy multiple messages', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1),
         new FakeMessage(2),
         new FakeMessage(3),
         new FakeMessage(4),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
 
@@ -175,13 +259,13 @@ test('it can destroy multiple messages', function () {
 });
 
 test('each breaks when callback returns false', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1, [], 'Message 1'),
         new FakeMessage(2, [], 'Message 2'),
         new FakeMessage(3, [], 'Message 3'),
         new FakeMessage(4, [], 'Message 4'),
         new FakeMessage(5, [], 'Message 5'),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
     $processedUids = [];
@@ -195,18 +279,18 @@ test('each breaks when callback returns false', function () {
         }
     }, 2); // Use chunk size of 2
 
-    // Should process messages 1, 2, and 3, then break
-    expect($processedUids)->toBe([1, 2, 3]);
+    // Should process messages 5, 4, and 3, then break
+    expect($processedUids)->toBe([5, 4, 3]);
 });
 
 test('chunk breaks when callback returns false', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1, [], 'Message 1'),
         new FakeMessage(2, [], 'Message 2'),
         new FakeMessage(3, [], 'Message 3'),
         new FakeMessage(4, [], 'Message 4'),
         new FakeMessage(5, [], 'Message 5'),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
     $processedChunks = [];
@@ -225,11 +309,11 @@ test('chunk breaks when callback returns false', function () {
 });
 
 test('each processes all messages when callback never returns false', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1, [], 'Message 1'),
         new FakeMessage(2, [], 'Message 2'),
         new FakeMessage(3, [], 'Message 3'),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
     $processedUids = [];
@@ -240,17 +324,17 @@ test('each processes all messages when callback never returns false', function (
     });
 
     // Should process all messages
-    expect($processedUids)->toBe([1, 2, 3]);
+    expect($processedUids)->toBe([3, 2, 1]);
 });
 
 test('chunk processes all chunks when callback never returns false', function () {
-    $folder = new FakeFolder('INBOX', messages: [
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
         new FakeMessage(1, [], 'Message 1'),
         new FakeMessage(2, [], 'Message 2'),
         new FakeMessage(3, [], 'Message 3'),
         new FakeMessage(4, [], 'Message 4'),
         new FakeMessage(5, [], 'Message 5'),
-    ]);
+    ]));
 
     $query = new FakeMessageQuery($folder);
     $processedChunks = [];
@@ -262,4 +346,92 @@ test('chunk processes all chunks when callback never returns false', function ()
 
     // Should process all chunks (1, 2, 3)
     expect($processedChunks)->toBe([1, 2, 3]);
+});
+
+test('fake synchronization also returns no changes for an empty uid set', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([new FakeMessage(7)]));
+
+    $result = $folder->messages()->changesSince(0, [], vanished: true);
+
+    expect($result->messages())->toBeEmpty();
+    expect($result->vanishedUids()->all())->toBe([]);
+});
+
+test('fake synchronization rejects negative checkpoints for a non-empty uid set', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([new FakeMessage(7)]));
+
+    expect(fn () => $folder->messages()->changesSince(-1, [7]))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('fake synchronization returns messages that vanished after the checkpoint', function () {
+    $folder = new FakeFolder(
+        'INBOX',
+        messages: new MessageCollection([new FakeMessage(3), new FakeMessage(4), new FakeMessage(6), new FakeMessage(7)]),
+    );
+
+    $folder
+        ->vanish(uid: 3, modSequence: 43)
+        ->vanish(uid: 4, modSequence: 42)
+        ->vanish(uid: 6, modSequence: 44);
+
+    $mailbox = FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    $mailbox->select($folder, options: new QuickResync(777, 42));
+
+    $changes = $folder->messages()->changesSince(42, [3, 4, 6, 7], vanished: true);
+    $laterChanges = $folder->messages()->changesSince(43, [3, 4, 6, 7], vanished: true);
+    $withoutVanished = $folder->messages()->changesSince(42, [3, 4, 6, 7]);
+
+    expect($changes->vanishedUids()->all())->toBe([3, 6]);
+    expect($changes->vanished())->toHaveCount(1);
+    expect($changes->vanished()[0]->earlier())->toBeTrue();
+    expect($laterChanges->vanishedUids()->all())->toBe([6]);
+    expect($withoutVanished->vanishedUids()->all())->toBe([]);
+    expect($folder->messages()->get()->map(fn (FakeMessage $message) => $message->uid())->all())->toBe([7]);
+});
+
+test('fake synchronization returns only the configured fetch items', function () {
+    $bodyStructure = new BodyStructureCollection;
+
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([
+        new FakeMessage(
+            7,
+            flags: ['\\Seen'],
+            size: 123,
+            bodyStructure: $bodyStructure,
+            modSequence: 43,
+        ),
+    ]));
+
+    FakeMailbox::make(folders: [$folder], capabilities: ['CONDSTORE']);
+
+    $message = $folder->messages()
+        ->only(MessageData::size(), MessageData::bodyStructure())
+        ->changesSince(42, [7])
+        ->messages()[0];
+
+    expect($message->uid())->toBe(7)
+        ->and($message->modSequence())->toBe(43)
+        ->and($message->size())->toBe(123)
+        ->and($message->get('BODYSTRUCTURE'))->toBe($bodyStructure)
+        ->and($message->has('FLAGS'))->toBeFalse();
+});
+
+test('fake synchronization requires the advertised capability', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([new FakeMessage(7)]));
+
+    FakeMailbox::make(folders: [$folder]);
+
+    expect(fn () => $folder->messages()->changesSince(42, [7]))
+        ->toThrow(ImapCapabilityException::class);
+});
+
+test('fake vanished synchronization requires qresync to be enabled', function () {
+    $folder = new FakeFolder('INBOX', messages: new MessageCollection([new FakeMessage(7)]));
+
+    FakeMailbox::make(folders: [$folder], capabilities: ['QRESYNC']);
+
+    expect(fn () => $folder->messages()->changesSince(42, [7], vanished: true))
+        ->toThrow(ImapCapabilityException::class);
 });

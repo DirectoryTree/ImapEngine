@@ -12,8 +12,10 @@ class Result
      */
     public function __construct(
         protected ImapCommand $command,
-        protected array $responses = [],
-    ) {}
+        protected ResponseCollection $responses = new ResponseCollection,
+    ) {
+        $this->responses = clone $responses;
+    }
 
     /**
      * Get the executed command.
@@ -28,7 +30,7 @@ class Result
      */
     public function addResponse(Response $response): void
     {
-        $this->responses[] = $response;
+        $this->responses->push($response);
     }
 
     /**
@@ -36,6 +38,6 @@ class Result
      */
     public function responses(): ResponseCollection
     {
-        return new ResponseCollection($this->responses);
+        return clone $this->responses;
     }
 }

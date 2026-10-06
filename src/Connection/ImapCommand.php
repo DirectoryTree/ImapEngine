@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use InvalidArgumentException;
 use Stringable;
 
 class ImapCommand implements Stringable
@@ -59,14 +60,24 @@ class ImapCommand implements Stringable
 
         $lines = [];
 
-        $line = trim("{$this->tag} {$this->command}");
+        $line = trim(new CommandPart($this->tag).' '.new CommandPart($this->command));
 
         foreach ($this->tokens as $token) {
             if (is_array($token)) {
                 // For tokens provided as arrays, the first element is a placeholder
                 // (for example, "{20}") that signals a literal value will follow.
                 // The second element holds the actual literal content.
+                if (count($token) !== 2 || ! is_string($token[0]) || ! is_string($token[1])) {
+                    throw new InvalidArgumentException('Invalid IMAP literal token.');
+                }
+
                 [$length, $literal] = $token;
+
+                $length = (string) new CommandPart($length);
+
+                if (! preg_match('/\A\(?\{\d+\+?\}\z/', $length)) {
+                    throw new InvalidArgumentException('Invalid IMAP literal marker.');
+                }
 
                 $lines[] = new ImapCommandLine(
                     value: "{$line} {$length}",
@@ -75,7 +86,9 @@ class ImapCommand implements Stringable
 
                 $line = $literal;
             } else {
-                $line .= " {$token}";
+                $part = (string) new CommandPart($token);
+
+                $line .= (str_starts_with($part, ')') ? '' : ' ').$part;
             }
         }
 
@@ -92,7 +105,7 @@ class ImapCommand implements Stringable
         return new static($this->tag, $this->command, array_map(
             function (mixed $token) {
                 return is_array($token)
-                    ? array_map(fn () => '[redacted]', $token)
+                    ? [$token[0], '[redacted]']
                     : '[redacted]';
             }, $this->tokens)
         );

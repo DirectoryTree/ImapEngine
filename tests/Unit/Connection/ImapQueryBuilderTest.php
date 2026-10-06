@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use DirectoryTree\ImapEngine\Connection\ImapCommand;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\RawQueryValue;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
@@ -100,7 +101,7 @@ test('compiles an empty string value', function () {
 
     $builder->where('subject', ''); // empty string
 
-    expect($builder->toImap())->toBe('SUBJECT');
+    expect($builder->toImap())->toBe('SUBJECT ""');
 });
 
 test('compiles a null value', function () {
@@ -170,6 +171,39 @@ test('compiles multiple conditions on the same column', function () {
     );
 });
 
+test('preserves search strings without mailbox encoding', function (string $value) {
+    $builder = new ImapQueryBuilder;
+
+    $builder->subject($value);
+
+    expect($builder->toImap())->toBe('SUBJECT "'.$value.'"');
+})->with(['R&D', '0', '']);
+
+test('compiles international search values as byte-counted literals', function (string $value) {
+    $builder = new ImapQueryBuilder;
+
+    $builder->subject($value);
+
+    expect($builder->toTokens())->toBe(['SUBJECT', ['{'.strlen($value).'}', $value]]);
+})->with(['café', '日本語', 'Привет', 'مرحبا', 'Hello 🌍', 'café "quoted" \\ path']);
+
+test('preserves literals inside nested boolean expressions', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->subject('café')->orWhere(function (ImapQueryBuilder $query) {
+        $query->body('日本語')->whereNot('TEXT', 'مرحبا');
+    });
+
+    $lines = (new ImapCommand('TAG1', 'UID SEARCH', $builder->toTokens()))->compile();
+
+    expect(array_map(fn ($line) => $line->value, $lines))->toBe([
+        'TAG1 UID SEARCH OR (SUBJECT {5}',
+        'café) (BODY {9}',
+        '日本語 NOT TEXT {10}',
+        'مرحبا)',
+    ]);
+});
+
 test('escapes double quotes in search value', function () {
     $builder = new ImapQueryBuilder;
 
@@ -232,13 +266,19 @@ test('compiles message id condition', function (string $messageId) {
     'wrapped message id' => ['<unique-message-id@server.example.com>'],
 ]);
 
-test('converts values from utf-8 to utf-7', function () {
+test('preserves UTF-8 values in the rendered query', function () {
     $builder = new ImapQueryBuilder;
 
     $builder->where('foo', 'Joué');
 
-    expect($builder->toImap())->toBe('FOO "Jou&AOk-"');
+    expect($builder->toImap())->toBe("FOO {5}\r\nJoué");
 });
+
+test('rejects control characters in international search values', function () {
+    $builder = new ImapQueryBuilder;
+
+    $builder->subject("café\0")->toTokens();
+})->throws(InvalidArgumentException::class);
 
 test('compiles UID condition without quotes', function () {
     $builder = new ImapQueryBuilder;

@@ -8,7 +8,7 @@ use DirectoryTree\ImapEngine\HasFlags;
 use DirectoryTree\ImapEngine\HasMessageAccessors;
 use DirectoryTree\ImapEngine\HasParsedMessage;
 use DirectoryTree\ImapEngine\MessageInterface;
-use DirectoryTree\ImapEngine\Support\Str;
+use DirectoryTree\ImapEngine\Support\Enum;
 
 class FakeMessage implements MessageInterface
 {
@@ -23,6 +23,7 @@ class FakeMessage implements MessageInterface
         protected string $contents = '',
         protected ?int $size = null,
         protected ?BodyStructureCollection $bodyStructure = null,
+        protected ?int $modSequence = null,
     ) {}
 
     /**
@@ -44,6 +45,14 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
+    public function modSequence(): ?int
+    {
+        return $this->modSequence;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function is(MessageInterface $message): bool
     {
         return $message instanceof self
@@ -57,7 +66,7 @@ class FakeMessage implements MessageInterface
      */
     public function flag(BackedEnum|string $flag, string $operation, bool $expunge = false): void
     {
-        $flag = Str::enum($flag);
+        $flag = Enum::value($flag);
 
         if ($operation === '+') {
             $this->flags = array_unique([...$this->flags, $flag]);
@@ -93,7 +102,7 @@ class FakeMessage implements MessageInterface
     /**
      * {@inheritDoc}
      */
-    public function bodyPart(string $partNumber, bool $peek = true): ?string
+    public function bodyPart(string $partNumber, bool $peek = true, int $offset = 0, ?int $length = null): ?string
     {
         return null;
     }

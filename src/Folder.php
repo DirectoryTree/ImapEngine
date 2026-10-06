@@ -5,12 +5,11 @@ namespace DirectoryTree\ImapEngine;
 use Closure;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
-use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
-use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
+use DirectoryTree\ImapEngine\Selection\OptionInterface;
+use DirectoryTree\ImapEngine\Selection\Result;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Support\ItemNotFoundException;
 use JsonSerializable;
 
 class Folder implements Arrayable, FolderInterface, JsonSerializable
@@ -23,7 +22,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function __construct(
         protected Mailbox $mailbox,
         protected string $path,
-        protected array $flags = [],
+        protected array $attributes = [],
         protected string $delimiter = '/',
     ) {}
 
@@ -44,13 +43,13 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     }
 
     /**
-     * Get the folder flags.
+     * Get the folder attributes.
      *
      * @return string[]
      */
-    public function flags(): array
+    public function attributes(): array
     {
-        return $this->flags;
+        return $this->attributes;
     }
 
     /**
@@ -85,7 +84,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     public function messages(): MessageQuery
     {
         // Ensure the folder is selected.
-        $this->select(true);
+        $this->select();
 
         return new MessageQuery($this, new ImapQueryBuilder);
     }
@@ -93,9 +92,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300): void
+    public function events(callable $callback, callable|int $timeout = 300, OptionInterface ...$options): void
     {
-        if (! in_array('IDLE', $this->mailbox->capabilities())) {
+        if (! $this->mailbox->capabilities()->supports('IDLE')) {
             throw new ImapCapabilityException('Unable to IDLE. IMAP server does not support IDLE capability.');
         }
 
@@ -104,37 +103,15 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
             $timeout = $timeout(...);
         }
 
-        // The message query to use when fetching messages.
-        $query ??= fn (MessageQuery $query) => $query;
+        (new Watch(clone $this->mailbox, $this->path, $timeout, $options))->await($callback);
+    }
 
-        // Fetch the message by message number.
-        $fetch = fn (int $msgn) => (
-            $query($this->messages())->findOrFail($msgn, ImapFetchIdentifier::MessageNumber)
-        );
-
-        (new Idle(clone $this->mailbox, $this->path, $timeout))->await(
-            function (int $msgn) use ($callback, $fetch) {
-                if (! $this->mailbox->connected()) {
-                    $this->mailbox->connect();
-                }
-
-                try {
-                    $message = $fetch($msgn);
-                } catch (ItemNotFoundException) {
-                    // The message wasn't found. We will skip
-                    // it and continue awaiting new messages.
-                    return;
-                } catch (Exception) {
-                    // Something else happened. We will attempt
-                    // reconnecting and re-fetching the message.
-                    $this->mailbox->reconnect();
-
-                    $message = $fetch($msgn);
-                }
-
-                $callback($message);
-            }
-        );
+    /**
+     * {@inheritDoc}
+     */
+    public function idle(callable $callback, ?callable $query = null, callable|int $timeout = 300, OptionInterface ...$options): void
+    {
+        (new Idle($this))->await($callback, $query, $timeout, ...$options);
     }
 
     /**
@@ -142,19 +119,17 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function poll(callable $callback, ?callable $query = null, callable|int $frequency = 60): void
     {
+        if (is_callable($frequency) && ! $frequency instanceof Closure) {
+            $frequency = $frequency(...);
+        }
+
         (new Poll(clone $this->mailbox, $this->path, $frequency))->start(
             function (MessageInterface $message) use ($callback) {
                 if (! $this->mailbox->connected()) {
                     $this->mailbox->connect();
                 }
 
-                try {
-                    $callback($message);
-                } catch (Exception) {
-                    // Something unexpected happened. We will attempt
-                    // reconnecting and continue polling for messages.
-                    $this->mailbox->reconnect();
-                }
+                return $callback($message);
             },
             $query ?? fn (MessageQuery $query) => $query
         );
@@ -173,9 +148,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function select(bool $force = false): void
+    public function select(bool $force = false, OptionInterface ...$options): Result
     {
-        $this->mailbox->select($this, $force);
+        return $this->mailbox->select($this, $force, ...$options);
     }
 
     /**
@@ -183,13 +158,15 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function quota(): array
     {
-        if (! in_array('QUOTA', $this->mailbox->capabilities())) {
+        if (! $this->mailbox->capabilities()->supports('QUOTA')) {
             throw new ImapCapabilityException(
                 'Unable to fetch mailbox quotas. IMAP server does not support QUOTA capability.'
             );
         }
 
-        $responses = $this->mailbox->connection()->quotaRoot($this->path);
+        $responses = $this->mailbox->connection()->getQuotaRoot($this->path)->filter(
+            fn (UntaggedResponse $response) => $response->type()->is('QUOTA')
+        );
 
         $values = [];
 
@@ -233,7 +210,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
      */
     public function examine(): array
     {
-        return $this->mailbox->connection()->examine($this->path)->map(
+        return $this->mailbox->examine($this)->responses()->untagged()->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }
@@ -241,11 +218,14 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function expunge(): array
+    public function expunge(array|int|null $uids = null): array
     {
-        return $this->mailbox->connection()->expunge()->map(
-            fn (UntaggedResponse $response) => $response->tokenAt(1)->value
-        )->all();
+        $this->select();
+
+        return $this->mailbox->connection()->expunge($uids)
+            ->filter(fn (UntaggedResponse $response) => $response->tokenAt(2)->is('EXPUNGE'))
+            ->map(fn (UntaggedResponse $response) => $response->tokenAt(1)->value)
+            ->all();
     }
 
     /**
@@ -263,7 +243,7 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     {
         return [
             'path' => $this->path,
-            'flags' => $this->flags,
+            'attributes' => $this->attributes,
             'delimiter' => $this->delimiter,
         ];
     }
