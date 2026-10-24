@@ -1,7 +1,9 @@
 <?php
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
+use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 
@@ -98,6 +100,41 @@ test('connect throws exception with bad response', function () {
         'TAG1 BAD Authentication failed',
     ]));
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+
+test('connect does not authenticate when the tls handshake fails', function (bool|int $result, string $authentication) {
+    $stream = new class($result) extends FakeStream
+    {
+        public function __construct(protected bool|int $result) {}
+
+        public function setSocketSetCrypto(bool $enabled, ?int $method): bool|int
+        {
+            return $this->result;
+        }
+    };
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Begin TLS negotiation now',
+        'TAG2 OK Authenticated',
+    ]);
+
+    $mailbox = Mailbox::make([
+        'host' => 'imap.example.com',
+        'encryption' => 'starttls',
+        'authentication' => $authentication,
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    expect(fn () => $mailbox->connect(new ImapConnection($stream)))
+        ->toThrow(ImapConnectionFailedException::class);
+
+    expect($mailbox->connected())->toBeFalse();
+
+    $stream->assertWritten('TAG1 STARTTLS');
+    $stream->assertNotWritten('LOGIN');
+    $stream->assertNotWritten('AUTHENTICATE');
+})->with([false, 0])->with(['plain', 'oauth']);
 
 test('folders', function () {
     $mailbox = Mailbox::make();
