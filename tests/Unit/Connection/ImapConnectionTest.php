@@ -236,6 +236,32 @@ test('start tls failure', function () {
     $connection->startTls();
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 STARTTLS" failed. Response: "TAG1 BAD TLS negotiation failed"');
 
+test('start tls disconnects when encryption is not established', function (bool|int $result) {
+    $stream = new class($result) extends FakeStream
+    {
+        public function __construct(protected bool|int $result) {}
+
+        public function setSocketSetCrypto(bool $enabled, ?int $method): bool|int
+        {
+            return $this->result;
+        }
+    };
+
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Begin TLS negotiation now',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->startTls())->toThrow(ImapConnectionFailedException::class);
+    expect($connection->connected())->toBeFalse();
+
+    $stream->assertWritten('TAG1 STARTTLS');
+    $stream->assertNotWritten('LOGOUT');
+})->with([false, 0]);
+
 test('done', function () {
     $stream = new FakeStream;
     $stream->open();
