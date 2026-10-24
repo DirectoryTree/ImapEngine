@@ -450,8 +450,54 @@ test('expunge selects its own folder before removing messages', function (?int $
     $mailbox->connect($connection);
     (new Folder($mailbox, 'Other'))->select();
 
-    expect((new Folder($mailbox, 'INBOX'))->expunge($uid))->toBe(['2']);
+    expect((new Folder($mailbox, 'INBOX'))->expunge($uid)->sequenceNumbers()->all())->toBe([2]);
     $connection->stream()->assertWritten('TAG3 SELECT "INBOX"');
     $connection->stream()->assertWritten($uid === null ? "TAG4 EXPUNGE\r\n" : "TAG4 UID EXPUNGE 7\r\n");
     $connection->disconnect();
 })->with([null, 7]);
+
+test('expunge returns only expunged sequence numbers from mixed server responses', function (?int $uid) {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed', 'TAG2 OK SELECT completed',
+        '* 12 EXISTS', '* 4 FETCH (UID 42 FLAGS ())', '* VANISHED 9:10',
+        '* OK Expunging messages', '* 3 EXPUNGE', '* 5 EXPUNGE',
+        'TAG3 OK EXPUNGE completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+
+    expect((new Folder($mailbox, 'INBOX'))->expunge($uid)->sequenceNumbers()->all())->toBe([3, 5]);
+    $connection->disconnect();
+})->with([null, 42]);
+
+test('qresync expunge preserves vanished uids and raw updates', function (?int $uid) {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* CAPABILITY IMAP4rev1 ENABLE QRESYNC', 'TAG2 OK CAPABILITY completed',
+        '* ENABLED QRESYNC', 'TAG3 OK ENABLE completed',
+        'TAG4 OK SELECT completed',
+        '* 9 EXISTS', '* VANISHED 42:43', '* VANISHED 43,45', 'TAG5 OK EXPUNGE completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+    $mailbox->enable('QRESYNC');
+    $result = (new Folder($mailbox, 'INBOX'))->expunge($uid);
+
+    expect($result->sequenceNumbers())->toBeEmpty();
+    expect($result->vanishedUids()->all())->toBe([42, 43, 45]);
+    expect($result->vanished())->toHaveCount(2);
+    expect($result->responses())->toHaveCount(3);
+    $connection->disconnect();
+})->with([null, 42]);
+
+test('expunge preserves repeated sequence positions', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed', 'TAG2 OK SELECT completed',
+        '* 3 EXPUNGE', '* 3 EXPUNGE', 'TAG3 OK EXPUNGE completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+
+    expect((new Folder($mailbox, 'INBOX'))->expunge()->sequenceNumbers()->all())->toBe([3, 3]);
+    $connection->disconnect();
+});

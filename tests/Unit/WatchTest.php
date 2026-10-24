@@ -188,7 +188,8 @@ test('watcher reads the mailbox timeout when finishing idle', function () {
             }
         });
 
-        expect($completionTimeout)->toBe(90);
+        expect($completionTimeout)->toBe(5);
+        $stream->assertTimeoutSet(90);
         $stream->assertWritten('DONE');
     } finally {
         $mailbox->disconnect();

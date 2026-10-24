@@ -208,9 +208,9 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function examine(): array
+    public function examine(OptionInterface ...$options): array
     {
-        return $this->mailbox->examine($this)->responses()->untagged()->map(
+        return $this->mailbox->examine($this, ...$options)->responses()->untagged()->map(
             fn (UntaggedResponse $response) => $response->toArray()
         )->all();
     }
@@ -218,14 +218,11 @@ class Folder implements Arrayable, FolderInterface, JsonSerializable
     /**
      * {@inheritDoc}
      */
-    public function expunge(array|int|null $uids = null): array
+    public function expunge(array|int|null $uids = null): ExpungeResult
     {
         $this->select();
 
-        return $this->mailbox->connection()->expunge($uids)
-            ->filter(fn (UntaggedResponse $response) => $response->tokenAt(2)->is('EXPUNGE'))
-            ->map(fn (UntaggedResponse $response) => $response->tokenAt(1)->value)
-            ->all();
+        return ExpungeResult::fromResponses($this->mailbox->connection()->expunge($uids));
     }
 
     /**

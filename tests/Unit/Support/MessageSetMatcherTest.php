@@ -54,3 +54,15 @@ test('it preserves server-resolved sets without guessing their bounds', function
     expect($matcher->contains(1))->toBeTrue();
     expect($matcher->contains(4294967295))->toBeTrue();
 })->with(['*', '999:*', '*:999', '$']);
+
+test('it intersects compact ranges without expanding them', function (string $requested, string $vanished, string $expected) {
+    expect((new MessageSetMatcher($requested))->intersect($vanished))->toBe($expected);
+})->with([
+    ['4294967295', '1:4294967294', ''],
+    ['4294967294:4294967295', '1:4294967295', '4294967294:4294967295'],
+    ['3:5,4:8,7,10', '12:1', '10,8:3'],
+    ['2,4:6', '1:5,6:3', '2,4:5,6:4'],
+    ['*', '1:4294967295', '1:4294967295'],
+    ['99:*', '4:1', '4:1'],
+    ['$', '4:1', '4:1'],
+]);

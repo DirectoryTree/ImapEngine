@@ -213,6 +213,21 @@ class FakeMailbox implements MailboxInterface
      */
     public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
     {
+        $this->prepareSelectionOptions($options);
+
+        $this->examined = null;
+        $this->selected = $folder;
+
+        return new Result;
+    }
+
+    /**
+     * Validate and enable extensions required by selection options.
+     *
+     * @param  OptionInterface[]  $options
+     */
+    protected function prepareSelectionOptions(array $options): void
+    {
         foreach ($options as $option) {
             if (! $this->capabilities()->supports($option->capability())) {
                 throw new ImapCapabilityException(
@@ -224,18 +239,15 @@ class FakeMailbox implements MailboxInterface
                 $this->enable($option->capability());
             }
         }
-
-        $this->examined = null;
-        $this->selected = $folder;
-
-        return new Result;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function examine(FolderInterface $folder): Result
+    public function examine(FolderInterface $folder, OptionInterface ...$options): Result
     {
+        $this->prepareSelectionOptions($options);
+
         $this->selected = null;
         $this->examined = $folder;
 

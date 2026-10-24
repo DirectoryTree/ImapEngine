@@ -14,6 +14,11 @@ class ImapStream implements StreamInterface
     protected mixed $stream = null;
 
     /**
+     * The current read timeout in seconds.
+     */
+    protected int $timeout = 60;
+
+    /**
      * {@inheritDoc}
      */
     public function open(string $transport, string $host, int $port, int $timeout, array $options = []): bool
@@ -31,7 +36,7 @@ class ImapStream implements StreamInterface
             throw new ImapConnectionFailedException("Unable to connect to {$address} ({$errstr})", $errno);
         }
 
-        return true;
+        return $this->setTimeout($timeout);
     }
 
     /**
@@ -105,9 +110,23 @@ class ImapStream implements StreamInterface
     /**
      * {@inheritDoc}
      */
+    public function timeout(): int
+    {
+        return $this->timeout;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function setTimeout(int $seconds): bool
     {
-        return stream_set_timeout($this->stream, $seconds);
+        if (! stream_set_timeout($this->stream, $seconds)) {
+            return false;
+        }
+
+        $this->timeout = $seconds;
+
+        return true;
     }
 
     /**

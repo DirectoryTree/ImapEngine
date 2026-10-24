@@ -18,12 +18,9 @@ class VanishedCollection extends Collection
     {
         $matcher = new MessageSetMatcher($set);
 
-        return $this->map(function (Vanished $vanished) use ($matcher) {
-            return new Vanished(
-                $vanished->uids()->filter($matcher->contains(...))->values(),
-                $vanished->earlier(),
-            );
-        })->reject(
+        return $this->map(
+            fn (Vanished $vanished) => $vanished->forMessageSet($matcher)
+        )->reject(
             fn (Vanished $vanished) => $vanished->uids()->isEmpty()
         )->values();
     }

@@ -82,6 +82,48 @@ class MessageSetMatcher
     }
 
     /**
+     * Intersect a numeric sequence set without expanding its ranges.
+     */
+    public function intersect(string $set): string
+    {
+        if (! $this->filterable) {
+            return $set;
+        }
+
+        $ranges = static::mergeRanges([
+            ...$this->ranges,
+            ...array_map(fn (int $number) => [$number, $number], array_keys($this->numbers)),
+        ]);
+        $intersection = [];
+
+        foreach (explode(',', $set) as $sequence) {
+            $bounds = array_map('intval', explode(':', $sequence));
+            $start = $bounds[0];
+            $end = $bounds[1] ?? $start;
+            $matches = [];
+
+            foreach ($ranges as [$lower, $upper]) {
+                if ($lower > max($start, $end)) {
+                    break;
+                }
+
+                $lower = max($lower, min($start, $end));
+                $upper = min($upper, max($start, $end));
+
+                if ($lower <= $upper) {
+                    $matches[] = $start <= $end ? [$lower, $upper] : [$upper, $lower];
+                }
+            }
+
+            foreach ($start <= $end ? $matches : array_reverse($matches) as [$lower, $upper]) {
+                $intersection[] = $lower === $upper ? (string) $lower : $lower.':'.$upper;
+            }
+        }
+
+        return implode(',', $intersection);
+    }
+
+    /**
      * Sort and merge overlapping or adjacent ranges.
      *
      * @param  array<int, array{0: int, 1: int}>  $ranges

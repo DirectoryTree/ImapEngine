@@ -74,3 +74,22 @@ Call `->all()` when you need an array; this allocates memory for every returned
 identifier. `vanishedUids()` combines groups and tracks previously yielded UIDs
 to remove duplicates. Iterate over each group’s `uids()` for bounded-memory
 processing of large ranges.
+
+### Expunge results
+
+`Folder::expunge()` returns an `ExpungeResult`. Read `sequenceNumbers()` for ordinary EXPUNGE responses or `vanishedUids()` for QRESYNC removals. These identify messages differently and are kept separate:
+
+```php
+$result = $folder->expunge([42, 43]);
+
+$sequenceNumbers = $result->sequenceNumbers(); // Collection of sequence numbers
+$vanishedUids = $result->vanishedUids(); // LazyCollection of UIDs
+```
+
+`vanished()` exposes the individual VANISHED groups, and `responses()` retains the raw server updates. Sequence numbers preserve server order and repeated positions because each removal shifts the messages that follow it.
+
+### Read-only selection options
+
+Both `$folder->examine(...$options)` and `$mailbox->examine($folder, ...$options)` accept `CondStore` and `QuickResync` selection options. They apply the same capability checks and QRESYNC enablement as `select()`.
+
+Fetched data from sequence-number operations can omit the UID. Its flags and sequence number remain available, but `uid()` and `toMessage()` throw a `LogicException` until the data includes a UID.

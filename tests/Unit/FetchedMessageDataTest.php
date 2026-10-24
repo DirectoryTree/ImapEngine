@@ -5,6 +5,7 @@ use DirectoryTree\ImapEngine\Connection\ImapParser;
 use DirectoryTree\ImapEngine\Connection\ImapTokenizer;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapIdentifier;
 use DirectoryTree\ImapEngine\FetchedMessageData;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
@@ -279,4 +280,19 @@ test('lazy body loading ignores unsolicited uid updates before the requested res
     expect($message->bodyPart('1.2'))->toBe('content');
     $stream->assertWritten('TAG2 UID FETCH 7 (BODY.PEEK[1.2])');
     $stream->assertNotWritten('TAG3 UID FETCH');
+});
+
+test('sequence-number fetch data without a uid remains readable but cannot become a message', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', '* 5 FETCH (FLAGS (\\Seen))', 'TAG1 OK FETCH completed',
+    ]);
+    $connection->connect('localhost');
+    $result = $connection->fetch(5, 'FLAGS', ImapIdentifier::MessageNumber);
+    $data = $result->messages()->first();
+
+    expect($data->sequenceNumber())->toBe(5);
+    expect($data->flags())->toBe(['\\Seen']);
+    expect(fn () => $data->uid())->toThrow(LogicException::class, 'The message UID was not fetched.');
+    expect(fn () => $data->toMessage(new Folder(new Mailbox, 'INBOX')))->toThrow(LogicException::class);
+    $connection->disconnect();
 });

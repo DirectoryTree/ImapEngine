@@ -23,6 +23,11 @@ class IdleSession
     protected bool $active = true;
 
     /**
+     * The read timeout to restore when IDLE releases the connection.
+     */
+    protected int $timeout;
+
+    /**
      * Whether the server has acknowledged IDLE with a continuation.
      */
     protected bool $ready = false;
@@ -56,7 +61,9 @@ class IdleSession
          * The connection used for the IDLE exchange.
          */
         protected ConnectionInterface $connection,
-    ) {}
+    ) {
+        $this->timeout = $connection->stream()->timeout();
+    }
 
     /**
      * Determine whether this session still owns the connection.
@@ -190,6 +197,7 @@ class IdleSession
             $this->ready = true;
         } elseif ($response instanceof TaggedResponse && $response->tag()->value === $this->command->tag()) {
             $this->active = false;
+            $this->connection->stream()->setTimeout($this->timeout);
 
             if (! $response->successful()) {
                 throw ImapCommandException::make($this->command, $response);

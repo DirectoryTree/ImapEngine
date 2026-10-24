@@ -6,11 +6,17 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Collections\VanishedCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Support\MessageSetMatcher;
 use DirectoryTree\ImapEngine\Support\SequenceSet;
 use Illuminate\Support\LazyCollection;
 
 class Vanished
 {
+    /**
+     * The compact server sequence set, retained for filtering before expansion.
+     */
+    protected ?string $sequenceSet = null;
+
     /**
      * Constructor.
      *
@@ -31,10 +37,10 @@ class Vanished
             && strtoupper((string) ($data->values()[0] ?? '')) === 'EARLIER';
         $sequenceSet = $response->tokenAt($earlier ? 3 : 2);
 
-        return new static(
-            SequenceSet::parse($sequenceSet->value),
-            $earlier,
-        );
+        $vanished = new static(SequenceSet::parse($sequenceSet->value), $earlier);
+        $vanished->sequenceSet = $sequenceSet->value;
+
+        return $vanished;
     }
 
     /**
@@ -47,6 +53,22 @@ class Vanished
                 ->map(fn (UntaggedResponse $response) => static::fromResponse($response))
                 ->values()
         );
+    }
+
+    /**
+     * Filter UIDs, intersecting compact server ranges before expanding them.
+     */
+    public function forMessageSet(MessageSetMatcher $matcher): static
+    {
+        if ($this->sequenceSet === null) {
+            return new static($this->uids->filter($matcher->contains(...))->values(), $this->earlier);
+        }
+
+        $set = $matcher->intersect($this->sequenceSet);
+        $vanished = new static($set === '' ? new LazyCollection : SequenceSet::parse($set), $this->earlier);
+        $vanished->sequenceSet = $set;
+
+        return $vanished;
     }
 
     /**

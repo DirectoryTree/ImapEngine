@@ -53,7 +53,14 @@ class FakeStream implements StreamInterface
     /**
      * The most recently configured read timeout.
      */
-    protected ?int $timeout = null;
+    protected int $timeout = 60;
+
+    /**
+     * Read timeouts requested during the session.
+     *
+     * @var int[]
+     */
+    protected array $timeouts = [];
 
     /**
      * Simulate a disconnection after the queued responses are consumed.
@@ -139,7 +146,7 @@ class FakeStream implements StreamInterface
      */
     public function open(?string $transport = null, ?string $host = null, ?int $port = null, ?int $timeout = null, array $options = []): bool
     {
-        $this->timeout = $timeout;
+        $this->timeout = $timeout ?? 60;
 
         $this->connection = compact('transport', 'host', 'port', 'timeout', 'options');
 
@@ -245,15 +252,23 @@ class FakeStream implements StreamInterface
      */
     public function setTimeout(int $seconds): bool
     {
-        $this->timeout = $seconds;
+        $this->timeouts[] = $this->timeout = $seconds;
 
         return true;
     }
 
     /**
+     * Assert that a read timeout was requested.
+     */
+    public function assertTimeoutSet(int $seconds): void
+    {
+        Assert::assertContains($seconds, $this->timeouts);
+    }
+
+    /**
      * Get the most recently configured read timeout.
      */
-    public function timeout(): ?int
+    public function timeout(): int
     {
         return $this->timeout;
     }

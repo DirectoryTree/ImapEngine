@@ -229,3 +229,15 @@ test('cloned folders belong to and select the cloned mailbox', function () {
 
     expect($clone->capabilities()->enabled('QRESYNC'))->toBeFalse();
 });
+
+test('fake examine validates and enables selection options', function () {
+    $mailbox = FakeMailbox::make([], [new FakeFolder('INBOX')], ['IMAP4rev1', 'ENABLE', 'QRESYNC']);
+    $folder = $mailbox->folders()->find('INBOX');
+
+    expect($folder->examine(new QuickResync(1, 42)))->toBe([]);
+    expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    expect($mailbox->selected($folder))->toBeFalse();
+    expect(fn () => $folder->examine(new CondStore))->toThrow(ImapCapabilityException::class);
+    expect($folder->expunge()->sequenceNumbers())->toBeEmpty();
+    expect($folder->expunge()->vanishedUids()->all())->toBe([]);
+});

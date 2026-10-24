@@ -6,6 +6,8 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
+use DirectoryTree\ImapEngine\Selection\CondStore;
+use DirectoryTree\ImapEngine\Selection\QuickResync;
 
 test('disconnect clears capabilities and enabled extensions for the next connection', function () {
     $mailbox = Mailbox::make();
@@ -158,4 +160,41 @@ test('failed examination clears the previous folder so capabilities can be enabl
 
     expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
     $stream->assertWritten('TAG5 ENABLE QRESYNC');
+});
+
+test('examine forwards selection options and enables qresync before selection', function (bool $qresync) {
+    $option = $qresync ? new QuickResync(1, 42) : new CondStore;
+    $tag = $qresync ? 4 : 3;
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* CAPABILITY IMAP4rev1 ENABLE CONDSTORE QRESYNC', 'TAG2 OK CAPABILITY completed',
+        ...($qresync ? ['* ENABLED QRESYNC', 'TAG3 OK ENABLE completed'] : []),
+        '* OK [HIGHESTMODSEQ 43]', "TAG{$tag} OK EXAMINE completed",
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+    $folder = new Folder($mailbox, 'INBOX');
+
+    expect($folder->examine($option))->not->toBeEmpty();
+    expect($mailbox->selected($folder))->toBeFalse();
+    $connection->stream()->assertWritten('TAG'.$tag.' EXAMINE "INBOX" ('.$option->toImap().')');
+    if ($qresync) {
+        $connection->stream()->assertWritten('TAG3 ENABLE QRESYNC');
+        expect($mailbox->capabilities()->enabled('QRESYNC'))->toBeTrue();
+    }
+    $connection->disconnect();
+})->with([false, true]);
+
+test('examine rejects unsupported options before sending the command', function () {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', 'TAG1 OK LOGIN completed',
+        '* CAPABILITY IMAP4rev1', 'TAG2 OK CAPABILITY completed',
+    ]);
+    $mailbox = new Mailbox;
+    $mailbox->connect($connection);
+
+    expect(fn () => $mailbox->examine(new Folder($mailbox, 'INBOX'), new CondStore))
+        ->toThrow(ImapCapabilityException::class);
+    $connection->stream()->assertNotWritten('EXAMINE');
+    $connection->disconnect();
 });

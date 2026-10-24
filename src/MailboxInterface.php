@@ -72,7 +72,7 @@ interface MailboxInterface
     /**
      * Examine the given folder, invalidating the cached writable selection.
      */
-    public function examine(FolderInterface $folder): Result;
+    public function examine(FolderInterface $folder, OptionInterface ...$options): Result;
 
     /**
      * Determine if the given folder is selected.

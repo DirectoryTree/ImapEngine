@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Testing;
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\ComparesFolders;
 use DirectoryTree\ImapEngine\Exceptions\Exception;
+use DirectoryTree\ImapEngine\ExpungeResult;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\Idle\Events\EventInterface;
 use DirectoryTree\ImapEngine\Idle\Events\FolderSelected;
@@ -203,9 +204,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function examine(): array
+    public function examine(OptionInterface ...$options): array
     {
-        $this->mailbox?->examine($this);
+        $this->mailbox?->examine($this, ...$options);
 
         return [];
     }
@@ -213,9 +214,9 @@ class FakeFolder implements FolderInterface
     /**
      * {@inheritDoc}
      */
-    public function expunge(array|int|null $uids = null): array
+    public function expunge(array|int|null $uids = null): ExpungeResult
     {
-        return [];
+        return new ExpungeResult;
     }
 
     /**

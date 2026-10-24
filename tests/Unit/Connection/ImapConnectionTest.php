@@ -15,6 +15,8 @@ use DirectoryTree\ImapEngine\Fetch\ModifierInterface;
 use DirectoryTree\ImapEngine\FetchResult;
 use DirectoryTree\ImapEngine\StoreResult;
 
+use function PHPUnit\Framework\fail;
+
 test('connection reads parsed replies and logs protocol lines with optional redaction', function () {
     $stream = new FakeStream;
     $stream->feed(['* OK Welcome', '* 4 EXISTS']);
@@ -53,7 +55,7 @@ test('connection reads parsed replies and logs protocol lines with optional reda
 test('connection exposes its underlying stream for transport settings', function (bool $result) {
     $stream = new class($result) extends FakeStream
     {
-        public ?int $timeout = null;
+        public int $timeout = 60;
 
         public function __construct(protected bool $result) {}
 
@@ -1094,3 +1096,45 @@ test('fetch throws when the server rejects a modifier', function () {
     expect(fn () => $connection->fetch(1, 'FLAGS', modifiers: new ChangedSince(42)))
         ->toThrow(ImapCommandException::class);
 });
+
+test('fetch intersects huge vanished ranges before expanding uids', function (string $set, array $expected) {
+    $connection = ImapConnection::fake([
+        '* OK Welcome', '* VANISHED (EARLIER) 1:4294967294', 'TAG1 OK FETCH completed',
+    ]);
+    $connection->connect('localhost');
+
+    $result = $connection->fetch($set, 'FLAGS', modifiers: new ChangedSince(42, vanished: true));
+
+    expect($result->vanishedUids()->all())->toBe($expected);
+    expect($result->vanishedUids()->all())->toBe($expected);
+    expect($result->vanished())->toHaveCount($expected ? 1 : 0);
+    if ($expected) {
+        expect($result->vanished()->first()->earlier())->toBeTrue();
+        expect($result->vanished()->forMessageSet('4294967294')->first()->uids()->all())->toBe([4294967294]);
+    }
+    expect((string) $result->responses()->vanished()->first())->toBe('* VANISHED (EARLIER) 1:4294967294');
+    $connection->disconnect();
+})->with([
+    'no overlap' => ['4294967295', []],
+    'overlap at the far end' => ['4294967293:4294967295', [4294967293, 4294967294]],
+]);
+
+test('login literal rejection does not expose credentials in exceptions', function (string $username, string $password, array $responses) {
+    $connection = ImapConnection::fake(['* OK Welcome', ...$responses]);
+    $connection->connect('localhost');
+
+    try {
+        $connection->login($username, $password);
+        fail('The literal must be rejected.');
+    } catch (ImapCommandException $exception) {
+        expect($exception->getMessage())->not->toContain($username, $password);
+        expect((string) $exception->command())->not->toContain($username, $password);
+        expect($exception->getMessage())->toContain('[redacted]');
+    } finally {
+        $connection->disconnect();
+    }
+})->with([
+    'username literal' => ['usér', 'sëcret', ['TAG1 NO Literal rejected']],
+    'password literal' => ['username', 'sëcret', ['TAG1 NO Literal rejected']],
+    'second literal' => ['usér', 'sëcret', ['+ Send username', 'TAG1 NO Literal rejected']],
+]);

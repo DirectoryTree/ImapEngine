@@ -298,6 +298,28 @@ class Mailbox implements MailboxInterface
      */
     public function select(FolderInterface $folder, bool $force = false, OptionInterface ...$options): Result
     {
+        $this->prepareSelectionOptions($options);
+
+        if (! $this->selected($folder) || $force || $options) {
+            $this->folder = null;
+            $this->selection = null;
+
+            $selection = $this->connection()->select($folder->path(), ...$options);
+
+            $this->folder = $folder;
+            $this->selection = $selection;
+        }
+
+        return $this->selection;
+    }
+
+    /**
+     * Validate and enable extensions required by selection options.
+     *
+     * @param  OptionInterface[]  $options
+     */
+    protected function prepareSelectionOptions(array $options): void
+    {
         foreach ($options as $option) {
             if (! $this->capabilities()->supports($option->capability())) {
                 throw new ImapCapabilityException(
@@ -315,31 +337,21 @@ class Mailbox implements MailboxInterface
                 }
             }
         }
-
-        if (! $this->selected($folder) || $force || $options) {
-            $this->folder = null;
-            $this->selection = null;
-
-            $selection = $this->connection()->select($folder->path(), ...$options);
-
-            $this->folder = $folder;
-            $this->selection = $selection;
-        }
-
-        return $this->selection;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function examine(FolderInterface $folder): Result
+    public function examine(FolderInterface $folder, OptionInterface ...$options): Result
     {
+        $this->prepareSelectionOptions($options);
+
         // EXAMINE replaces the server selection with a read-only one, even
         // for the same folder. The next query must select it again.
         $this->folder = null;
         $this->selection = null;
 
-        $selection = $this->connection()->examine($folder->path());
+        $selection = $this->connection()->examine($folder->path(), ...$options);
 
         $this->folder = $folder;
 

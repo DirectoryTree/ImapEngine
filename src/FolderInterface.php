@@ -103,12 +103,12 @@ interface FolderInterface
     /**
      * Examine the current folder and get detailed status information.
      */
-    public function examine(): array;
+    public function examine(OptionInterface ...$options): array;
 
     /**
-     * Expunge the mailbox and return the expunged message sequence numbers.
+     * Expunge the mailbox and return sequence numbers and vanished UIDs.
      */
-    public function expunge(array|int|null $uids = null): array;
+    public function expunge(array|int|null $uids = null): ExpungeResult;
 
     /**
      * Delete the current folder.

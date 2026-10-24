@@ -815,7 +815,10 @@ class ImapConnection implements ConnectionInterface
                 )
             ),
             fn (Response $response) => $response instanceof ContinuationResponse,
-            fn (Response $response) => ImapCommandException::make($command, $response),
+            fn (Response $response) => ImapCommandException::make(
+                in_array($command->command(), ['LOGIN', 'AUTHENTICATE']) ? $command->redacted() : $command,
+                $response,
+            ),
         );
     }
 

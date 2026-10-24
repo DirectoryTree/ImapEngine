@@ -40,6 +40,11 @@ interface StreamInterface
     public function opened(): bool;
 
     /**
+     * Get the current read timeout in seconds.
+     */
+    public function timeout(): int;
+
+    /**
      * Set the timeout on the stream.
      */
     public function setTimeout(int $seconds): bool;

@@ -9,17 +9,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapConnectionTimedOutException;
 
 test('idle completion uses the supplied timeout', function (?int $timeout, int $expected, bool $consume) {
     Carbon::setTestNow('2026-09-27 12:00:00');
-    $stream = new class extends FakeStream
-    {
-        public array $timeouts = [];
-
-        public function setTimeout(int $seconds): bool
-        {
-            $this->timeouts[] = $seconds;
-
-            return true;
-        }
-    };
+    $stream = new FakeStream;
     $stream->feed(['* OK Welcome', '+ idling', '* 4 EXISTS', 'TAG1 OK IDLE completed']);
     $connection = new ImapConnection($stream);
 
@@ -33,11 +23,10 @@ test('idle completion uses the supplied timeout', function (?int $timeout, int $
             Carbon::setTestNow(Carbon::now()->addSeconds(301));
         }
 
-        $stream->timeouts = [];
         $timeout === null ? $session->finish() : $session->finish($timeout);
 
-        expect($stream->timeouts)->not->toBeEmpty();
-        expect(array_unique($stream->timeouts))->toBe([$expected]);
+        $stream->assertTimeoutSet($expected);
+        expect($stream->timeout())->toBe(30);
         expect($session->active())->toBeFalse();
         $stream->assertWritten('DONE');
     } finally {
@@ -286,3 +275,33 @@ test('finish preserves pre-continuation updates not yet consumed by the generato
     $idle->next();
     expect($idle->valid())->toBeFalse();
 });
+
+test('idle restores the previous read timeout when the server ends the session', function (bool $finish, string $status) {
+    $stream = new FakeStream;
+    $stream->feed(['* OK Welcome', '+ idling', "TAG1 {$status} IDLE completed", 'TAG2 OK NOOP completed']);
+    $connection = new ImapConnection($stream);
+    $connection->connect('localhost', options: ['timeout' => 45]);
+    $stream->setTimeout(37);
+    $session = $connection->idle();
+    $complete = fn () => $finish ? $session->finish(90) : iterator_to_array($session->responses(300));
+
+    try {
+        if ($status === 'NO') {
+            expect($complete)->toThrow(ImapCommandException::class);
+        } else {
+            $complete();
+        }
+
+        expect($session->active())->toBeFalse();
+        expect($stream->timeout())->toBe(37);
+        $connection->noop();
+        expect($stream->timeout())->toBe(37);
+    } finally {
+        $connection->disconnect();
+    }
+})->with([
+    'normal completion' => [true, 'OK'],
+    'failed completion' => [true, 'NO'],
+    'server-ended session' => [false, 'OK'],
+    'server-rejected session' => [false, 'NO'],
+]);

@@ -11,6 +11,7 @@ use DirectoryTree\ImapEngine\Connection\Tokens\Nil;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
 use Illuminate\Contracts\Support\Arrayable;
+use LogicException;
 
 class FetchedMessageData implements Arrayable
 {
@@ -114,9 +115,15 @@ class FetchedMessageData implements Arrayable
 
     /**
      * Get the message UID.
+     *
+     * @throws LogicException When the UID was not fetched.
      */
     public function uid(): int
     {
+        if ($this->get('UID') === null) {
+            throw new LogicException('The message UID was not fetched.');
+        }
+
         return (int) $this->get('UID');
     }
 
@@ -201,6 +208,8 @@ class FetchedMessageData implements Arrayable
      */
     public function toMessage(FolderInterface $folder): Message
     {
+        $this->uid();
+
         return new Message($folder, $this);
     }
 }
