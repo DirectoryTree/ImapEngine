@@ -12,25 +12,9 @@
 </p>
 
 <p align="center">
-    <a href="#installation">Installation</a>
+    <a href="https://imapengine.com/docs/installation">Installation</a>
     <span> · </span>
     <a href="https://imapengine.com">Documentation</a>
     <span> · </span>
     <a href="https://github.com/DirectoryTree/ImapEngine-Laravel">Laravel Integration</a>
 </p>
-
----
-
-## Installation
-
-Install the package with Composer:
-
-```bash
-composer require directorytree/imapengine
-```
-
-## Documentation
-
-See the [documentation](https://imapengine.com) for mailbox configuration, querying messages, and managing folders.
-
-For Laravel applications, use the [Laravel integration](https://github.com/DirectoryTree/ImapEngine-Laravel).
