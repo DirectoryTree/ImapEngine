@@ -499,9 +499,32 @@ test('it fetches attachments from body structure', function () {
     expect($attachments)->toHaveCount(1);
     expect($attachments[0]->filename())->toBe('document.pdf');
     expect($attachments[0]->contentType())->toBe('application/pdf');
+    expect($attachments[0]->contentDisposition())->toBe('attachment');
 
     // Content is fetched lazily when contents() is called
     expect($attachments[0]->contents())->toBe('Hello World!');
+});
+
+test('it fetches attachments without a content disposition from body structure', function () {
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+    ]);
+
+    $folder = new Folder($mailbox, 'INBOX', [], '/');
+
+    $bodyStructureData = parseBodyStructureResponse(
+        '* 1 FETCH (BODYSTRUCTURE (("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5 NIL NIL NIL) ("application" "pdf" ("name" "document.pdf") NIL NIL "base64" 5000 NIL NIL NIL NIL) "mixed" ("boundary" "abc") NIL NIL) UID 1)'
+    );
+
+    $message = new Message($folder, 1, [], 'From: test@example.com', '', null, $bodyStructureData);
+
+    $attachments = $message->attachments(fetch: true);
+
+    expect($attachments)->toHaveCount(1);
+    expect($attachments[0]->filename())->toBe('document.pdf');
+    expect($attachments[0]->contentType())->toBe('application/pdf');
+    expect($attachments[0]->contentDisposition())->toBeNull();
 });
 
 test('it fetches headers from server', function () {
