@@ -68,6 +68,7 @@ interface FolderInterface
 
     /**
      * Get the folder's status.
+     * @return array{'MESSAGES': string, 'RECENT': string, 'UIDNEXT': string, 'UIDVALIDITY': string, 'UNSEEN': string}
      */
     public function status(): array;
 
