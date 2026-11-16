@@ -51,6 +51,7 @@ class ImapTokenizer
     {
         $this->skipWhitespace();
 
+        // Retry if whitespace scanning stopped after an empty read.
         if (! isset($this->buffer[$this->position])) {
             $this->ensureBuffer(1);
         }
