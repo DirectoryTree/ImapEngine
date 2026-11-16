@@ -119,6 +119,8 @@ class MessageQuery implements MessageQueryInterface
             return;
         }
 
+        $messages = $this->sortMessages($messages);
+
         // Save previous state to restore later.
         $previousLimit = $this->limit;
         $previousPage = $this->page;
@@ -319,7 +321,7 @@ class MessageQuery implements MessageQueryInterface
     protected function process(Collection $messages): MessageCollection
     {
         if ($messages->isNotEmpty()) {
-            return $this->populate($messages);
+            return $this->populate($this->sortMessages($messages));
         }
 
         return MessageCollection::make();
@@ -351,20 +353,28 @@ class MessageQuery implements MessageQueryInterface
     }
 
     /**
-     * Fetch a given id collection.
+     * Order message identifiers before pagination or chunking.
      */
-    protected function fetch(Collection $messages): array
+    protected function sortMessages(Collection $messages): Collection
     {
         // Only apply client-side sorting when not using server-side sorting.
         // When sortKey is set, the IMAP SORT command already returns UIDs
         // in the correct order, so we should preserve that order.
-        if (! $this->sortKey) {
-            $messages = match ($this->fetchOrder) {
-                'asc' => $messages->sort(SORT_NUMERIC),
-                'desc' => $messages->sortDesc(SORT_NUMERIC),
-            };
+        if ($this->sortKey) {
+            return $messages;
         }
 
+        return match ($this->fetchOrder) {
+            'asc' => $messages->sort(SORT_NUMERIC),
+            'desc' => $messages->sortDesc(SORT_NUMERIC),
+        };
+    }
+
+    /**
+     * Fetch a given id collection.
+     */
+    protected function fetch(Collection $messages): array
+    {
         $uids = $messages->forPage($this->page, $this->limit)->values();
 
         $fetch = [];
