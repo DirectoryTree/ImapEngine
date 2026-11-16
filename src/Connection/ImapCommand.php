@@ -2,6 +2,7 @@
 
 namespace DirectoryTree\ImapEngine\Connection;
 
+use DirectoryTree\ImapEngine\Support\Assert;
 use Stringable;
 
 class ImapCommand implements Stringable
@@ -59,6 +60,9 @@ class ImapCommand implements Stringable
 
         $lines = [];
 
+        Assert::isToken($this->tag);
+        Assert::isToken($this->command);
+
         $line = trim("{$this->tag} {$this->command}");
 
         foreach ($this->tokens as $token) {
@@ -68,6 +72,8 @@ class ImapCommand implements Stringable
                 // The second element holds the actual literal content.
                 [$length, $literal] = $token;
 
+                Assert::isToken($length);
+
                 $lines[] = new ImapCommandLine(
                     value: "{$line} {$length}",
                     synchronizing: ! str_contains($length, '+'),
@@ -75,6 +81,8 @@ class ImapCommand implements Stringable
 
                 $line = $literal;
             } else {
+                Assert::isToken($token);
+
                 $line .= " {$token}";
             }
         }
