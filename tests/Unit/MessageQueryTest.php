@@ -9,6 +9,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageQuery;
+use Illuminate\Support\Collection;
 
 function query(?Mailbox $mailbox = null): MessageQuery
 {
@@ -610,3 +611,210 @@ test('sortBy throws exception when SORT capability is not available', function (
 
     query($mailbox)->sortBy('date', 'desc')->get();
 })->throws(ImapCapabilityException::class);
+
+test('chunk orders all identifiers before paging and restores pagination', function (string $order, int $startChunk, array $expected) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 50 2 100 1 10',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+    $query->setFetchOrder($order)->limit(7, 3);
+    $chunks = [];
+
+    $query->chunk(function ($messages, $page) use (&$chunks) {
+        $chunks[$page] = $messages->map->uid()->all();
+
+        expect($messages->total())->toBe(5);
+    }, 2, $startChunk);
+
+    expect($chunks)->toBe($expected);
+    expect($query->getLimit())->toBe(7);
+    expect($query->getPage())->toBe(3);
+})->with([
+    ['asc', 1, [1 => [1, 2], 2 => [10, 50], 3 => [100]]],
+    ['desc', 1, [1 => [100, 50], 2 => [10, 2], 3 => [1]]],
+    ['asc', 2, [2 => [10, 50], 3 => [100]]],
+    ['desc', 2, [2 => [10, 2], 3 => [1]]],
+]);
+
+test('chunk sorts the search results only once', function (string $order) {
+    $identifiers = new class(['50', '2', '100', '1', '10']) extends Collection
+    {
+        public int $sorts = 0;
+
+        public function sort($callback = null)
+        {
+            $this->sorts++;
+
+            return parent::sort($callback);
+        }
+
+        public function sortDesc($options = SORT_REGULAR)
+        {
+            $this->sorts++;
+
+            return parent::sortDesc($options);
+        }
+    };
+
+    $query = new class(new Folder(new Mailbox, 'test'), new ImapQueryBuilder) extends MessageQuery
+    {
+        public Collection $identifiers;
+
+        protected function search(): Collection
+        {
+            return $this->identifiers;
+        }
+    };
+
+    $query->identifiers = $identifiers;
+    $query->setFetchOrder($order);
+    $processed = 0;
+
+    $query->chunk(function ($messages) use (&$processed) {
+        $processed += $messages->count();
+    }, 2);
+
+    expect($processed)->toBe(5);
+    expect($identifiers->sorts)->toBe(1);
+})->with(['asc', 'desc']);
+
+test('get still sorts identifiers before pagination', function (string $order, array $expected) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 50 2 100 1 10',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $messages = $query->setFetchOrder($order)->limit(2, 2)->get();
+
+    expect($messages->map->uid()->all())->toBe($expected);
+    expect($messages->total())->toBe(5);
+})->with([
+    ['asc', [10, 50]],
+    ['desc', [10, 2]],
+]);
+
+test('get preserves server sort order before pagination', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
+        '* SORT 50 2 100 1 10',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $messages = $query->sortBy('date')->limit(2, 2)->get();
+
+    expect($messages->map->uid()->all())->toBe([100, 1]);
+    expect($messages->total())->toBe(5);
+});
+
+test('chunk fetches metadata for each sorted page', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 50 2 100',
+        'TAG2 OK SEARCH completed',
+        '* 1 FETCH (UID 2 RFC822.SIZE 20)',
+        '* 2 FETCH (UID 50 RFC822.SIZE 500)',
+        'TAG3 OK FETCH completed',
+        '* 3 FETCH (UID 100 RFC822.SIZE 1000)',
+        'TAG4 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+    $chunks = [];
+
+    $query->oldest()->withSize()->chunk(function ($messages) use (&$chunks) {
+        $chunks[] = $messages->mapWithKeys(fn ($message) => [$message->uid() => $message->size()])->all();
+    }, 2);
+
+    expect($chunks)->toBe([[2 => 20, 50 => 500], [100 => 1000]]);
+    $stream->assertWritten('TAG3 UID FETCH 2,50 (RFC822.SIZE)');
+    $stream->assertWritten('TAG4 UID FETCH 100 (RFC822.SIZE)');
+});
+
+test('chunk skips unavailable pages without changing pagination', function (string $search, int $startChunk) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        $search,
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+    $query->limit(7, 3);
+    $calls = 0;
+
+    $query->chunk(function () use (&$calls) {
+        $calls++;
+    }, 2, $startChunk);
+
+    expect($calls)->toBe(0);
+    expect($query->getLimit())->toBe(7);
+    expect($query->getPage())->toBe(3);
+})->with([
+    ['* SEARCH', 1],
+    ['* SEARCH 1 2 3', 3],
+]);
+
+test('query can be reused with a different order after stopping chunking', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 50 2 100 1 10',
+        'TAG2 OK SEARCH completed',
+        '* SEARCH 50 2 100 1 10',
+        'TAG3 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+    $query->oldest()->limit(2, 2);
+    $chunks = [];
+
+    $query->chunk(function ($messages, $page) use (&$chunks) {
+        $chunks[$page] = $messages->map->uid()->all();
+
+        return false;
+    }, 3);
+
+    expect($chunks)->toBe([1 => [1, 2, 10]]);
+    expect($query->getLimit())->toBe(2);
+    expect($query->getPage())->toBe(2);
+    expect($query->newest()->get()->map->uid()->all())->toBe([10, 2]);
+});
