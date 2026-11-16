@@ -5,6 +5,13 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\RawQueryValue;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 
+test('uid rejects injected commands', function () {
+    $builder = new ImapQueryBuilder;
+
+    expect(fn () => $builder->uid("1\r\nX1 SELECT Secret\r\nX2 NOOP"))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 test('returns an empty string if no conditions are provided', function () {
     $builder = new ImapQueryBuilder;
 

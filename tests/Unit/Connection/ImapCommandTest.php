@@ -3,6 +3,30 @@
 use DirectoryTree\ImapEngine\Connection\ImapCommand;
 use DirectoryTree\ImapEngine\Connection\ImapCommandLine;
 
+test('compile rejects control characters in command syntax', function (string $tag, string $command, array $tokens) {
+    expect(fn () => (new ImapCommand($tag, $command, $tokens))->compile())
+        ->toThrow(InvalidArgumentException::class);
+})->with([
+    ["A001\r\nX1 NOOP", 'NOOP', []],
+    ['A001', "NOOP\r\nX1 NOOP", []],
+    ['A001', 'UID SEARCH', ["UID 1\r\nX1 SELECT Secret"]],
+    ['A001', 'NOOP', ["foo\rbar"]],
+    ['A001', 'NOOP', ["foo\nbar"]],
+    ['A001', 'NOOP', ["foo\0bar"]],
+    ['A001', 'APPEND', [["{5}\r\nX1 NOOP", 'hello']]],
+    ['A001', 'APPEND', [['{5}', 'hello'], "foo\r\nX1 NOOP"]],
+]);
+
+test('compile preserves control characters in literal content', function () {
+    $literal = "Subject: Test\r\n\r\nX1 NOOP\r\n";
+    $command = new ImapCommand('A001', 'APPEND', ['"INBOX"', ['{'.strlen($literal).'}', $literal]]);
+
+    $lines = $command->compile();
+
+    expect($lines)->toHaveCount(2);
+    expect($lines[1]->value)->toBe($literal);
+});
+
 test('compile returns correct command lines for no tokens', function () {
     $cmd = new ImapCommand('A001', 'NOOP');
 

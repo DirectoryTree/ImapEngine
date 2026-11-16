@@ -374,7 +374,7 @@ class ImapConnection implements ConnectionInterface
         $tokens[] = Str::literal($folder);
 
         if ($flags) {
-            $tokens[] = Str::list($flags);
+            $tokens[] = Str::flags($flags);
         }
 
         $tokens[] = Str::literal($message);
@@ -417,7 +417,7 @@ class ImapConnection implements ConnectionInterface
     {
         $set = Str::set($from, $to);
 
-        $flags = Str::list((array) $flags);
+        $flags = Str::flags((array) $flags);
 
         $item = ($mode == '-' ? '-' : '+').(is_null($item) ? 'FLAGS' : $item).($silent ? '.SILENT' : '');
 

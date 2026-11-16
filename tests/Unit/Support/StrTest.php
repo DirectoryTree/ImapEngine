@@ -23,6 +23,34 @@ test('set converts consecutive values into sequence ranges', function () {
     expect(Str::set([1, '*']))->toBe('1,*');
 });
 
+test('set preserves valid sequence set strings', function (string $value) {
+    expect(Str::set($value))->toBe($value);
+})->with(['1', '*', '1:*', '*:4', '9:3', '1,3:5,*']);
+
+test('set validates inputs before and after formatting', function (mixed $from, mixed $to) {
+    expect(fn () => Str::set($from, $to))->toThrow(InvalidArgumentException::class);
+})->with([
+    ["1\r\nX1 NOOP", null],
+    [["1\r\nX1 NOOP"], null],
+    [['1e2', 101], null],
+    [['01', 2], null],
+    [[], null],
+    [1, "2\r\nX1 NOOP"],
+    [1, 1.5],
+]);
+
+test('flags preserves system flags and keywords', function () {
+    expect(Str::flags(['\\Seen', '\\Draft', '\\Custom', 'Important', '$Junk']))
+        ->toBe('(\\Seen \\Draft \\Custom Important $Junk)');
+
+    expect(Str::flags([]))->toBe('()');
+});
+
+test('flags validates each flag before formatting', function () {
+    expect(fn () => Str::flags(['\\Seen', "Important\r\nX1 NOOP"]))
+        ->toThrow(InvalidArgumentException::class);
+});
+
 test('credentials', function () {
     expect(Str::credentials('foo', 'bar'))->toBe('dXNlcj1mb28BYXV0aD1CZWFyZXIgYmFyAQE=');
 });

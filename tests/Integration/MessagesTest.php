@@ -23,6 +23,44 @@ beforeEach(function () {
     folder()->delete();
 });
 
+test('uid rejects command injection through the public query API', function (int|string|array $uid) {
+    $folder = folder();
+    $id = $folder->messages()->append(new DraftMessage(from: 'foo@example.com', text: 'Original message'));
+
+    expect(fn () => $folder->messages()->uid($uid)->withHeaders()->withBody()->get())
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($folder->messages()->uid($id)->withHeaders()->withBody()->firstOrFail()->text())->toBe('Original message');
+    expect($folder->messages()->count())->toBe(1);
+})->with([
+    ["1\r\nX1 SELECT Secret\r\nX2 NOOP"],
+    ["2\r\nX1 UID STORE 1:* +FLAGS.SILENT (\\Deleted)\r\nX2 EXPUNGE\r\nX3 NOOP"],
+    [["1\r\nX1 NOOP"]],
+]);
+
+test('flag rejects command injection through the public message APIs', function (bool $query) {
+    $folder = folder();
+    $id = $folder->messages()->append(new DraftMessage(from: 'foo@example.com', text: 'Original message'));
+    $target = $query ? $folder->messages()->uid($id) : $folder->messages()->findOrFail($id);
+
+    expect(fn () => $target->flag("Seen2)\r\nX1 UID STORE 1:* +FLAGS.SILENT (\\Deleted)\r\nX2 EXPUNGE\r\nX3 NOOP (", '+'))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($folder->messages()->count())->toBe(1);
+    expect($folder->messages()->findOrFail($id)->flags())->not->toContain('\\Deleted');
+})->with([false, true]);
+
+test('append rejects injected flags through the public query API', function () {
+    $folder = folder();
+
+    expect(fn () => $folder->messages()->append(
+        new DraftMessage(from: 'foo@example.com', text: 'Original message'),
+        ["Seen)\r\nX1 NOOP ("],
+    ))->toThrow(InvalidArgumentException::class);
+
+    expect($folder->messages()->count())->toBe(0);
+});
+
 test('messages selects folder', function () {
     $folder = folder();
 

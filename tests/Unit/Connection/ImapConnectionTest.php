@@ -2,12 +2,92 @@
 
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
+use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Support\Str;
+
+test('store rejects injected flags before writing to the stream', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->store(["Seen)\r\nX1 CREATE Injected\r\nX2 NOOP ("], 1))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('append rejects injected flags before writing to the stream', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->append('INBOX', "Subject: Test\r\n\r\nBody", ["Seen)\r\nX1 NOOP ("]))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('send validates all tokens before writing a literal command', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->send('APPEND', [['{5}', 'hello'], "\r\nX1 NOOP"]))
+        ->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
+
+test('store accepts system flags and custom keywords', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed(['* OK Welcome to IMAP', 'TAG1 OK STORE completed']);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+    $connection->store(['\\Seen', 'Important', '$Junk'], 1);
+
+    $stream->assertWritten('TAG1 UID STORE 1 +FLAGS.SILENT (\\Seen Important $Junk)');
+});
+
+test('raw command arguments reject injected commands before writing', function (string $method, array $arguments) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->{$method}(...$arguments))->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+})->with([
+    ['status', ['INBOX', ["MESSAGES)\r\nX1 NOOP"]]],
+    ['bodyPart', ["1]\r\nX1 NOOP", 1]],
+    ['fetch', [['FLAGS'], ["1\r\nX1 NOOP"]]],
+    ['copy', ['Archive', ["1\r\nX1 NOOP"]]],
+    ['move', ['Archive', ["1\r\nX1 NOOP"]]],
+    ['store', [['\\Seen'], ["1\r\nX1 NOOP"]]],
+    ['store', [['\\Seen'], 1, null, '+', true, "FLAGS\r\nX1 NOOP"]],
+]);
+
+test('header names reject injected commands before writing', function () {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $connection = new ImapConnection($stream);
+    $query = (new ImapQueryBuilder)->header("Subject\r\nX1 NOOP", 'test');
+
+    expect(fn () => $connection->search([$query->toImap()]))->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('TAG1');
+});
 
 test('connect success', function () {
     $stream = new FakeStream;
