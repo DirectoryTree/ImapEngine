@@ -612,3 +612,49 @@ test('tokenizer leaves numeric token delimiters for the next token', function (s
     ['<>', new EmailAddress('')],
     ["{0}\r\n", new Literal('')],
 ]);
+
+test('tokenizer retries a temporary empty read before returning a token', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(['', "ATOM\r\n"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new Atom('ATOM'));
+    expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
+});
+
+test('tokenizer retries a temporary empty read after consuming whitespace', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw([" \t", '', "ATOM\r\n"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new Atom('ATOM'));
+    expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
+});
+
+test('tokenizer resumes after consecutive empty reads', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(['', '', "ATOM\r\n"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toBeNull();
+    expect($tokenizer->nextToken())->toEqual(new Atom('ATOM'));
+    expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
+});
+
+test('tokenizer reads a fragmented carriage return and line feed', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(["\r", "\n", "ATOM\r\n"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
+    expect($tokenizer->nextToken())->toEqual(new Atom('ATOM'));
+    expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
+});
