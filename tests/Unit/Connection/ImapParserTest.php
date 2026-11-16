@@ -406,3 +406,58 @@ test('parses fetch response with all metadata and body parts', function () {
     expect($data->lookup('[TEXT]')->value)->toBe("This is the email body.\r\n");
     expect($data->lookup('[HEADER]')->value)->toBe("To: recipient@example.com\r\nSubject: Re: Test\r\n");
 });
+
+test('parsed responses retain independent tokens as parsing advances', function (string $prefix) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        $prefix.' OK [CAPABILITY IMAP4rev1] (SAME SAME ("first" "second"))',
+        $prefix.' OK [CAPABILITY IDLE] (SAME SAME ("third" "fourth"))',
+    ]);
+
+    $parser = new ImapParser(new ImapTokenizer($stream));
+
+    $first = $parser->next();
+    $second = $parser->next();
+
+    expect($first->toArray())->toBe([
+        $prefix, 'OK', ['CAPABILITY', 'IMAP4rev1'], ['SAME', 'SAME', ['first', 'second']],
+    ]);
+    expect($second->toArray())->toBe([
+        $prefix, 'OK', ['CAPABILITY', 'IDLE'], ['SAME', 'SAME', ['third', 'fourth']],
+    ]);
+
+    $first->tokens()[0]->value = 'changed';
+    $first->tokens()[3]->tokens()[0]->value = 'changed';
+    $first->tokens()[3]->tokens()[2]->tokens()[0]->value = 'changed';
+
+    expect($first->tokens()[3]->tokens()[1]->value)->toBe('SAME');
+    expect($first->tokens()[3]->tokens()[2]->tokens()[1]->value)->toBe('second');
+    expect($second->toArray())->toBe([
+        $prefix, 'OK', ['CAPABILITY', 'IDLE'], ['SAME', 'SAME', ['third', 'fourth']],
+    ]);
+    expect($parser->next())->toBeNull();
+})->with(['*', '+', 'A001']);
+
+test('standalone parsed tokens remain independent as parsing advances', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw('"same" "same" "last"');
+
+    $parser = new ImapParser(new ImapTokenizer($stream));
+
+    $first = $parser->next();
+    $second = $parser->next();
+    $third = $parser->next();
+
+    expect($first)->not->toBe($second);
+    expect($first->value)->toBe('same');
+    expect($second->value)->toBe('same');
+    expect($third->value)->toBe('last');
+
+    $first->value = 'changed';
+
+    expect($second->value)->toBe('same');
+    expect($third->value)->toBe('last');
+    expect($parser->next())->toBeNull();
+});
