@@ -8,7 +8,9 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ConnectionInterface;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
@@ -426,17 +428,26 @@ class MessageQuery implements MessageQueryInterface
                 ));
             }
 
-            $uid = $data->lookup('UID')->value;
+            // Index field names and BODY sections without stringifying message contents.
+            $fields = [];
 
-            $size = $data->lookup('RFC822.SIZE')?->value;
+            foreach ($data->tokens() as $index => $token) {
+                if ($token instanceof Atom || $token instanceof ResponseCodeData) {
+                    $fields[(string) $token] ??= $data->tokenAt($index + 1);
+                }
+            }
+
+            $uid = $fields['UID']->value;
+
+            $size = $fields['RFC822.SIZE']->value ?? null;
 
             return [
                 $uid => [
                     'size' => $size ? (int) $size : null,
-                    'flags' => $data->lookup('FLAGS')?->values() ?? [],
-                    'head' => $data->lookup('[HEADER]')->value ?? '',
-                    'body' => $data->lookup('[TEXT]')->value ?? '',
-                    'bodystructure' => $data->lookup('BODYSTRUCTURE'),
+                    'flags' => ($fields['FLAGS'] ?? null)?->values() ?? [],
+                    'head' => $fields['[HEADER]']->value ?? '',
+                    'body' => $fields['[TEXT]']->value ?? '',
+                    'bodystructure' => $fields['BODYSTRUCTURE'] ?? null,
                 ],
             ];
         })->all();
