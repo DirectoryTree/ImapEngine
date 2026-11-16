@@ -1,8 +1,16 @@
 <?php
 
+use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ListData;
+use DirectoryTree\ImapEngine\Connection\Responses\Data\ResponseCodeData;
+use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Connection\Tokens\Atom;
+use DirectoryTree\ImapEngine\Connection\Tokens\Literal;
+use DirectoryTree\ImapEngine\Connection\Tokens\Number;
+use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
@@ -817,4 +825,179 @@ test('query can be reused with a different order after stopping chunking', funct
     expect($query->getLimit())->toBe(2);
     expect($query->getPage())->toBe(2);
     expect($query->newest()->get()->map->uid()->all())->toBe([10, 2]);
+});
+
+test('fetch reads fields in any response order', function (array $order) {
+    $head = "Subject: Example\r\nContent-Type: text/plain\r\n\r\n";
+    $body = str_repeat("UID FLAGS BODYSTRUCTURE [HEADER] [TEXT]\r\n", 1024);
+    $fields = [
+        'uid' => 'UID 42',
+        'flags' => 'FLAGS (\\Seen custom)',
+        'size' => 'RFC822.SIZE 123456',
+        'head' => 'BODY[HEADER] {'.strlen($head)."}\r\n".$head,
+        'body' => 'BODY[TEXT] {'.strlen($body)."}\r\n".$body,
+        'structure' => 'BODYSTRUCTURE ("text" "plain" ("charset" "utf-8") NIL NIL "7bit" 100 5)',
+    ];
+
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 42',
+        'TAG2 OK SEARCH completed',
+    ]);
+    $stream->feedRaw('* 1 FETCH ('.implode(' ', array_map(fn ($key) => $fields[$key], $order)).")\r\n");
+    $stream->feed('TAG3 OK FETCH completed');
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $message = $query->withFlags()->withSize()->withHeaders()->withBody()->withBodyStructure()->get()->sole();
+
+    expect($message->uid())->toBe(42);
+    expect($message->flags())->toBe(['\\Seen', 'custom']);
+    expect($message->size())->toBe(123456);
+    expect($message->head())->toBe($head);
+    expect($message->body())->toBe($body);
+    expect($message->bodyStructure())->toHaveCount(1);
+})->with([
+    [['uid', 'flags', 'size', 'head', 'body', 'structure']],
+    [['structure', 'body', 'head', 'size', 'flags', 'uid']],
+    [['body', 'flags', 'structure', 'uid', 'head', 'size']],
+]);
+
+test('fetch preserves defaults for missing fields and zero size', function (string $fields) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 42',
+        'TAG2 OK SEARCH completed',
+        '* 1 FETCH ('.$fields.')',
+        'TAG3 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $message = $query->withSize()->get()->sole();
+
+    expect($message->uid())->toBe(42);
+    expect($message->flags())->toBe([]);
+    expect($message->size())->toBeNull();
+    expect($message->head())->toBe('');
+    expect($message->body())->toBe('');
+    expect($message->bodyStructure())->toBeNull();
+})->with([
+    'UID 42',
+    'UID 42 FLAGS () RFC822.SIZE 0 BODY[HEADER] "" BODY[TEXT] ""',
+]);
+
+test('fetch keeps the first occurrence of duplicate fields', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 42',
+        'TAG2 OK SEARCH completed',
+        '* 1 FETCH (UID 42 RFC822.SIZE 100 FLAGS (\\Seen) BODY[HEADER] "first header" BODY[TEXT] "first body" UID 99 RFC822.SIZE 200 FLAGS (\\Flagged) BODY[HEADER] "second header" BODY[TEXT] "second body")',
+        'TAG3 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $message = $query->withFlags()->withSize()->withHeaders()->withBody()->get()->sole();
+
+    expect($message->uid())->toBe(42);
+    expect($message->size())->toBe(100);
+    expect($message->flags())->toBe(['\\Seen']);
+    expect($message->head())->toBe('first header');
+    expect($message->body())->toBe('first body');
+});
+
+test('fetch does not confuse nested or quoted values with field names', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 42',
+        'TAG2 OK SEARCH completed',
+        '* 1 FETCH (X-EXTRA (UID 99 RFC822.SIZE 999) X-LABEL "UID" X-HEADER "[HEADER]" BODY[1] "other body part" UID 42 RFC822.SIZE 100 BODY[HEADER] "header" BODY[TEXT] "body")',
+        'TAG3 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $message = $query->withSize()->withHeaders()->withBody()->get()->sole();
+
+    expect($message->uid())->toBe(42);
+    expect($message->size())->toBe(100);
+    expect($message->head())->toBe('header');
+    expect($message->body())->toBe('body');
+});
+
+test('fetch extracts fields without stringifying literals or nested lists', function () {
+    $literal = new class('message body') extends Literal
+    {
+        public function __toString(): string
+        {
+            throw new RuntimeException('Literal contents should not be stringified during field extraction.');
+        }
+    };
+
+    $nested = new class([new Atom('UID'), new Number('99')]) extends ListData
+    {
+        public function __toString(): string
+        {
+            throw new RuntimeException('Nested lists should not be stringified during field extraction.');
+        }
+    };
+
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 42',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $connection = new class($stream) extends ImapConnection
+    {
+        public ResponseCollection $responses;
+
+        public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection
+        {
+            return $this->responses;
+        }
+    };
+    $connection->responses = new ResponseCollection([
+        new UntaggedResponse([
+            new Atom('*'), new Number('1'), new Atom('FETCH'),
+            new ListData([
+                new Atom('X-EXTENSION'), $nested,
+                new Atom('BODY'), new ResponseCodeData([new Atom('TEXT')]), $literal,
+                new Atom('UID'), new Number('42'),
+            ]),
+        ]),
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect($connection);
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+
+    $message = $query->withBody()->get()->sole();
+
+    expect($message->uid())->toBe(42);
+    expect($message->body())->toBe('message body');
 });
