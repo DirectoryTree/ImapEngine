@@ -52,9 +52,7 @@ class ImapTokenizer
         $this->skipWhitespace();
 
         // Retry if whitespace scanning stopped after an empty read.
-        if (! isset($this->buffer[$this->position])) {
-            $this->ensureBuffer(1);
-        }
+        $this->ensureBuffer(1);
 
         $char = $this->currentChar();
 
@@ -142,9 +140,7 @@ class ImapTokenizer
     protected function skipWhitespace(): void
     {
         while (true) {
-            if (! isset($this->buffer[$this->position])) {
-                $this->ensureBuffer(1);
-            }
+            $this->ensureBuffer(1);
 
             $length = strspn($this->buffer, " \t", $this->position);
 
@@ -430,7 +426,11 @@ class ImapTokenizer
      */
     protected function ensureBuffer(int $length): void
     {
-        // If we have enough data in the buffer, return early.
+        if (isset($this->buffer[$this->position + $length - 1])) {
+            return;
+        }
+
+        // Read until the requested number of bytes is available.
         while ((strlen($this->buffer) - $this->position) < $length) {
             $data = $this->stream->fgets();
 

@@ -658,3 +658,48 @@ test('tokenizer reads a fragmented carriage return and line feed', function () {
     expect($tokenizer->nextToken())->toEqual(new Atom('ATOM'));
     expect($tokenizer->nextToken())->toBeInstanceOf(Crlf::class);
 });
+
+test('tokenizer reads buffered values followed by another token', function (string $input, Token $expected, int $chunkSize) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(str_split($input.' NEXT', $chunkSize));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual($expected);
+    expect($tokenizer->nextToken())->toEqual(new Atom('NEXT'));
+    expect($tokenizer->nextToken())->toBeNull();
+})->with([
+    ['"hello \\"world\\""', new QuotedString('hello "world"')],
+    ['<user@example.com>', new EmailAddress('user@example.com')],
+    ['example', new Atom('example')],
+    ["{5}\r\nhello", new Literal('hello')],
+])->with(range(1, 24));
+
+test('tokenizer preserves reader errors after an empty stream read', function (array $chunks, string $message) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw($chunks);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect(fn () => $tokenizer->nextToken())
+        ->toThrow(ImapParserException::class, $message);
+})->with([
+    [['"hello', '', '"'], 'Unterminated quoted string at buffer offset 0. Buffer: ""'],
+    [['"hello\\', '', '"'], 'Unterminated escape sequence in quoted string'],
+    [['<hello', '', '>'], 'Unterminated email address, expected ">"'],
+    [['{12', '', "}\r\n"], 'Unterminated literal specifier'],
+]);
+
+test('tokenizer finishes an atom at an empty stream read', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(['hello', '', 'world ']);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new Atom('hello'));
+    expect($tokenizer->nextToken())->toEqual(new Atom('world'));
+    expect($tokenizer->nextToken())->toBeNull();
+});
