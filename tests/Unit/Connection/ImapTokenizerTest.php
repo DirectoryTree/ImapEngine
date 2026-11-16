@@ -561,3 +561,54 @@ test('tokenizer handles empty strings and whitespace ending at the buffer bounda
     expect($tokenizer->nextToken())->toEqual(new EmailAddress(''));
     expect($tokenizer->nextToken())->toBeNull();
 });
+
+test('tokenizer reads numeric tokens across buffer boundaries', function (string $input, Token $expected, int $chunkSize) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(str_split($input, $chunkSize));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual($expected);
+})->with([
+    ['12345 ', new Number('12345')],
+    ['000123)', new Number('000123')],
+    ['0 ', new Number('0')],
+    ['123456789012345678901234567890 ', new Number('123456789012345678901234567890')],
+    ['123abc ', new Atom('123abc')],
+    ['123.45 ', new Atom('123.45')],
+    ['123"abc ', new Atom('123"abc')],
+    ['123\\abc ', new Atom('123\\abc')],
+    ["123\x80 ", new Atom("123\x80")],
+    ["123\t", new Atom('123')],
+    ["123\r\n", new Atom('123')],
+])->with(range(1, 32));
+
+test('tokenizer preserves a numeric token at end of stream', function (int $chunkSize) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(str_split('000123456789', $chunkSize));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new Number('000123456789'));
+    expect($tokenizer->nextToken())->toBeNull();
+})->with(range(1, 12));
+
+test('tokenizer leaves numeric token delimiters for the next token', function (string $delimiter, Token $expected) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(['123', $delimiter]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new Number('123'));
+    expect($tokenizer->nextToken())->toEqual($expected);
+})->with([
+    ['(', new ListOpen('(')],
+    [')', new ListClose(')')],
+    ['[', new ResponseCodeOpen('[')],
+    [']', new ResponseCodeClose(']')],
+    ['<>', new EmailAddress('')],
+    ["{0}\r\n", new Literal('')],
+]);

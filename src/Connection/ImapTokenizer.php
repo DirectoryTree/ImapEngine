@@ -308,57 +308,28 @@ class ImapTokenizer
      */
     protected function readNumberOrAtom(): Token
     {
-        $position = $this->position;
+        $length = 0;
 
-        // First char must be a digit to even consider a number.
-        if (! ctype_digit($this->buffer[$position] ?? '')) {
+        // Look ahead without consuming digits until we can classify the token.
+        do {
+            $this->ensureBuffer($length + 1);
+
+            $digits = strspn($this->buffer, '0123456789', $this->position + $length);
+
+            $length += $digits;
+        } while ($digits > 0 && ! isset($this->buffer[$this->position + $length]));
+
+        $next = $this->buffer[$this->position + $length] ?? null;
+
+        if ($length === 0 || ($next !== null && ! $this->isDelimiter($next))) {
             return $this->readAtom();
         }
 
-        // Walk forward to find the end of the digit run.
-        while (ctype_digit($this->buffer[$position] ?? '')) {
-            $position++;
+        $value = substr($this->buffer, $this->position, $length);
 
-            $this->ensureBuffer($position - $this->position + 1);
-        }
+        $this->advance($length);
 
-        $next = $this->buffer[$position] ?? null;
-
-        // If next is EOF or a delimiter, it's a Number.
-        if ($next === null || $this->isDelimiter($next)) {
-            return $this->readNumber();
-        }
-
-        // Otherwise it's an Atom.
-        return $this->readAtom();
-    }
-
-    /**
-     * Reads a number token.
-     *
-     * A number consists of one or more digit characters and represents a numeric value.
-     */
-    protected function readNumber(): Number
-    {
-        $start = $this->position;
-
-        while (true) {
-            $this->ensureBuffer(1);
-
-            $char = $this->currentChar();
-
-            if ($char === null) {
-                break;
-            }
-
-            if (! ctype_digit($char)) {
-                break;
-            }
-
-            $this->advance();
-        }
-
-        return new Number(substr($this->buffer, $start, $this->position - $start));
+        return new Number($value);
     }
 
     /**
