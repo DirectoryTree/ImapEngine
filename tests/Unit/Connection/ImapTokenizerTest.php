@@ -498,3 +498,66 @@ test('all tokens implement the token interface', function (string $data) {
     "{3}\r\nFoo",  // Literal
     '"Bar"',  // QuotedString
 ]);
+
+test('tokenizer reads runs across buffer boundaries', function (int $chunkSize) {
+    $stream = new FakeStream;
+    $stream->open();
+
+    $input = " \t  \tNIL atom\x80\xff \"hello \\\"world\\\" \\\\ end\" <user@example.com>\r\n";
+
+    $stream->feedRaw(str_split($input, $chunkSize));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    foreach ([
+        new Nil('NIL'),
+        new Atom("atom\x80\xff"),
+        new QuotedString('hello "world" \\ end'),
+        new EmailAddress('user@example.com'),
+        new Crlf("\r\n"),
+    ] as $expected) {
+        $token = $tokenizer->nextToken();
+
+        expect($token)->toBeInstanceOf($expected::class);
+        expect($token->value)->toBe($expected->value);
+    }
+
+    expect($tokenizer->nextToken())->toBeNull();
+})->with(range(1, 80));
+
+test('tokenizer stops atoms at every control byte', function (int $byte) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw('example'.chr($byte));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken()->value)->toBe('example');
+})->with([...range(0, 31), 127]);
+
+test('tokenizer preserves errors across buffer boundaries', function (string $input, string $message, int $chunkSize) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(str_split($input, $chunkSize));
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect(fn () => $tokenizer->nextToken())
+        ->toThrow(ImapParserException::class, $message);
+})->with([
+    ['"unfinished', 'Unterminated quoted string at buffer offset 0. Buffer: ""'],
+    ['"unfinished\\', 'Unterminated escape sequence in quoted string'],
+    ['<unfinished', 'Unterminated email address, expected ">"'],
+])->with(range(1, 15));
+
+test('tokenizer handles empty strings and whitespace ending at the buffer boundary', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feedRaw(['""', '<>', " \t"]);
+
+    $tokenizer = new ImapTokenizer($stream);
+
+    expect($tokenizer->nextToken())->toEqual(new QuotedString(''));
+    expect($tokenizer->nextToken())->toEqual(new EmailAddress(''));
+    expect($tokenizer->nextToken())->toBeNull();
+});

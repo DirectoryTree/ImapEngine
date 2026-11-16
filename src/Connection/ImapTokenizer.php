@@ -21,6 +21,13 @@ use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 class ImapTokenizer
 {
     /**
+     * Atom delimiters, control characters (0x00–0x1F), and DEL (0x7F).
+     */
+    protected const ATOM_DELIMITERS = ' ()[]{}<>'
+        ."\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
+        ."\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x7F";
+
+    /**
      * The current position in the buffer.
      */
     protected int $position = 0;
@@ -134,24 +141,13 @@ class ImapTokenizer
         while (true) {
             $this->ensureBuffer(1);
 
-            $char = $this->currentChar();
+            $length = strspn($this->buffer, " \t", $this->position);
 
-            // Break on EOF.
-            if ($char === null || $char === '') {
-                break;
+            if ($length === 0) {
+                return;
             }
 
-            // Break on CRLF.
-            if ($char === "\r" || $char === "\n") {
-                break;
-            }
-
-            // Break on non-whitespace.
-            if ($char !== ' ' && $char !== "\t") {
-                break;
-            }
-
-            $this->advance();
+            $this->advance($length);
         }
     }
 
@@ -169,6 +165,17 @@ class ImapTokenizer
 
         while (true) {
             $this->ensureBuffer(1);
+
+            // Consume ordinary characters up to the next delimiter.
+            $length = strcspn($this->buffer, '"\\', $this->position);
+
+            if ($length > 0) {
+                $value .= substr($this->buffer, $this->position, $length);
+
+                $this->advance($length);
+
+                continue;
+            }
 
             $char = $this->currentChar();
 
@@ -198,15 +205,9 @@ class ImapTokenizer
                 continue;
             }
 
-            if ($char === '"') {
-                $this->advance(); // Skip the closing quote.
+            $this->advance(); // Skip the closing quote.
 
-                break;
-            }
-
-            $value .= $char;
-
-            $this->advance();
+            break;
         }
 
         return new QuotedString($value);
@@ -372,19 +373,20 @@ class ImapTokenizer
         while (true) {
             $this->ensureBuffer(1);
 
+            // Consume ordinary characters up to the next delimiter.
+            $length = strcspn($this->buffer, static::ATOM_DELIMITERS, $this->position);
+
+            if ($length > 0) {
+                $value .= substr($this->buffer, $this->position, $length);
+
+                $this->advance($length);
+
+                continue;
+            }
+
             $char = $this->currentChar();
 
-            if ($char === null) {
-                break;
-            }
-
-            if (! $this->isValidAtomCharacter($char)) {
-                break;
-            }
-
-            $value .= $char;
-
-            $this->advance();
+            break;
         }
 
         // If no value was read, we will throw an exception since
@@ -422,21 +424,26 @@ class ImapTokenizer
         while (true) {
             $this->ensureBuffer(1);
 
+            // Consume ordinary characters up to the next delimiter.
+            $length = strcspn($this->buffer, '>', $this->position);
+
+            if ($length > 0) {
+                $value .= substr($this->buffer, $this->position, $length);
+
+                $this->advance($length);
+
+                continue;
+            }
+
             $char = $this->currentChar();
 
             if ($char === null) {
                 throw new ImapParserException('Unterminated email address, expected ">"');
             }
 
-            if ($char === '>') {
-                $this->advance(); // Skip the closing '>'.
+            $this->advance(); // Skip the closing '>'.
 
-                break;
-            }
-
-            $value .= $char;
-
-            $this->advance();
+            break;
         }
 
         return new EmailAddress($value);
