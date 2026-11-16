@@ -31,7 +31,7 @@ class Str
     public static function flags(array $flags): string
     {
         foreach ($flags as $flag) {
-            Assert::isFlag($flag);
+            Assert::isValidFlag($flag);
         }
 
         return static::list($flags);
@@ -106,7 +106,7 @@ class Str
             }
         }
 
-        Assert::isSequenceSet($set);
+        Assert::isValidSequenceSet($set);
 
         return $set;
     }

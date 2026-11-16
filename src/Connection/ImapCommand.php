@@ -60,8 +60,8 @@ class ImapCommand implements Stringable
 
         $lines = [];
 
-        Assert::isToken($this->tag);
-        Assert::isToken($this->command);
+        Assert::hasNoControlCharacters($this->tag);
+        Assert::hasNoControlCharacters($this->command);
 
         $line = trim("{$this->tag} {$this->command}");
 
@@ -72,7 +72,7 @@ class ImapCommand implements Stringable
                 // The second element holds the actual literal content.
                 [$length, $literal] = $token;
 
-                Assert::isToken($length);
+                Assert::hasNoControlCharacters($length);
 
                 $lines[] = new ImapCommandLine(
                     value: "{$line} {$length}",
@@ -81,7 +81,7 @@ class ImapCommand implements Stringable
 
                 $line = $literal;
             } else {
-                Assert::isToken($token);
+                Assert::hasNoControlCharacters($token);
 
                 $line .= " {$token}";
             }
