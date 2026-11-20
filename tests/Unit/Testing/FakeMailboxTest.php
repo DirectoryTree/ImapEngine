@@ -1,5 +1,6 @@
 <?php
 
+use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
 use DirectoryTree\ImapEngine\Testing\FakeFolderRepository;
 use DirectoryTree\ImapEngine\Testing\FakeMailbox;
@@ -15,6 +16,15 @@ test('it can be created with basic properties', function () {
     expect($mailbox->config('host'))->toBe('imap.example.com');
     expect($mailbox->config('username'))->toBe('user1');
     expect($mailbox->capabilities())->toBe(['IMAP4rev1', 'STARTTLS']);
+});
+
+test('equivalent mailbox configurations produce the same fingerprint', function () {
+    expect((new FakeMailbox)->fingerprint())->toBe(Mailbox::make()->fingerprint());
+
+    $mailbox = Mailbox::make(['host' => 'imap.example.com', 'port' => 993, 'username' => '123']);
+    $fake = new FakeMailbox(['host' => 'imap.example.com', 'port' => '993', 'username' => 123]);
+
+    expect($fake->fingerprint())->toBe($mailbox->fingerprint());
 });
 
 test('it returns config values correctly', function () {

@@ -10,9 +10,9 @@ trait HasMailboxFingerprint
     public function fingerprint(): string
     {
         return hash('sha256', json_encode([
-            $this->config('host'),
+            (string) $this->config('host'),
             (int) $this->config('port', 993),
-            $this->config('username'),
+            (string) $this->config('username'),
         ], JSON_THROW_ON_ERROR));
     }
 }
