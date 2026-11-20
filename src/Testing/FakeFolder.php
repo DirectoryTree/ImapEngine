@@ -34,14 +34,6 @@ class FakeFolder implements FolderInterface
     }
 
     /**
-     * Get the cursor identity for the attached or standalone fake mailbox.
-     */
-    public function mailboxFingerprint(): string
-    {
-        return ($this->mailbox ?? new FakeMailbox)->fingerprint();
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function path(): string

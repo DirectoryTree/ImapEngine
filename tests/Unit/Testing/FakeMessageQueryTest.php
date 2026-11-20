@@ -1,7 +1,9 @@
 <?php
 
 use DirectoryTree\ImapEngine\Collections\MessageCollection;
+use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\Testing\FakeFolder;
+use DirectoryTree\ImapEngine\Testing\FakeMailbox;
 use DirectoryTree\ImapEngine\Testing\FakeMessage;
 use DirectoryTree\ImapEngine\Testing\FakeMessageQuery;
 use Illuminate\Support\ItemNotFoundException;
@@ -264,8 +266,15 @@ test('chunk processes all chunks when callback never returns false', function ()
     expect($processedChunks)->toBe([1, 2, 3]);
 });
 
+it('requires a mailbox for cursor pagination', function () {
+    $folder = new FakeFolder('INBOX');
+
+    expect(fn () => $folder->messages()->cursorPaginate())
+        ->toThrow(Exception::class, 'Folder has no mailbox.');
+});
+
 it('resumes cursor pagination through the fake query', function (string $order) {
-    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(1), new FakeMessage(2), new FakeMessage(3), new FakeMessage(4)]);
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(1), new FakeMessage(2), new FakeMessage(3), new FakeMessage(4)], mailbox: new FakeMailbox);
     $query = new FakeMessageQuery($folder);
     $first = $query->{$order}()->cursorPaginate(2);
 

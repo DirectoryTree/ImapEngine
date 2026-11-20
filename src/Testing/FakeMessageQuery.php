@@ -138,7 +138,7 @@ class FakeMessageQuery implements MessageQueryInterface
             $cursor = Cursor::fromEncoded($cursor);
         }
 
-        $mailbox = $this->folder->mailboxFingerprint();
+        $mailbox = $this->folder->mailbox()->fingerprint();
         $folder = $this->folder->path();
         $uidValidity = (int) ($this->folder->status()['UIDVALIDITY'] ?? 1);
 
