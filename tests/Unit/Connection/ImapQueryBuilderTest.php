@@ -26,23 +26,12 @@ test('compiles a single basic where condition', function () {
     expect($builder->toImap())->toBe('SUBJECT "hello"');
 });
 
-test('preserves protected compiler overrides when sending subclass criteria', function () {
-    $builder = new class extends ImapQueryBuilder
-    {
-        protected function compileWheres(array $wheres): string
-        {
-            return 'SEEN '.parent::compileWheres($wheres);
-        }
+test('subclasses inherit literal compilation', function () {
+    $builder = new class extends ImapQueryBuilder {};
 
-        protected function compileBasic(array $where): string
-        {
-            return 'NOT '.parent::compileBasic($where);
-        }
-    };
+    $argument = $builder->subject("first\nsecond")->toImapTokens()[0];
 
-    $builder->subject('He said "Hello"');
-
-    expect($builder->toImapTokens())->toBe(['SEEN NOT SUBJECT "He said \\"Hello\\""']);
+    expect($argument->parts)->toBe(['SUBJECT ', ['{12}', "first\nsecond"]]);
 });
 
 test('compiles a single criteria', function () {

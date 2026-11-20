@@ -7,7 +7,6 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
-use DirectoryTree\ImapEngine\Support\Assert;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class ImapQueryBuilder
@@ -358,7 +357,7 @@ class ImapQueryBuilder
      */
     public function toImap(): string
     {
-        return $this->compileWheres($this->wheres);
+        return $this->grammar()->toImap($this->wheres);
     }
 
     /**
@@ -368,19 +367,23 @@ class ImapQueryBuilder
      */
     public function toImapTokens(): array
     {
-        if ($this->usesLegacyCompiler()) {
-            return [$this->toImap()];
-        }
+        return $this->grammar()->compile($this->wheres);
+    }
 
-        $parts = $this->compileWhereParts();
+    /**
+     * Get the conditions recorded by the builder.
+     */
+    public function getWheres(): array
+    {
+        return $this->wheres;
+    }
 
-        foreach ($parts as $part) {
-            if (is_array($part)) {
-                return [new ImapCommandArgument($parts)];
-            }
-        }
-
-        return [trim(implode('', $parts), ' ')];
+    /**
+     * Get the grammar used to compile search conditions.
+     */
+    protected function grammar(): ImapSearchGrammar
+    {
+        return new ImapSearchGrammar;
     }
 
     /**
@@ -396,34 +399,13 @@ class ImapQueryBuilder
      */
     protected function addBasicCondition(string $boolean, mixed $column, mixed $value, bool $not = false): void
     {
-        $rawValue = $this->usesLegacyCompiler() ? null : $this->normalizeWhereValue($value);
-
         $this->wheres[] = [
             'type' => 'basic',
             'not' => $not,
             'key' => Str::enum($column),
-            'value' => $this->prepareWhereValue($rawValue ?? $value),
-            'rawValue' => $rawValue,
+            'value' => $this->normalizeWhereValue($value),
             'boolean' => $boolean,
         ];
-    }
-
-    /**
-     * Preserve the string compiler hooks for subclasses unless they opt into literals.
-     */
-    protected function usesLegacyCompiler(): bool
-    {
-        return static::class !== self::class;
-    }
-
-    /**
-     * Prepare the where value for the string compiler.
-     */
-    protected function prepareWhereValue(mixed $value): RawQueryValue|string|null
-    {
-        $value = $this->normalizeWhereValue($value);
-
-        return is_string($value) ? Str::escape($value) : $value;
     }
 
     /**
@@ -480,149 +462,5 @@ class ImapQueryBuilder
         }
 
         return Carbon::parse($date);
-    }
-
-    /**
-     * Build a single expression node from a basic or nested where.
-     *
-     * @param  array{type: 'basic'|'nested', boolean: 'AND'|'OR', query: ImapQueryBuilder}  $where
-     */
-    protected function makeExpressionNode(array $where): array
-    {
-        return match ($where['type']) {
-            'basic' => [
-                'expr' => $this->compileBasic($where),
-                'boolean' => $where['boolean'],
-            ],
-
-            'nested' => [
-                'expr' => $where['query']->toImap(),
-                'boolean' => $where['boolean'],
-            ]
-        };
-    }
-
-    /**
-     * Merge the existing expression with the next expression, respecting the boolean operator.
-     *
-     * @param  'AND'|'OR'  $boolean
-     */
-    protected function mergeExpressions(string $existing, string $next, string $boolean): string
-    {
-        return match ($boolean) {
-            // AND is implicit – just append.
-            'AND' => $existing.' '.$next,
-
-            // IMAP's OR is binary; nest accordingly.
-            'OR' => 'OR ('.$existing.') ('.$next.')',
-        };
-    }
-
-    /**
-     * Recursively compile the wheres array into an IMAP-compatible string.
-     */
-    protected function compileWheres(array $wheres): string
-    {
-        if (empty($wheres)) {
-            return '';
-        }
-
-        // Convert each "where" into a node for later merging.
-        $exprNodes = array_map(fn (array $where) => (
-            $this->makeExpressionNode($where)
-        ), $wheres);
-
-        // Start with the first expression.
-        $combined = array_shift($exprNodes)['expr'];
-
-        // Merge the rest of the expressions.
-        foreach ($exprNodes as $node) {
-            $combined = $this->mergeExpressions(
-                $combined, $node['expr'], $node['boolean']
-            );
-        }
-
-        return trim($combined);
-    }
-
-    /**
-     * Compile a basic where condition into an IMAP-compatible string.
-     */
-    protected function compileBasic(array $where): string
-    {
-        $part = strtoupper($where['key']);
-
-        if ($where['value'] instanceof RawQueryValue) {
-            $part .= ' '.$where['value']->value;
-        } elseif ($where['value']) {
-            $part .= ' "'.Str::toImapUtf7($where['value']).'"';
-        }
-
-        if ($where['not']) {
-            $part = 'NOT '.$part;
-        }
-
-        return $part;
-    }
-
-    /**
-     * Compile the search expression into syntax and literal arguments.
-     *
-     * @return list<string|array{string, string}>
-     */
-    protected function compileWhereParts(): array
-    {
-        $parts = [];
-
-        foreach ($this->wheres as $where) {
-            $expression = $where['type'] === 'nested'
-                ? $where['query']->compileWhereParts()
-                : $this->compileBasicParts($where);
-
-            if ($parts === []) {
-                $parts = $expression;
-            } elseif ($where['boolean'] === 'OR') {
-                $parts = ['OR (', ...$parts, ') (', ...$expression, ')'];
-            } elseif ($expression !== []) {
-                array_push($parts, ' ', ...$expression);
-            }
-        }
-
-        return $parts;
-    }
-
-    /**
-     * Compile a basic where condition into syntax and literal arguments.
-     *
-     * @param  array{key: string, not: bool, rawValue: RawQueryValue|string|null}  $where
-     * @return list<string|array{string, string}>
-     */
-    protected function compileBasicParts(array $where): array
-    {
-        $key = strtoupper($where['key']);
-        $part = ($where['not'] ? 'NOT ' : '').$key;
-        $value = $where['rawValue'];
-
-        if ($value instanceof RawQueryValue) {
-            return [$part.' '.$value->value];
-        }
-
-        if ($value === null) {
-            return [$part];
-        }
-
-        if ($key === 'KEYWORD' || $key === 'UNKEYWORD') {
-            Assert::isValidKeyword($value);
-
-            return [$part.' '.$value];
-        }
-
-        if (in_array(explode(' ', $key, 2)[0], ['BCC', 'BODY', 'CC', 'FROM', 'HEADER', 'SUBJECT', 'TEXT', 'TO'], true)) {
-            return [$part.' ', Str::literal($value)];
-        }
-
-        Assert::hasNoControlCharacters($value);
-
-        return [$part.' "'.Str::toImapUtf7(Str::escape($value)).'"'];
     }
 }
