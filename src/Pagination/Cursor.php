@@ -41,7 +41,8 @@ class Cursor
     public function encode(): string
     {
         return str_replace(
-            ['+', '/', '='], ['-', '_', ''],
+            ['+', '/', '='],
+            ['-', '_', ''],
             base64_encode(json_encode($this, JSON_THROW_ON_ERROR))
         );
     }
