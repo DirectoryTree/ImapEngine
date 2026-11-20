@@ -263,3 +263,18 @@ test('chunk processes all chunks when callback never returns false', function ()
     // Should process all chunks (1, 2, 3)
     expect($processedChunks)->toBe([1, 2, 3]);
 });
+
+it('resumes cursor pagination through the fake query', function (string $order) {
+    $folder = new FakeFolder('INBOX', messages: [new FakeMessage(1), new FakeMessage(2), new FakeMessage(3), new FakeMessage(4)]);
+    $query = new FakeMessageQuery($folder);
+    $first = $query->{$order}()->cursorPaginate(2);
+
+    $folder->setMessages([new FakeMessage(1), new FakeMessage(3), new FakeMessage(4), new FakeMessage(5)]);
+    $second = (new FakeMessageQuery($folder))->{$order}()->cursorPaginate(2, $first->nextCursor()->encode());
+
+    expect($first->items()->map(fn (FakeMessage $message) => $message->uid())->all())
+        ->toBe($order === 'oldest' ? [1, 2] : [4, 3])
+        ->and($second->items()->map(fn (FakeMessage $message) => $message->uid())->all())
+        ->toBe($order === 'oldest' ? [3, 4] : [1])
+        ->and($second->hasMorePages())->toBeFalse();
+})->with(['oldest', 'newest']);

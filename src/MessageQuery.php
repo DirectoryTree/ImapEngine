@@ -17,10 +17,13 @@ use DirectoryTree\ImapEngine\Enums\ImapFlag;
 use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\RuntimeException;
+use DirectoryTree\ImapEngine\Pagination\Cursor;
+use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
+use InvalidArgumentException;
 
 /**
  * @mixin ImapQueryBuilder
@@ -110,46 +113,19 @@ class MessageQuery implements MessageQueryInterface
         $startChunk = max($startChunk, 1);
         $chunkSize = max($chunkSize, 1);
 
-        // Get all search result tokens once.
-        $messages = $this->search();
+        $uids = $this->order($this->search());
+        $total = $uids->count();
+        $totalChunks = (int) ceil($total / $chunkSize);
 
-        // Calculate how many chunks there are
-        $totalChunks = (int) ceil($messages->count() / $chunkSize);
-
-        // If startChunk is beyond our total chunks, return early.
-        if ($startChunk > $totalChunks) {
-            return;
-        }
-
-        $messages = $this->sortMessages($messages);
-
-        // Save previous state to restore later.
-        $previousLimit = $this->limit;
-        $previousPage = $this->page;
-
-        $this->limit = $chunkSize;
-
-        // Iterate from the starting chunk to the last chunk.
         for ($page = $startChunk; $page <= $totalChunks; $page++) {
-            $this->page = $page;
+            $messages = $this->load($uids->forPage($page, $chunkSize));
 
-            // populate() will use $this->page to slice the results.
-            $hydrated = $this->populate($messages);
+            $messages->total($total);
 
-            // If no messages are returned, break out to prevent infinite loop.
-            if ($hydrated->isEmpty()) {
-                break;
-            }
-
-            // If the callback returns false, break out.
-            if ($callback($hydrated, $page) === false) {
+            if ($messages->isEmpty() || $callback($messages, $page) === false) {
                 break;
             }
         }
-
-        // Restore the original state.
-        $this->limit = $previousLimit;
-        $this->page = $previousPage;
     }
 
     /**
@@ -166,6 +142,56 @@ class MessageQuery implements MessageQueryInterface
         $this->limit = $perPage;
 
         return $this->get()->paginate($perPage, $this->page, $pageName, true);
+    }
+
+    /**
+     * Paginate by stable UIDs, retaining the boundary before fetching content.
+     *
+     * @return CursorPaginator<MessageInterface>
+     */
+    public function cursorPaginate(int $perPage = 15, Cursor|string|null $cursor = null): CursorPaginator
+    {
+        if ($perPage < 1 || $this->sortKey !== null) {
+            throw new InvalidArgumentException('Cursor pagination requires a positive page size and UID fetch order.');
+        }
+
+        if (is_string($cursor)) {
+            $cursor = Cursor::fromEncoded($cursor);
+        }
+
+        $folder = $this->folder->path();
+        $status = $this->folder->status();
+        $uidValidity = (int) $status['UIDVALIDITY'];
+
+        $cursor?->assertMatches($folder, $uidValidity, $this->fetchOrder);
+
+        $maxUid = $cursor?->maxUid ?? (int) $status['UIDNEXT'] - 1;
+        $from = $this->fetchOrder === 'asc' ? ($cursor?->uid ?? 0) + 1 : 1;
+        $to = $this->fetchOrder === 'desc' ? ($cursor?->uid ?? $maxUid + 1) - 1 : $maxUid;
+
+        if ($from > $to) {
+            return new CursorPaginator(new MessageCollection);
+        }
+
+        // Keep the original query reusable when requesting subsequent pages.
+        $query = clone $this;
+        $query->query = clone $this->query;
+        $query->uid($from, $to);
+
+        $uids = $query->order($query->search());
+
+        $selected = $uids->take($perPage);
+
+        $next = $uids->count() > $perPage ? new Cursor(
+            folder: $folder,
+            uidValidity: $uidValidity,
+            uid: (int) $selected->last(),
+            maxUid: $maxUid,
+            direction: $this->fetchOrder,
+        ) : null;
+
+        // The cursor advances past the selected UIDs even if some disappear during FETCH.
+        return new CursorPaginator($query->load($selected), $next);
     }
 
     /**
@@ -318,27 +344,39 @@ class MessageQuery implements MessageQueryInterface
     }
 
     /**
-     * Process the collection of messages.
+     * Load the current page and retain the full match count for pagination.
      */
-    protected function process(Collection $messages): MessageCollection
+    protected function process(Collection $uids): MessageCollection
     {
-        if ($messages->isNotEmpty()) {
-            return $this->populate($this->sortMessages($messages));
-        }
+        $selected = $this->order($uids)->forPage($this->page, $this->limit);
 
-        return MessageCollection::make();
-    }
-
-    /**
-     * Populate a given id collection and receive a fully fetched message collection.
-     */
-    protected function populate(Collection $uids): MessageCollection
-    {
-        $messages = MessageCollection::make();
+        $messages = $this->load($selected);
 
         $messages->total($uids->count());
 
-        foreach ($this->fetch($uids) as $uid => $response) {
+        return $messages;
+    }
+
+    /**
+     * Load the selected messages in UID list order, skipping any that disappeared.
+     */
+    protected function load(Collection $uids): MessageCollection
+    {
+        $messages = MessageCollection::make();
+
+        if ($uids->isEmpty()) {
+            return $messages;
+        }
+
+        $responses = $this->fetch($uids->values());
+
+        foreach ($uids as $uid) {
+            if (! isset($responses[$uid])) {
+                continue;
+            }
+
+            $response = $responses[$uid];
+
             $messages->push(
                 $this->newMessage(
                     $uid,
@@ -357,28 +395,26 @@ class MessageQuery implements MessageQueryInterface
     /**
      * Order message identifiers before pagination or chunking.
      */
-    protected function sortMessages(Collection $messages): Collection
+    protected function order(Collection $uids): Collection
     {
         // Only apply client-side sorting when not using server-side sorting.
         // When sortKey is set, the IMAP SORT command already returns UIDs
         // in the correct order, so we should preserve that order.
         if ($this->sortKey) {
-            return $messages;
+            return $uids;
         }
 
         return match ($this->fetchOrder) {
-            'asc' => $messages->sort(SORT_NUMERIC),
-            'desc' => $messages->sortDesc(SORT_NUMERIC),
+            'asc' => $uids->sort(SORT_NUMERIC),
+            'desc' => $uids->sortDesc(SORT_NUMERIC),
         };
     }
 
     /**
      * Fetch a given id collection.
      */
-    protected function fetch(Collection $messages): array
+    protected function fetch(Collection $uids): array
     {
-        $uids = $messages->forPage($this->page, $this->limit)->values();
-
         $fetch = [];
 
         if ($this->fetchFlags) {

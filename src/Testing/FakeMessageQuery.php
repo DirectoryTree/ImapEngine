@@ -8,8 +8,11 @@ use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\MessageInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
+use DirectoryTree\ImapEngine\Pagination\Cursor;
+use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
+use InvalidArgumentException;
 
 class FakeMessageQuery implements MessageQueryInterface
 {
@@ -120,6 +123,45 @@ class FakeMessageQuery implements MessageQueryInterface
     public function paginate(int $perPage = 5, $page = null, string $pageName = 'page'): LengthAwarePaginator
     {
         return $this->get()->paginate($perPage, $page, $pageName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function cursorPaginate(int $perPage = 15, Cursor|string|null $cursor = null): CursorPaginator
+    {
+        if ($perPage < 1 || $this->sortKey !== null) {
+            throw new InvalidArgumentException('Cursor pagination requires a positive page size and UID fetch order.');
+        }
+
+        if (is_string($cursor)) {
+            $cursor = Cursor::fromEncoded($cursor);
+        }
+
+        $folder = $this->folder->path();
+        $uidValidity = (int) ($this->folder->status()['UIDVALIDITY'] ?? 1);
+
+        $cursor?->assertMatches($folder, $uidValidity, $this->fetchOrder);
+
+        $messages = $this->get();
+        $maxUid = $cursor?->maxUid ?? (int) $messages->max(fn (MessageInterface $message) => $message->uid());
+        $boundary = $cursor?->uid ?? ($this->fetchOrder === 'asc' ? 0 : $maxUid + 1);
+
+        $messages = $messages->filter(fn (MessageInterface $message) => $message->uid() <= $maxUid && (
+            $this->fetchOrder === 'asc' ? $message->uid() > $boundary : $message->uid() < $boundary
+        ))->sortBy(fn (MessageInterface $message) => $message->uid(), SORT_NUMERIC, $this->fetchOrder === 'desc')->values();
+
+        $selected = $messages->take($perPage);
+
+        $next = $messages->count() > $perPage ? new Cursor(
+            folder: $folder,
+            uidValidity: $uidValidity,
+            uid: $selected->last()->uid(),
+            maxUid: $maxUid,
+            direction: $this->fetchOrder,
+        ) : null;
+
+        return new CursorPaginator($selected, $next);
     }
 
     /**

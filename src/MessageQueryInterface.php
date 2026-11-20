@@ -7,6 +7,8 @@ use DirectoryTree\ImapEngine\Collections\MessageCollection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
+use DirectoryTree\ImapEngine\Pagination\Cursor;
+use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 
 /**
@@ -223,6 +225,13 @@ interface MessageQueryInterface
      * Paginate the current query.
      */
     public function paginate(int $perPage = 5, $page = null, string $pageName = 'page'): LengthAwarePaginator;
+
+    /**
+     * Paginate by UID in newest() or oldest() order, optionally resuming a cursor.
+     *
+     * @return CursorPaginator<MessageInterface>
+     */
+    public function cursorPaginate(int $perPage = 15, Cursor|string|null $cursor = null): CursorPaginator;
 
     /**
      * Find a message by the given identifier type or throw an exception.
