@@ -7,7 +7,6 @@ use DirectoryTree\ImapEngine\Exceptions\Exception;
 use DirectoryTree\ImapEngine\FolderInterface;
 use DirectoryTree\ImapEngine\MailboxInterface;
 use DirectoryTree\ImapEngine\MessageQueryInterface;
-use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class FakeFolder implements FolderInterface
@@ -39,7 +38,7 @@ class FakeFolder implements FolderInterface
      */
     public function mailboxFingerprint(): string
     {
-        return Cursor::mailboxFingerprint($this->mailbox ?? new FakeMailbox);
+        return ($this->mailbox ?? new FakeMailbox)->fingerprint();
     }
 
     /**

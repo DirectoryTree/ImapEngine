@@ -12,6 +12,8 @@ use Exception;
 
 class Mailbox implements MailboxInterface
 {
+    use HasMailboxFingerprint;
+
     /**
      * The mailbox configuration.
      */

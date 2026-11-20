@@ -147,9 +147,9 @@ it('rejects a cursor when the folder identity or direction changes', function (C
     expect(fn () => $query->cursorPaginate(2, $cursor->encode()))->toThrow(InvalidCursorException::class);
     $stream->assertNotWritten('UID SEARCH');
 })->with([
-    'folder changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'Junk', uidValidity: 42, uid: 5, maxUid: 10, direction: 'desc')],
-    'UID validity changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'INBOX', uidValidity: 41, uid: 5, maxUid: 10, direction: 'desc')],
-    'direction changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'INBOX', uidValidity: 42, uid: 5, maxUid: 10, direction: 'asc')],
+    'folder changed' => [new Cursor(mailbox: Mailbox::make()->fingerprint(), folder: 'Junk', uidValidity: 42, uid: 5, maxUid: 10, direction: 'desc')],
+    'UID validity changed' => [new Cursor(mailbox: Mailbox::make()->fingerprint(), folder: 'INBOX', uidValidity: 41, uid: 5, maxUid: 10, direction: 'desc')],
+    'direction changed' => [new Cursor(mailbox: Mailbox::make()->fingerprint(), folder: 'INBOX', uidValidity: 42, uid: 5, maxUid: 10, direction: 'asc')],
 ]);
 
 it('rejects a saved cursor from a different mailbox with matching folder and UID validity', function (array $changed) {

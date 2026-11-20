@@ -3,7 +3,6 @@
 namespace DirectoryTree\ImapEngine\Pagination;
 
 use DirectoryTree\ImapEngine\Exceptions\InvalidCursorException;
-use DirectoryTree\ImapEngine\MailboxInterface;
 
 class Cursor
 {
@@ -18,18 +17,6 @@ class Cursor
         public readonly int $maxUid,
         public readonly string $direction,
     ) {}
-
-    /**
-     * Identify the mailbox without including account details in the cursor.
-     */
-    public static function mailboxFingerprint(MailboxInterface $mailbox): string
-    {
-        return hash('sha256', json_encode([
-            $mailbox->config('host'),
-            (int) $mailbox->config('port', 993),
-            $mailbox->config('username'),
-        ], JSON_THROW_ON_ERROR));
-    }
 
     /**
      * Assert that the cursor can resume the current folder scan.

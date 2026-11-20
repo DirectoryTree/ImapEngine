@@ -159,7 +159,7 @@ class MessageQuery implements MessageQueryInterface
             $cursor = Cursor::fromEncoded($cursor);
         }
 
-        $mailbox = Cursor::mailboxFingerprint($this->folder->mailbox());
+        $mailbox = $this->folder->mailbox()->fingerprint();
         $folder = $this->folder->path();
         $status = $this->folder->status();
         $uidValidity = (int) $status['UIDVALIDITY'];
