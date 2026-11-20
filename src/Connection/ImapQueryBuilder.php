@@ -353,11 +353,37 @@ class ImapQueryBuilder
     }
 
     /**
-     * Transform the instance into an IMAP-compatible query string.
+     * Compile the criteria as a single query string.
      */
     public function toImap(): string
     {
-        return $this->compileWheres($this->wheres);
+        return ltrim((string) new ImapCommand('', '', $this->toImapTokens()), ' ');
+    }
+
+    /**
+     * Compile search criteria for transmission, preserving literal arguments.
+     *
+     * @return list<string|ImapCommandArgument>
+     */
+    public function toImapTokens(): array
+    {
+        return $this->grammar()->compile($this->wheres);
+    }
+
+    /**
+     * Get the conditions recorded by the builder.
+     */
+    public function getWheres(): array
+    {
+        return $this->wheres;
+    }
+
+    /**
+     * Get the grammar used to compile search conditions.
+     */
+    protected function grammar(): ImapSearchGrammar
+    {
+        return new ImapSearchGrammar;
     }
 
     /**
@@ -373,23 +399,19 @@ class ImapQueryBuilder
      */
     protected function addBasicCondition(string $boolean, mixed $column, mixed $value, bool $not = false): void
     {
-        $value = $this->prepareWhereValue($value);
-
-        $column = Str::enum($column);
-
         $this->wheres[] = [
             'type' => 'basic',
             'not' => $not,
-            'key' => $column,
-            'value' => $value,
+            'key' => Str::enum($column),
+            'value' => $this->normalizeWhereValue($value),
             'boolean' => $boolean,
         ];
     }
 
     /**
-     * Prepare the where value, escaping it as needed.
+     * Normalize the where value for compilation.
      */
-    protected function prepareWhereValue(mixed $value): RawQueryValue|string|null
+    protected function normalizeWhereValue(mixed $value): RawQueryValue|string|null
     {
         if (is_null($value)) {
             return null;
@@ -411,7 +433,7 @@ class ImapQueryBuilder
             $value = $value->format($this->dateFormat);
         }
 
-        return Str::escape($value);
+        return $value;
     }
 
     /**
@@ -440,88 +462,5 @@ class ImapQueryBuilder
         }
 
         return Carbon::parse($date);
-    }
-
-    /**
-     * Build a single expression node from a basic or nested where.
-     *
-     * @param  array{type: 'basic'|'nested', boolean: 'AND'|'OR', query: ImapQueryBuilder}  $where
-     */
-    protected function makeExpressionNode(array $where): array
-    {
-        return match ($where['type']) {
-            'basic' => [
-                'expr' => $this->compileBasic($where),
-                'boolean' => $where['boolean'],
-            ],
-
-            'nested' => [
-                'expr' => $where['query']->toImap(),
-                'boolean' => $where['boolean'],
-            ]
-        };
-    }
-
-    /**
-     * Merge the existing expression with the next expression, respecting the boolean operator.
-     *
-     * @param  'AND'|'OR'  $boolean
-     */
-    protected function mergeExpressions(string $existing, string $next, string $boolean): string
-    {
-        return match ($boolean) {
-            // AND is implicit – just append.
-            'AND' => $existing.' '.$next,
-
-            // IMAP's OR is binary; nest accordingly.
-            'OR' => 'OR ('.$existing.') ('.$next.')',
-        };
-    }
-
-    /**
-     * Recursively compile the wheres array into an IMAP-compatible string.
-     */
-    protected function compileWheres(array $wheres): string
-    {
-        if (empty($wheres)) {
-            return '';
-        }
-
-        // Convert each "where" into a node for later merging.
-        $exprNodes = array_map(fn (array $where) => (
-            $this->makeExpressionNode($where)
-        ), $wheres);
-
-        // Start with the first expression.
-        $combined = array_shift($exprNodes)['expr'];
-
-        // Merge the rest of the expressions.
-        foreach ($exprNodes as $node) {
-            $combined = $this->mergeExpressions(
-                $combined, $node['expr'], $node['boolean']
-            );
-        }
-
-        return trim($combined);
-    }
-
-    /**
-     * Compile a basic where condition into an IMAP-compatible string.
-     */
-    protected function compileBasic(array $where): string
-    {
-        $part = strtoupper($where['key']);
-
-        if ($where['value'] instanceof RawQueryValue) {
-            $part .= ' '.$where['value']->value;
-        } elseif ($where['value']) {
-            $part .= ' "'.Str::toImapUtf7($where['value']).'"';
-        }
-
-        if ($where['not']) {
-            $part = 'NOT '.$part;
-        }
-
-        return $part;
     }
 }

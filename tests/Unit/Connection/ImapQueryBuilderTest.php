@@ -26,6 +26,14 @@ test('compiles a single basic where condition', function () {
     expect($builder->toImap())->toBe('SUBJECT "hello"');
 });
 
+test('subclasses inherit literal compilation', function () {
+    $builder = new class extends ImapQueryBuilder {};
+
+    $argument = $builder->subject("first\nsecond")->toImapTokens()[0];
+
+    expect($argument->parts)->toBe(['SUBJECT ', ['{12}', "first\nsecond"]]);
+});
+
 test('compiles a single criteria', function () {
     $builder = new ImapQueryBuilder;
 
@@ -107,7 +115,7 @@ test('compiles an empty string value', function () {
 
     $builder->where('subject', ''); // empty string
 
-    expect($builder->toImap())->toBe('SUBJECT');
+    expect($builder->toImap())->toBe('SUBJECT ""');
 });
 
 test('compiles a null value', function () {
@@ -185,15 +193,15 @@ test('escapes double quotes in search value', function () {
     expect($builder->toImap())->toBe('SUBJECT "He said \\"Hello\\""');
 });
 
-test('removes newlines and carriage returns in search value', function () {
+test('renders newline and carriage return bytes in a literal', function () {
     $builder = new ImapQueryBuilder;
 
     $builder->where('body', "Line one\nLine two\rLine three");
 
-    expect($builder->toImap())->toBe('BODY "Line oneLine twoLine three"');
+    expect($builder->toImap())->toBe("BODY {28}\r\nLine one\nLine two\rLine three");
 });
 
-test('escapes multiple special characters', function () {
+test('preserves quotes and backslashes inside a rendered literal', function () {
     $builder = new ImapQueryBuilder;
 
     // Special characters: double quotes, newlines, backslash
@@ -201,7 +209,7 @@ test('escapes multiple special characters', function () {
 
     $builder->where('subject', $value);
 
-    expect($builder->toImap())->toBe('SUBJECT "Foo \\"Bar\\"Baz\\\\Zot"');
+    expect($builder->toImap())->toBe("SUBJECT {17}\r\n".$value);
 });
 
 test('compiles a SINCE condition with unquoted date', function () {
@@ -320,12 +328,24 @@ test('compiles LARGER and SMALLER conditions together', function () {
 });
 
 test('compiles KEYWORD condition', function () {
-    expect((new ImapQueryBuilder)->keyword('important')->toImap())->toBe('KEYWORD "important"');
+    expect((new ImapQueryBuilder)->keyword('important')->toImap())->toBe('KEYWORD important');
 });
 
 test('compiles UNKEYWORD condition', function () {
-    expect((new ImapQueryBuilder)->unkeyword('important')->toImap())->toBe('UNKEYWORD "important"');
+    expect((new ImapQueryBuilder)->unkeyword('important')->toImap())->toBe('UNKEYWORD important');
 });
+
+test('sends search keywords as atoms', function () {
+    $builder = (new ImapQueryBuilder)->keyword('important')->unkeyword('$Junk');
+
+    expect($builder->toImapTokens())->toBe(['KEYWORD important UNKEYWORD $Junk']);
+});
+
+test('rejects malformed search keywords', function (string $keyword) {
+    $builder = (new ImapQueryBuilder)->keyword($keyword);
+
+    expect(fn () => $builder->toImapTokens())->toThrow(InvalidArgumentException::class);
+})->with(['two words', '\\Seen', "first\nsecond"]);
 
 test('compiles a SENTON condition with unquoted date', function () {
     expect((new ImapQueryBuilder)->sentOn(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTON 04-Apr-2024');

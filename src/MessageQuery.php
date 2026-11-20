@@ -501,9 +501,7 @@ class MessageQuery implements MessageQueryInterface
             $this->query->all();
         }
 
-        $response = $this->connection()->search([
-            $this->query->toImap(),
-        ]);
+        $response = $this->connection()->search($this->query->toImapTokens());
 
         return new Collection(array_map(
             fn (Token $token) => $token->value,
@@ -529,7 +527,7 @@ class MessageQuery implements MessageQueryInterface
         $response = $this->connection()->sort(
             $this->sortKey,
             $this->sortDirection,
-            [$this->query->toImap()]
+            $this->query->toImapTokens()
         );
 
         return new Collection(array_map(

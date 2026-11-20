@@ -23,9 +23,29 @@ class Assert
     {
         $atom = str_starts_with($flag, '\\') ? substr($flag, 1) : $flag;
 
-        if ($atom === '' || preg_match('/[^\x21-\x7E]/', $atom) || strpbrk($atom, '(){%*"\\]') !== false) {
+        if (! static::isAtom($atom)) {
             throw new InvalidArgumentException('Invalid IMAP flag.');
         }
+    }
+
+    /**
+     * Ensure a search keyword contains a valid IMAP atom.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function isValidKeyword(string $keyword): void
+    {
+        if (! static::isAtom($keyword)) {
+            throw new InvalidArgumentException('Invalid IMAP keyword.');
+        }
+    }
+
+    /**
+     * Determine if the value is a valid IMAP atom.
+     */
+    protected static function isAtom(string $value): bool
+    {
+        return $value !== '' && ! preg_match('/[^\x21-\x7E]/', $value) && strpbrk($value, '(){%*"\\]') === false;
     }
 
     /**
