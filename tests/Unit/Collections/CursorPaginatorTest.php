@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 
 it('preserves typed cursor state through encoding', function () {
     $cursor = new Cursor(
+        mailbox: 'account',
         folder: 'Inbox/Invoices + Receipts',
         uidValidity: 42,
         uid: 15,
@@ -28,7 +29,7 @@ it('throws when the encoded cursor cannot be restored', function (string $encode
 ]);
 
 it('keeps a continuation even if none of the selected messages survived fetching', function () {
-    $cursor = new Cursor('INBOX', 42, 15, 100, 'desc');
+    $cursor = new Cursor('account', 'INBOX', 42, 15, 100, 'desc');
     $page = new CursorPaginator(new Collection, $cursor);
 
     expect($page->items())->toBeEmpty()

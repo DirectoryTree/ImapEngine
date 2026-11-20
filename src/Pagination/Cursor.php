@@ -3,6 +3,7 @@
 namespace DirectoryTree\ImapEngine\Pagination;
 
 use DirectoryTree\ImapEngine\Exceptions\InvalidCursorException;
+use DirectoryTree\ImapEngine\MailboxInterface;
 
 class Cursor
 {
@@ -10,6 +11,7 @@ class Cursor
      * Create a cursor for resuming a folder scan.
      */
     public function __construct(
+        public readonly string $mailbox,
         public readonly string $folder,
         public readonly int $uidValidity,
         public readonly int $uid,
@@ -18,16 +20,29 @@ class Cursor
     ) {}
 
     /**
+     * Identify the mailbox without including account details in the cursor.
+     */
+    public static function mailboxFingerprint(MailboxInterface $mailbox): string
+    {
+        return hash('sha256', json_encode([
+            $mailbox->config('host'),
+            (int) $mailbox->config('port', 993),
+            $mailbox->config('username'),
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
      * Assert that the cursor can resume the current folder scan.
      */
-    public function assertMatches(string $folder, int $uidValidity, string $direction): void
+    public function assertMatches(string $mailbox, string $folder, int $uidValidity, string $direction): void
     {
         if (
-            $this->folder !== $folder
+            $this->mailbox !== $mailbox
+            || $this->folder !== $folder
             || $this->uidValidity !== $uidValidity
             || $this->direction !== $direction
         ) {
-            throw new InvalidCursorException('The cursor must match the folder, UID validity, and fetch order.');
+            throw new InvalidCursorException('The cursor must match the mailbox, folder, UID validity, and fetch order.');
         }
     }
 

@@ -147,9 +147,49 @@ it('rejects a cursor when the folder identity or direction changes', function (C
     expect(fn () => $query->cursorPaginate(2, $cursor->encode()))->toThrow(InvalidCursorException::class);
     $stream->assertNotWritten('UID SEARCH');
 })->with([
-    'folder changed' => [new Cursor(folder: 'Junk', uidValidity: 42, uid: 5, maxUid: 10, direction: 'desc')],
-    'UID validity changed' => [new Cursor(folder: 'INBOX', uidValidity: 41, uid: 5, maxUid: 10, direction: 'desc')],
-    'direction changed' => [new Cursor(folder: 'INBOX', uidValidity: 42, uid: 5, maxUid: 10, direction: 'asc')],
+    'folder changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'Junk', uidValidity: 42, uid: 5, maxUid: 10, direction: 'desc')],
+    'UID validity changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'INBOX', uidValidity: 41, uid: 5, maxUid: 10, direction: 'desc')],
+    'direction changed' => [new Cursor(mailbox: Cursor::mailboxFingerprint(Mailbox::make()), folder: 'INBOX', uidValidity: 42, uid: 5, maxUid: 10, direction: 'asc')],
+]);
+
+it('rejects a saved cursor from a different mailbox with matching folder and UID validity', function (array $changed) {
+    $config = ['host' => 'imap.example.test', 'port' => 993, 'username' => 'alice'];
+
+    $firstStream = new FakeStream;
+    $firstStream->open();
+    $firstStream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* STATUS "INBOX" (UIDNEXT 11 UIDVALIDITY 42)',
+        'TAG2 OK STATUS completed',
+        '* SEARCH 1 5 10',
+        'TAG3 OK SEARCH completed',
+    ]);
+
+    $firstMailbox = Mailbox::make($config);
+    $firstMailbox->connect(new ImapConnection($firstStream));
+    $query = new MessageQuery(new Folder($firstMailbox, 'INBOX'), new ImapQueryBuilder);
+    $saved = $query->cursorPaginate(2)->nextCursor()->encode();
+
+    $secondStream = new FakeStream;
+    $secondStream->open();
+    $secondStream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* STATUS "INBOX" (UIDNEXT 11 UIDVALIDITY 42)',
+        'TAG2 OK STATUS completed',
+    ]);
+
+    $secondMailbox = Mailbox::make(array_replace($config, $changed));
+    $secondMailbox->connect(new ImapConnection($secondStream));
+    $query = new MessageQuery(new Folder($secondMailbox, 'INBOX'), new ImapQueryBuilder);
+
+    expect(fn () => $query->cursorPaginate(2, $saved))->toThrow(InvalidCursorException::class);
+    $secondStream->assertNotWritten('UID SEARCH');
+})->with([
+    'another user' => [['username' => 'bob']],
+    'another host' => [['host' => 'other.example.test']],
+    'another port' => [['port' => 143]],
 ]);
 
 it('returns a completed page when no messages match', function () {

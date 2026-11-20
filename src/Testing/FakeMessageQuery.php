@@ -138,10 +138,11 @@ class FakeMessageQuery implements MessageQueryInterface
             $cursor = Cursor::fromEncoded($cursor);
         }
 
+        $mailbox = $this->folder->mailboxFingerprint();
         $folder = $this->folder->path();
         $uidValidity = (int) ($this->folder->status()['UIDVALIDITY'] ?? 1);
 
-        $cursor?->assertMatches($folder, $uidValidity, $this->fetchOrder);
+        $cursor?->assertMatches($mailbox, $folder, $uidValidity, $this->fetchOrder);
 
         $messages = $this->get();
         $maxUid = $cursor?->maxUid ?? (int) $messages->max(fn (MessageInterface $message) => $message->uid());
@@ -154,6 +155,7 @@ class FakeMessageQuery implements MessageQueryInterface
         $selected = $messages->take($perPage);
 
         $next = $messages->count() > $perPage ? new Cursor(
+            mailbox: $mailbox,
             folder: $folder,
             uidValidity: $uidValidity,
             uid: $selected->last()->uid(),

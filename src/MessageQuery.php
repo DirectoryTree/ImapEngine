@@ -159,11 +159,12 @@ class MessageQuery implements MessageQueryInterface
             $cursor = Cursor::fromEncoded($cursor);
         }
 
+        $mailbox = Cursor::mailboxFingerprint($this->folder->mailbox());
         $folder = $this->folder->path();
         $status = $this->folder->status();
         $uidValidity = (int) $status['UIDVALIDITY'];
 
-        $cursor?->assertMatches($folder, $uidValidity, $this->fetchOrder);
+        $cursor?->assertMatches($mailbox, $folder, $uidValidity, $this->fetchOrder);
 
         $maxUid = $cursor?->maxUid ?? (int) $status['UIDNEXT'] - 1;
         $from = $this->fetchOrder === 'asc' ? ($cursor?->uid ?? 0) + 1 : 1;
@@ -183,6 +184,7 @@ class MessageQuery implements MessageQueryInterface
         $selected = $uids->take($perPage);
 
         $next = $uids->count() > $perPage ? new Cursor(
+            mailbox: $mailbox,
             folder: $folder,
             uidValidity: $uidValidity,
             uid: (int) $selected->last(),
