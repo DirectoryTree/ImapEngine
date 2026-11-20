@@ -186,9 +186,9 @@ class MessageQuery implements MessageQueryInterface
         $next = $uids->count() > $perPage ? new Cursor(
             mailbox: $mailbox,
             folder: $folder,
-            uidValidity: $uidValidity,
             uid: (int) $selected->last(),
             maxUid: $maxUid,
+            uidValidity: $uidValidity,
             direction: $this->fetchOrder,
         ) : null;
 

@@ -157,9 +157,9 @@ class FakeMessageQuery implements MessageQueryInterface
         $next = $messages->count() > $perPage ? new Cursor(
             mailbox: $mailbox,
             folder: $folder,
-            uidValidity: $uidValidity,
             uid: $selected->last()->uid(),
             maxUid: $maxUid,
+            uidValidity: $uidValidity,
             direction: $this->fetchOrder,
         ) : null;
 

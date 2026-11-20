@@ -12,9 +12,9 @@ class Cursor
     public function __construct(
         public readonly string $mailbox,
         public readonly string $folder,
-        public readonly int $uidValidity,
         public readonly int $uid,
         public readonly int $maxUid,
+        public readonly int $uidValidity,
         public readonly string $direction,
     ) {}
 

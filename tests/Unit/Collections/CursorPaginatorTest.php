@@ -8,9 +8,9 @@ it('preserves typed cursor state through encoding', function () {
     $cursor = new Cursor(
         mailbox: 'account',
         folder: 'Inbox/Invoices + Receipts',
-        uidValidity: 42,
         uid: 15,
         maxUid: 100,
+        uidValidity: 42,
         direction: 'desc',
     );
     $encoded = $cursor->encode();
@@ -29,7 +29,7 @@ it('throws when the encoded cursor cannot be restored', function (string $encode
 ]);
 
 it('keeps a continuation even if none of the selected messages survived fetching', function () {
-    $cursor = new Cursor('account', 'INBOX', 42, 15, 100, 'desc');
+    $cursor = new Cursor(mailbox: 'account', folder: 'INBOX', uid: 15, maxUid: 100, uidValidity: 42, direction: 'desc');
     $page = new CursorPaginator(new Collection, $cursor);
 
     expect($page->items())->toBeEmpty()
