@@ -29,7 +29,9 @@ class Cursor
             || $this->uidValidity !== $uidValidity
             || $this->direction !== $direction
         ) {
-            throw new InvalidCursorException('The cursor must match the mailbox, folder, UID validity, and fetch order.');
+            throw new InvalidCursorException(
+                'The cursor must match the mailbox, folder, UID validity, and fetch order.'
+            );
         }
     }
 
@@ -38,7 +40,10 @@ class Cursor
      */
     public function encode(): string
     {
-        return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(json_encode($this, JSON_THROW_ON_ERROR)));
+        return str_replace(
+            ['+', '/', '='], ['-', '_', ''],
+            base64_encode(json_encode($this, JSON_THROW_ON_ERROR))
+        );
     }
 
     /**
