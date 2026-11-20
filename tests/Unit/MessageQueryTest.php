@@ -653,6 +653,28 @@ test('chunk orders all identifiers before paging and restores pagination', funct
     ['desc', 2, [2 => [10, 2], 3 => [1]]],
 ]);
 
+test('a failed chunk callback preserves the query page and limit', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH 1 2 3',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+    $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
+    $query->limit(7, 3);
+
+    expect(fn () => $query->chunk(fn () => throw new LogicException('Chunk failed'), 2))
+        ->toThrow(LogicException::class, 'Chunk failed');
+
+    expect($query->getLimit())->toBe(7)
+        ->and($query->getPage())->toBe(3);
+});
+
 test('chunk sorts the search results only once', function (string $order) {
     $identifiers = new class(['50', '2', '100', '1', '10']) extends Collection
     {
@@ -728,13 +750,16 @@ test('get preserves server sort order before pagination', function () {
         'TAG2 OK CAPABILITY completed',
         '* SORT 50 2 100 1 10',
         'TAG3 OK SORT completed',
+        '* 1 FETCH (UID 1 FLAGS ())',
+        '* 2 FETCH (UID 100 FLAGS ())',
+        'TAG4 OK FETCH completed',
     ]);
 
     $mailbox = Mailbox::make();
     $mailbox->connect(new ImapConnection($stream));
     $query = new MessageQuery(new Folder($mailbox, 'test'), new ImapQueryBuilder);
 
-    $messages = $query->sortBy('date')->limit(2, 2)->get();
+    $messages = $query->sortBy('date')->withFlags()->limit(2, 2)->get();
 
     expect($messages->map->uid()->all())->toBe([100, 1]);
     expect($messages->total())->toBe(5);

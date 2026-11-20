@@ -10,7 +10,6 @@ trait ComparesFolders
     protected function isSameFolder(FolderInterface $a, FolderInterface $b): bool
     {
         return $a->path() === $b->path()
-            && $a->mailbox()->config('host') === $b->mailbox()->config('host')
-            && $a->mailbox()->config('username') === $b->mailbox()->config('username');
+            && $a->mailbox()->fingerprint() === $b->mailbox()->fingerprint();
     }
 }

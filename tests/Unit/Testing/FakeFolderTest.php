@@ -44,6 +44,16 @@ test('it compares folders correctly', function () {
     expect($folder1->is($folder4))->toBeFalse(); // Different mailbox
 });
 
+test('folder identity includes the mailbox port', function () {
+    $account = ['host' => 'imap.example.com', 'username' => 'user1'];
+    $inbox = new FakeFolder('INBOX', mailbox: new FakeMailbox($account));
+    $sameInbox = new FakeFolder('INBOX', mailbox: new FakeMailbox($account + ['port' => 993]));
+    $otherInbox = new FakeFolder('INBOX', mailbox: new FakeMailbox($account + ['port' => 143]));
+
+    expect($inbox->is($sameInbox))->toBeTrue()
+        ->and($inbox->is($otherInbox))->toBeFalse();
+});
+
 test('it returns message query', function () {
     $folder = new FakeFolder('INBOX', [], [new FakeMessage(1)]);
 

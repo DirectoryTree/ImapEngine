@@ -12,6 +12,11 @@ interface MailboxInterface
     public function config(?string $key = null, mixed $default = null): mixed;
 
     /**
+     * Get a stable identifier for this mailbox account.
+     */
+    public function fingerprint(): string;
+
+    /**
      * Get the mailbox connection.
      */
     public function connection(): ConnectionInterface;
