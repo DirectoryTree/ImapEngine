@@ -31,6 +31,8 @@ interface StreamInterface
 
     /**
      * Return meta info (like stream_get_meta_data).
+     *
+     * @return array<string, mixed>
      */
     public function meta(): array;
 

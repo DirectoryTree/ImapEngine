@@ -221,6 +221,8 @@ interface MessageQueryInterface
 
     /**
      * Paginate the current query.
+     *
+     * @return LengthAwarePaginator<array-key, MessageInterface>
      */
     public function paginate(int $perPage = 5, $page = null, string $pageName = 'page'): LengthAwarePaginator;
 

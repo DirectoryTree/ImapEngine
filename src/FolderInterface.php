@@ -63,21 +63,29 @@ interface FolderInterface
 
     /**
      * Get the folder's quotas.
+     *
+     * @return array<array-key, array<string, array{usage: int, limit: int}>>
      */
     public function quota(): array;
 
     /**
      * Get the folder's status.
+     *
+     * @return array<string, string>
      */
     public function status(): array;
 
     /**
      * Examine the current folder and get detailed status information.
+     *
+     * @return array<int, list<string|array>>
      */
     public function examine(): array;
 
     /**
      * Expunge the mailbox and return the expunged message sequence numbers.
+     *
+     * @return array<int, string>
      */
     public function expunge(): array;
 
