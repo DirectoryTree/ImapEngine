@@ -33,6 +33,40 @@ test('passthru', function () {
     expect($query->toImap())->toBe('');
     expect($query->isEmpty())->toBeTrue();
     expect($query->subject('hello')->toImapTokens())->toBe(['SUBJECT "hello"']);
+    expect($query->getWheres()[0]['value'])->toBe('hello');
+});
+
+test('search and sort execute public query string overrides', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '* SORT',
+        'TAG4 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $builder = new class extends ImapQueryBuilder
+    {
+        public function toImap(): string
+        {
+            return parent::toImap().' UNSEEN';
+        }
+    };
+
+    $query = new MessageQuery(new Folder($mailbox, 'test'), $builder);
+    $query->where(fn ($nested) => $nested->seen())->count();
+    $query->sortBy('date')->get();
+
+    $stream->assertWritten("TAG2 UID SEARCH SEEN UNSEEN UNSEEN\r\n");
+    $stream->assertWritten("TAG4 UID SORT (DATE) UTF-8 SEEN UNSEEN UNSEEN\r\n");
 });
 
 test('where', function () {
@@ -383,13 +417,13 @@ test('search preserves literal values inside nested criteria', function (string 
     $mailbox = Mailbox::make();
     $mailbox->connect(new ImapConnection($stream));
 
-    $count = query($mailbox)
+    $query = query($mailbox)
         ->body("first\nsecond")
         ->orWhere('subject', $subject)
-        ->header('Message-ID', '0')
-        ->count();
+        ->header('Message-ID', '0');
 
-    expect($count)->toBe(1);
+    expect($query->toImap())->toBe("OR (BODY {12}\r\nfirst\nsecond) (SUBJECT {10}\r\n{$subject}) HEADER MESSAGE-ID \"0\"");
+    expect($query->count())->toBe(1);
 
     $stream->assertWritten("TAG2 UID SEARCH {$charset}OR (BODY {12}\r\n");
     $stream->assertWritten("first\nsecond) (SUBJECT {10}\r\n");

@@ -66,7 +66,7 @@ trait QueriesMessages
     /**
      * The methods that should be returned from query builder.
      */
-    protected array $passthru = ['toimap', 'toimaptokens', 'isempty'];
+    protected array $passthru = ['toimap', 'toimaptokens', 'getwheres', 'isempty'];
 
     /**
      * The sort key for server-side sorting (RFC 5256).

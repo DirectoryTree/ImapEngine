@@ -749,6 +749,28 @@ test('sizes fetch', function () {
     expect((string) $responses->first())->toBe('* 1 FETCH (UID 1 RFC822.SIZE 1024)');
 });
 
+test('search detects literal charsets and honors explicit declarations', function (array $params, string $expected) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        '+ Ready for literal data',
+        '* SEARCH',
+        'TAG1 OK SEARCH completed',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+    $connection->search($params);
+
+    $stream->assertWritten("TAG1 UID SEARCH {$expected}\r\n");
+})->with([
+    [['SUBJECT', Str::literal('café')], 'CHARSET UTF-8 SUBJECT {5}'],
+    [['SEEN', ...(new ImapQueryBuilder)->subject('café')->toImapTokens()], 'CHARSET UTF-8 SEEN SUBJECT {5}'],
+    [['charset', 'ISO-8859-1', 'SUBJECT', Str::literal("caf\xe9")], 'charset ISO-8859-1 SUBJECT {4}'],
+    [['CHARSET UTF-8', 'SUBJECT', Str::literal('café')], 'CHARSET UTF-8 SUBJECT {5}'],
+]);
+
 test('search', function () {
     $stream = new FakeStream;
     $stream->open();

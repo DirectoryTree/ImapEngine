@@ -493,9 +493,7 @@ class ImapConnection implements ConnectionInterface
      */
     public function search(array $params): UntaggedResponse
     {
-        $criteria = reset($params);
-
-        if ($criteria instanceof ImapCommandArgument && $criteria->hasNonAsciiLiteral()) {
+        if ($this->requiresSearchCharset($params)) {
             array_unshift($params, 'CHARSET UTF-8');
         }
 
@@ -506,6 +504,30 @@ class ImapConnection implements ConnectionInterface
         return $this->result->responses()->untagged()->firstOrFail(
             fn (UntaggedResponse $response) => $response->type()->is('SEARCH')
         );
+    }
+
+    /**
+     * Determine whether search literals need a charset declaration.
+     */
+    protected function requiresSearchCharset(array $params): bool
+    {
+        $first = reset($params);
+
+        if (is_string($first) && preg_match('/^\s*CHARSET(?:\s|$)/i', $first)) {
+            return false;
+        }
+
+        foreach ($params as $param) {
+            if ($param instanceof ImapCommandArgument && $param->hasNonAsciiLiteral()) {
+                return true;
+            }
+
+            if (is_array($param) && preg_match('/[\x80-\xFF]/', $param[1])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

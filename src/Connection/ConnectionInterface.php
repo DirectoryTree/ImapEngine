@@ -108,7 +108,7 @@ interface ConnectionInterface
      *
      * Execute a search request.
      *
-     * When compiled criteria are the first argument, declare UTF-8 for non-ASCII literals.
+     * Declare UTF-8 for non-ASCII literals when the caller omits the charset.
      *
      * @param  array<string|array{string, string}|ImapCommandArgument>  $params
      *
