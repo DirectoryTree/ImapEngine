@@ -588,7 +588,7 @@ test('sort sends literal search values using its existing charset', function () 
     $mailbox = Mailbox::make();
     $mailbox->connect(new ImapConnection($stream));
 
-    expect(query($mailbox)->text("café")->sortBy('date')->get())->toBeEmpty();
+    expect(query($mailbox)->text('café')->sortBy('date')->get())->toBeEmpty();
 
     $stream->assertWritten("TAG3 UID SORT (DATE) UTF-8 TEXT {5}\r\n");
     $stream->assertWritten("café\r\n");

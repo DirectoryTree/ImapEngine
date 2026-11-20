@@ -356,7 +356,7 @@ test('rejects malformed search keywords', function (string $keyword) {
     $builder = (new ImapQueryBuilder)->keyword($keyword);
 
     expect(fn () => $builder->toImapTokens())->toThrow(InvalidArgumentException::class);
-})->with(['two words', "\\Seen", "first\nsecond"]);
+})->with(['two words', '\\Seen', "first\nsecond"]);
 
 test('compiles a SENTON condition with unquoted date', function () {
     expect((new ImapQueryBuilder)->sentOn(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTON 04-Apr-2024');
