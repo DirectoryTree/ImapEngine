@@ -146,6 +146,23 @@ test('login failure', function () {
     $connection->login('foo', 'bar');
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
+test('login redacts credentials when the server rejects a literal', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 NO Authentication unavailable',
+    ]);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->login('username', 'café-password'))
+        ->toThrow(ImapCommandException::class, "TAG1 LOGIN [redacted] [redacted]\r\n[redacted]");
+
+    $stream->assertNotWritten('café-password');
+});
+
 test('logout success', function () {
     $stream = new FakeStream;
     $stream->open();

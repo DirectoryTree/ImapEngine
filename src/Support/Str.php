@@ -4,6 +4,7 @@ namespace DirectoryTree\ImapEngine\Support;
 
 use BackedEnum;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 class Str
 {
@@ -38,7 +39,11 @@ class Str
     }
 
     /**
-     * Make one or more literals.
+     * Encode one or more strings as quoted strings or IMAP literals.
+     *
+     * Each literal contains a byte-count marker and the original string.
+     *
+     * @throws InvalidArgumentException
      */
     public static function literal(array|string $string): array|string
     {
@@ -52,7 +57,11 @@ class Str
             return $result;
         }
 
-        if (str_contains($string, "\n")) {
+        if (str_contains($string, "\0")) {
+            throw new InvalidArgumentException('IMAP strings cannot contain NUL bytes.');
+        }
+
+        if (preg_match('/[^\x20-\x7E]/', $string)) {
             return ['{'.strlen($string).'}', $string];
         }
 

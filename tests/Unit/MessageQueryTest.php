@@ -32,6 +32,7 @@ test('passthru', function () {
 
     expect($query->toImap())->toBe('');
     expect($query->isEmpty())->toBeTrue();
+    expect($query->subject('hello')->toImapTokens())->toBe(['SUBJECT "hello"']);
 });
 
 test('where', function () {
@@ -367,6 +368,37 @@ test('uid range to infinity searches with numeric upper bound', function () {
     $stream->assertWritten('TAG2 UID SEARCH UID 42:4294967295');
 });
 
+test('search preserves literal values inside nested criteria', function (string $subject, string $charset) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '+ Ready for literal data',
+        '+ Ready for literal data',
+        '* SEARCH 1',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $count = query($mailbox)
+        ->body("first\nsecond")
+        ->orWhere('subject', $subject)
+        ->header('Message-ID', '0')
+        ->count();
+
+    expect($count)->toBe(1);
+
+    $stream->assertWritten("TAG2 UID SEARCH {$charset}OR (BODY {12}\r\n");
+    $stream->assertWritten("first\nsecond) (SUBJECT {10}\r\n");
+    $stream->assertWritten("{$subject}) HEADER MESSAGE-ID \"0\"\r\n");
+})->with([
+    'ASCII' => ["third\rline", ''],
+    'UTF-8' => ["café\rline", 'CHARSET UTF-8 '],
+]);
+
 test('unmarkFlagged unflags all matching messages', function () {
     $stream = new FakeStream;
     $stream->open();
@@ -538,6 +570,28 @@ test('sortBy sends correct sort command with ascending order', function () {
     query($mailbox)->sortBy('date')->get();
 
     $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
+});
+
+test('sort sends literal search values using its existing charset', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
+        '+ Ready for literal data',
+        '* SORT',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    expect(query($mailbox)->text("café")->sortBy('date')->get())->toBeEmpty();
+
+    $stream->assertWritten("TAG3 UID SORT (DATE) UTF-8 TEXT {5}\r\n");
+    $stream->assertWritten("café\r\n");
 });
 
 test('sortBy sends correct sort command with descending order', function () {

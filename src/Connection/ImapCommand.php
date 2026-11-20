@@ -16,6 +16,8 @@ class ImapCommand implements Stringable
 
     /**
      * Constructor.
+     *
+     * @param  array<string|array{string, string}|ImapCommandArgument>  $tokens
      */
     public function __construct(
         protected string $tag,
@@ -41,6 +43,8 @@ class ImapCommand implements Stringable
 
     /**
      * Get the IMAP tokens.
+     *
+     * @return array<string|array{string, string}|ImapCommandArgument>
      */
     public function tokens(): array
     {
@@ -65,7 +69,7 @@ class ImapCommand implements Stringable
 
         $line = trim("{$this->tag} {$this->command}");
 
-        foreach ($this->tokens as $token) {
+        foreach ($this->parts() as $token) {
             if (is_array($token)) {
                 // For tokens provided as arrays, the first element is a placeholder
                 // (for example, "{20}") that signals a literal value will follow.
@@ -75,7 +79,7 @@ class ImapCommand implements Stringable
                 Assert::hasNoControlCharacters($length);
 
                 $lines[] = new ImapCommandLine(
-                    value: "{$line} {$length}",
+                    value: $line.$length,
                     synchronizing: ! str_contains($length, '+'),
                 );
 
@@ -83,13 +87,31 @@ class ImapCommand implements Stringable
             } else {
                 Assert::hasNoControlCharacters($token);
 
-                $line .= " {$token}";
+                $line .= $token;
             }
         }
 
         $lines[] = new ImapCommandLine($line);
 
         return $this->compiled = $lines;
+    }
+
+    /**
+     * Separate command arguments with spaces while preserving their internal syntax.
+     *
+     * @return iterable<string|array{string, string}>
+     */
+    protected function parts(): iterable
+    {
+        foreach ($this->tokens as $token) {
+            yield ' ';
+
+            if ($token instanceof ImapCommandArgument) {
+                yield from $token->parts;
+            } else {
+                yield $token;
+            }
+        }
     }
 
     /**

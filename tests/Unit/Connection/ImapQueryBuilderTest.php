@@ -26,6 +26,25 @@ test('compiles a single basic where condition', function () {
     expect($builder->toImap())->toBe('SUBJECT "hello"');
 });
 
+test('preserves protected compiler overrides when sending subclass criteria', function () {
+    $builder = new class extends ImapQueryBuilder
+    {
+        protected function compileWheres(array $wheres): string
+        {
+            return 'SEEN '.parent::compileWheres($wheres);
+        }
+
+        protected function compileBasic(array $where): string
+        {
+            return 'NOT '.parent::compileBasic($where);
+        }
+    };
+
+    $builder->subject('He said "Hello"');
+
+    expect($builder->toImapTokens())->toBe(['SEEN NOT SUBJECT "He said \\"Hello\\""']);
+});
+
 test('compiles a single criteria', function () {
     $builder = new ImapQueryBuilder;
 
@@ -326,6 +345,18 @@ test('compiles KEYWORD condition', function () {
 test('compiles UNKEYWORD condition', function () {
     expect((new ImapQueryBuilder)->unkeyword('important')->toImap())->toBe('UNKEYWORD "important"');
 });
+
+test('sends search keywords as atoms', function () {
+    $builder = (new ImapQueryBuilder)->keyword('important')->unkeyword('$Junk');
+
+    expect($builder->toImapTokens())->toBe(['KEYWORD important UNKEYWORD $Junk']);
+});
+
+test('rejects malformed search keywords', function (string $keyword) {
+    $builder = (new ImapQueryBuilder)->keyword($keyword);
+
+    expect(fn () => $builder->toImapTokens())->toThrow(InvalidArgumentException::class);
+})->with(['two words', "\\Seen", "first\nsecond"]);
 
 test('compiles a SENTON condition with unquoted date', function () {
     expect((new ImapQueryBuilder)->sentOn(Carbon::create(2024, 4, 4))->toImap())->toBe('SENTON 04-Apr-2024');

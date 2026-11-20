@@ -108,6 +108,10 @@ interface ConnectionInterface
      *
      * Execute a search request.
      *
+     * When compiled criteria are the first argument, declare UTF-8 for non-ASCII literals.
+     *
+     * @param  array<string|array{string, string}|ImapCommandArgument>  $params
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-search-command
      */
     public function search(array $params): UntaggedResponse;
@@ -116,6 +120,8 @@ interface ConnectionInterface
      * Send a "SORT" command.
      *
      * Execute a sort request using RFC 5256.
+     *
+     * @param  array<string|array{string, string}|ImapCommandArgument>  $params
      *
      * @see https://datatracker.ietf.org/doc/html/rfc5256
      */
@@ -204,6 +210,8 @@ interface ConnectionInterface
 
     /**
      * Send an IMAP command.
+     *
+     * @param  array<string|array{string, string}|ImapCommandArgument>  $tokens
      */
     public function send(string $name, array $tokens = [], ?string &$tag = null): void;
 

@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
+use DirectoryTree\ImapEngine\Support\Assert;
 use DirectoryTree\ImapEngine\Support\Str;
 
 class ImapQueryBuilder
@@ -353,11 +354,33 @@ class ImapQueryBuilder
     }
 
     /**
-     * Transform the instance into an IMAP-compatible query string.
+     * Compile the criteria as a single query string.
      */
     public function toImap(): string
     {
         return $this->compileWheres($this->wheres);
+    }
+
+    /**
+     * Compile search criteria for transmission, preserving literal arguments.
+     *
+     * @return list<string|ImapCommandArgument>
+     */
+    public function toImapTokens(): array
+    {
+        if ($this->usesLegacyCompiler()) {
+            return [$this->toImap()];
+        }
+
+        $parts = $this->compileWhereParts();
+
+        foreach ($parts as $part) {
+            if (is_array($part)) {
+                return [new ImapCommandArgument($parts)];
+            }
+        }
+
+        return [trim(implode('', $parts), ' ')];
     }
 
     /**
@@ -373,23 +396,40 @@ class ImapQueryBuilder
      */
     protected function addBasicCondition(string $boolean, mixed $column, mixed $value, bool $not = false): void
     {
-        $value = $this->prepareWhereValue($value);
-
-        $column = Str::enum($column);
+        $rawValue = $this->usesLegacyCompiler() ? null : $this->normalizeWhereValue($value);
 
         $this->wheres[] = [
             'type' => 'basic',
             'not' => $not,
-            'key' => $column,
-            'value' => $value,
+            'key' => Str::enum($column),
+            'value' => $this->prepareWhereValue($rawValue ?? $value),
+            'rawValue' => $rawValue,
             'boolean' => $boolean,
         ];
     }
 
     /**
-     * Prepare the where value, escaping it as needed.
+     * Preserve the string compiler hooks for subclasses unless they opt into literals.
+     */
+    protected function usesLegacyCompiler(): bool
+    {
+        return static::class !== self::class;
+    }
+
+    /**
+     * Prepare the where value for the string compiler.
      */
     protected function prepareWhereValue(mixed $value): RawQueryValue|string|null
+    {
+        $value = $this->normalizeWhereValue($value);
+
+        return is_string($value) ? Str::escape($value) : $value;
+    }
+
+    /**
+     * Normalize the where value for compilation.
+     */
+    protected function normalizeWhereValue(mixed $value): RawQueryValue|string|null
     {
         if (is_null($value)) {
             return null;
@@ -411,7 +451,7 @@ class ImapQueryBuilder
             $value = $value->format($this->dateFormat);
         }
 
-        return Str::escape($value);
+        return $value;
     }
 
     /**
@@ -523,5 +563,66 @@ class ImapQueryBuilder
         }
 
         return $part;
+    }
+
+    /**
+     * Compile the search expression into syntax and literal arguments.
+     *
+     * @return list<string|array{string, string}>
+     */
+    protected function compileWhereParts(): array
+    {
+        $parts = [];
+
+        foreach ($this->wheres as $where) {
+            $expression = $where['type'] === 'nested'
+                ? $where['query']->compileWhereParts()
+                : $this->compileBasicParts($where);
+
+            if ($parts === []) {
+                $parts = $expression;
+            } elseif ($where['boolean'] === 'OR') {
+                $parts = ['OR (', ...$parts, ') (', ...$expression, ')'];
+            } elseif ($expression !== []) {
+                array_push($parts, ' ', ...$expression);
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
+     * Compile a basic where condition into syntax and literal arguments.
+     *
+     * @param  array{key: string, not: bool, rawValue: RawQueryValue|string|null}  $where
+     * @return list<string|array{string, string}>
+     */
+    protected function compileBasicParts(array $where): array
+    {
+        $key = strtoupper($where['key']);
+        $part = ($where['not'] ? 'NOT ' : '').$key;
+        $value = $where['rawValue'];
+
+        if ($value instanceof RawQueryValue) {
+            return [$part.' '.$value->value];
+        }
+
+        if ($value === null) {
+            return [$part];
+        }
+
+        if ($key === 'KEYWORD' || $key === 'UNKEYWORD') {
+            Assert::isValidKeyword($value);
+
+            return [$part.' '.$value];
+        }
+
+        if (in_array(explode(' ', $key, 2)[0], ['BCC', 'BODY', 'CC', 'FROM', 'HEADER', 'SUBJECT', 'TEXT', 'TO'], true)) {
+            return [$part.' ', Str::literal($value)];
+        }
+
+        Assert::hasNoControlCharacters($value);
+
+        return [$part.' "'.Str::toImapUtf7(Str::escape($value)).'"'];
     }
 }

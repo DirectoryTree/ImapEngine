@@ -493,6 +493,12 @@ class ImapConnection implements ConnectionInterface
      */
     public function search(array $params): UntaggedResponse
     {
+        $criteria = reset($params);
+
+        if ($criteria instanceof ImapCommandArgument && $criteria->hasNonAsciiLiteral()) {
+            array_unshift($params, 'CHARSET UTF-8');
+        }
+
         $this->send('UID SEARCH', $params, tag: $tag);
 
         $this->assertTaggedResponse($tag);
@@ -751,6 +757,10 @@ class ImapConnection implements ConnectionInterface
      */
     protected function assertContinuationResponse(ImapCommand $command): void
     {
+        if (in_array(strtoupper($command->command()), ['LOGIN', 'AUTHENTICATE'], true)) {
+            $command = $command->redacted();
+        }
+
         $this->assertNextResponse(
             fn (Response $response) => (
                 $response instanceof ContinuationResponse || (

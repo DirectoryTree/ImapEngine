@@ -81,10 +81,17 @@ test('literal returns a double-quoted escaped string when no newline is present'
     expect(Str::literal('He said: "Hi"'))->toBe('"He said: \\"Hi\\""');
 });
 
-test('literal returns a literal indicator and the original string if it contains a newline', function () {
-    $input = "hello\nworld";
-    $expected = ['{'.strlen($input).'}', $input];
-    expect(Str::literal($input))->toBe($expected);
+test('literal preserves strings that cannot be sent as quoted ASCII', function (string $input, int $length) {
+    expect(Str::literal($input))->toBe(['{'.$length.'}', $input]);
+})->with([
+    ["hello\nworld", 11],
+    ["hello\rworld", 11],
+    ["hello\tworld", 11],
+    ['café', 5],
+]);
+
+test('literal rejects NUL bytes', function () {
+    expect(fn () => Str::literal("hello\0world"))->toThrow(InvalidArgumentException::class);
 });
 
 test('literal handles an array of literals', function () {
