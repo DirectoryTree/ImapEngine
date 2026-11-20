@@ -90,6 +90,8 @@ interface ConnectionInterface
      *
      * Apply session saved changes to the server.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-expunge-command
      */
     public function expunge(): ResponseCollection;
@@ -135,6 +137,8 @@ interface ConnectionInterface
      *
      * Fetch message UIDs using the given message numbers.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-uid-command
      */
     public function uid(int|array $ids, ImapFetchIdentifier $identifier): ResponseCollection;
@@ -143,6 +147,8 @@ interface ConnectionInterface
      * Send a "FETCH BODY[TEXT]" command.
      *
      * Fetch message text contents.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
@@ -153,6 +159,8 @@ interface ConnectionInterface
      *
      * Fetch message headers.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
     public function bodyHeader(int|array $ids, bool $peek = true): ResponseCollection;
@@ -161,6 +169,8 @@ interface ConnectionInterface
      * Send a "FETCH BODYSTRUCTURE" command.
      *
      * Fetch message body structure.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
@@ -171,6 +181,8 @@ interface ConnectionInterface
      *
      * Fetch a specific part of the message BODY, such as BODY[1], BODY[1.2], etc.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.9
      */
     public function bodyPart(string $partIndex, int|array $ids, bool $peek = false): ResponseCollection;
@@ -179,6 +191,8 @@ interface ConnectionInterface
      * Send a "FETCH FLAGS" command.
      *
      * Fetch a message flags.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.17
      */
@@ -189,6 +203,8 @@ interface ConnectionInterface
      *
      * Fetch one or more items for one or more messages.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-fetch-command
      */
     public function fetch(array|string $items, array|int $from, mixed $to = null, ImapFetchIdentifier $identifier = ImapFetchIdentifier::Uid): ResponseCollection;
@@ -197,6 +213,8 @@ interface ConnectionInterface
      * Send a "RFC822.SIZE" command.
      *
      * Fetch message sizes for one or more messages.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#section-6.4.5-9.21
      */
@@ -212,6 +230,8 @@ interface ConnectionInterface
      *
      * Select the specified folder.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-select-command
      */
     public function select(string $folder): ResponseCollection;
@@ -221,6 +241,8 @@ interface ConnectionInterface
      *
      * Examine a given folder.
      *
+     * @return ResponseCollection<array-key, UntaggedResponse>
+     *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-examine-command
      */
     public function examine(string $folder): ResponseCollection;
@@ -229,6 +251,8 @@ interface ConnectionInterface
      * Send a "LIST" command.
      *
      * Get a list of available folders.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-list-command
      */
@@ -247,6 +271,8 @@ interface ConnectionInterface
      * Send a "STORE" command.
      *
      * Set message flags.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-store-command
      */
@@ -283,6 +309,8 @@ interface ConnectionInterface
      * Send a "CREATE" command.
      *
      * Create a new folder.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-create-command
      */
@@ -337,6 +365,8 @@ interface ConnectionInterface
      * Send a "GETQUOTAROOT" command.
      *
      * Retrieve quota root information about a mailbox.
+     *
+     * @return ResponseCollection<array-key, UntaggedResponse>
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9208#name-getquotaroot
      */
