@@ -8,7 +8,6 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use DirectoryTree\ImapEngine\Enums\ImapSearchKey;
 use DirectoryTree\ImapEngine\Support\Str;
-use ReflectionMethod;
 
 class ImapQueryBuilder
 {
@@ -358,12 +357,7 @@ class ImapQueryBuilder
      */
     public function toImap(): string
     {
-        // A subclass calling parent::toImap() must not re-enter its own override.
-        $tokens = $this->overridesToImap()
-            ? $this->grammar()->compile($this->wheres)
-            : $this->toImapTokens();
-
-        return ltrim((string) new ImapCommand('', '', $tokens), ' ');
+        return ltrim((string) new ImapCommand('', '', $this->toImapTokens()), ' ');
     }
 
     /**
@@ -373,20 +367,7 @@ class ImapQueryBuilder
      */
     public function toImapTokens(): array
     {
-        // Older builders may customize the outgoing criteria through toImap().
-        if ($this->overridesToImap()) {
-            return [$this->toImap()];
-        }
-
         return $this->grammar()->compile($this->wheres);
-    }
-
-    /**
-     * Determine whether the builder supplies its own IMAP query string.
-     */
-    protected function overridesToImap(): bool
-    {
-        return static::class !== self::class && (new ReflectionMethod($this, 'toImap'))->getDeclaringClass()->getName() !== self::class;
     }
 
     /**

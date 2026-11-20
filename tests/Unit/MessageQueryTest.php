@@ -36,7 +36,7 @@ test('passthru', function () {
     expect($query->getWheres()[0]['value'])->toBe('hello');
 });
 
-test('search and sort execute public query string overrides', function () {
+test('search and sort execute query token overrides', function () {
     $stream = new FakeStream;
     $stream->open();
     $stream->feed([
@@ -55,9 +55,9 @@ test('search and sort execute public query string overrides', function () {
 
     $builder = new class extends ImapQueryBuilder
     {
-        public function toImap(): string
+        public function toImapTokens(): array
         {
-            return parent::toImap().' UNSEEN';
+            return [...parent::toImapTokens(), 'UNSEEN'];
         }
     };
 
@@ -67,6 +67,51 @@ test('search and sort execute public query string overrides', function () {
 
     $stream->assertWritten("TAG2 UID SEARCH SEEN UNSEEN UNSEEN\r\n");
     $stream->assertWritten("TAG4 UID SORT (DATE) UTF-8 SEEN UNSEEN UNSEEN\r\n");
+});
+
+test('search and sort preserve literals in query token overrides', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '+ Ready for subject',
+        '+ Ready for body',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '+ Ready for subject',
+        '+ Ready for body',
+        '* SORT',
+        'TAG4 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $builder = new class extends ImapQueryBuilder
+    {
+        public function toImapTokens(): array
+        {
+            return [...parent::toImapTokens(), 'UNSEEN'];
+        }
+    };
+
+    $query = new MessageQuery(new Folder($mailbox, 'test'), $builder);
+    $query->subject('café')->orWhere('body', "line {3}\r\nend");
+
+    expect($query->toImap())->toBe("OR (SUBJECT {5}\r\ncafé) (BODY {13}\r\nline {3}\r\nend) UNSEEN");
+    $query->count();
+    $query->sortBy('date')->get();
+
+    $stream->assertWritten("TAG2 UID SEARCH CHARSET UTF-8 OR (SUBJECT {5}\r\n");
+    $stream->assertWritten("café) (BODY {13}\r\n");
+    $stream->assertWritten("line {3}\r\nend) UNSEEN\r\n");
+
+    $stream->assertWritten("TAG4 UID SORT (DATE) UTF-8 OR (SUBJECT {5}\r\n");
+    $stream->assertWritten("café) (BODY {13}\r\n");
+    $stream->assertWritten("line {3}\r\nend) UNSEEN\r\n");
 });
 
 test('where', function () {
