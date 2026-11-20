@@ -48,6 +48,8 @@ interface MailboxInterface
 
     /**
      * Get the mailbox's capabilities.
+     *
+     * @return string[]
      */
     public function capabilities(): array;
 

@@ -114,6 +114,8 @@ interface MessageInterface extends FlaggableInterface, Stringable
 
     /**
      * Get all headers from the message.
+     *
+     * @return IHeader[]
      */
     public function headers(): array;
 
