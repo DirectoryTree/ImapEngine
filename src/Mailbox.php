@@ -163,15 +163,24 @@ class Mailbox implements MailboxInterface
      */
     protected function authenticate(): void
     {
-        $username = $this->config('username');
         $authentication = $this->config('authentication');
 
         if ($authentication === 'external') {
-            $this->connection->authenticate($username, mechanism: ImapAuthMechanism::External);
+            $this->connection->authenticate(
+                $this->config('username'),
+                mechanism: ImapAuthMechanism::External
+            );
         } elseif ($authentication === 'oauth') {
-            $this->connection->authenticate($username, $this->config('password'), ImapAuthMechanism::XOAuth2);
+            $this->connection->authenticate(
+                $this->config('username'),
+                $this->config('password'),
+                ImapAuthMechanism::XOAuth2
+            );
         } else {
-            $this->connection->login($username, $this->config('password'));
+            $this->connection->login(
+                $this->config('username'),
+                $this->config('password')
+            );
         }
     }
 

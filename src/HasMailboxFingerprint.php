@@ -9,12 +9,10 @@ trait HasMailboxFingerprint
      */
     public function fingerprint(): string
     {
-        $username = (string) $this->config('username');
-
         $account = [
             (string) $this->config('host'),
             (int) $this->config('port', 993),
-            $username,
+            $username = (string) $this->config('username'),
         ];
 
         if ($this->config('authentication') === 'external' && $username === '') {
