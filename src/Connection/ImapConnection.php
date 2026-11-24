@@ -148,22 +148,34 @@ class ImapConnection implements ConnectionInterface
             throw new InvalidArgumentException('TLS options require an encrypted connection.');
         }
 
-        $proxy = $options['proxy'] ?? [];
-
-        if (! isset($proxy['socket'])) {
-            return $socketOptions;
+        if ($proxyOptions = $this->getProxyOptions($options['proxy'] ?? [])) {
+            $socketOptions[$key] = array_replace($socketOptions[$key] ?? [], $proxyOptions);
         }
 
-        $socketOptions[$key]['proxy'] = $proxy['socket'];
-        $socketOptions[$key]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
+        return $socketOptions;
+    }
+
+    /**
+     * Get the socket options for the configured proxy.
+     */
+    protected function getProxyOptions(array $proxy): array
+    {
+        if (! isset($proxy['socket'])) {
+            return [];
+        }
+
+        $options = [
+            'proxy' => $proxy['socket'],
+            'request_fulluri' => $proxy['request_fulluri'] ?? false,
+        ];
 
         if (isset($proxy['username'])) {
             $auth = base64_encode($proxy['username'].':'.$proxy['password']);
 
-            $socketOptions[$key]['header'] = ["Proxy-Authorization: Basic $auth"];
+            $options['header'] = ["Proxy-Authorization: Basic $auth"];
         }
 
-        return $socketOptions;
+        return $options;
     }
 
     /**
