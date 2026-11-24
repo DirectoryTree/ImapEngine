@@ -103,7 +103,7 @@ test('connect throws exception with bad response', function () {
     ]));
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
-test('connect presents a client certificate alongside password authentication', function (string $encryption) {
+test('connect presents a client certificate alongside password authentication', function (string $encryption, bool $validateCert, array $overrides, bool $verifyPeer, bool $verifyPeerName) {
     $stream = new class extends FakeStream
     {
         public function options(): array
@@ -125,18 +125,23 @@ test('connect presents a client certificate alongside password authentication', 
         'username' => 'foo',
         'password' => 'bar',
         'encryption' => $encryption,
-        'tls' => [...$tls, 'verify_peer' => false, 'verify_peer_name' => false],
+        'validate_cert' => $validateCert,
+        'tls' => [...$tls, ...$overrides],
     ]);
 
     $mailbox->connect(new ImapConnection($stream));
 
     $stream->assertWritten('LOGIN');
     expect($stream->options()['ssl'])->toBe([
+        'verify_peer' => $verifyPeer,
+        'verify_peer_name' => $verifyPeerName,
         ...$tls,
-        'verify_peer' => true,
-        'verify_peer_name' => true,
     ]);
-})->with(['ssl', 'tls', 'starttls']);
+})->with(['ssl', 'tls', 'starttls'])->with([
+    'inherit both defaults' => [true, [], true, true],
+    'override peer verification' => [false, ['verify_peer' => true], true, false],
+    'override name verification' => [true, ['verify_peer_name' => false], true, false],
+]);
 
 test('connect authenticates with a client certificate over STARTTLS', function () {
     $stream = new FakeStream;

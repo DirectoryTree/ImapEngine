@@ -144,9 +144,9 @@ class ImapConnection implements ConnectionInterface
             $validateCert = $options['validate_cert'] ?? true;
 
             $socketOptions['ssl'] = [
-                ...$tls,
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
+                ...$tls,
             ];
         }
 
