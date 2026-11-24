@@ -99,13 +99,13 @@ class ImapConnection implements ConnectionInterface
         }
 
         $this->setParser(
-            $this->newParser($this->stream)
+            $this->newParser($this->stream),
         );
 
         $socketOptions = $this->getDefaultSocketOptions(
             $transport,
             $options['proxy'] ?? [],
-            $options['validate_cert'] ?? true
+            $options['validate_cert'] ?? true,
         );
 
         $certificate = Arr::only($options['tls'] ?? [], ['local_cert', 'local_pk', 'passphrase']);
@@ -123,13 +123,13 @@ class ImapConnection implements ConnectionInterface
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $socketOptions
+            $socketOptions,
         );
 
         $this->assertNextResponse(
             fn (Response $response) => $response instanceof UntaggedResponse,
             fn (UntaggedResponse $response) => $response->type()->is('OK'),
-            fn () => new ImapConnectionFailedException("Connection to $host:$port failed")
+            fn () => new ImapConnectionFailedException("Connection to $host:$port failed"),
         );
 
         if ($transport === 'starttls') {
