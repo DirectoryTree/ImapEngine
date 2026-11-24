@@ -107,12 +107,7 @@ class ImapConnection implements ConnectionInterface
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $this->getDefaultSocketOptions(
-                $transport,
-                $options['proxy'] ?? [],
-                $options['validate_cert'] ?? true,
-                $options['tls'] ?? [],
-            ),
+            $this->getDefaultSocketOptions($transport, $options),
         );
 
         $this->assertNextResponse(
@@ -131,43 +126,47 @@ class ImapConnection implements ConnectionInterface
      *
      * @param  'ssl'|'tls'|'starttls'|'tcp'  $transport
      */
-    protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true, array $tls = []): array
+    protected function getDefaultSocketOptions(string $transport, array $options = []): array
     {
-        $options = [];
+        $socketOptions = [];
 
         $key = match ($transport) {
             'ssl', 'tls' => 'ssl',
             'starttls', 'tcp' => 'tcp',
         };
 
-        $certificate = Arr::only($tls, ['local_cert', 'local_pk', 'passphrase']);
+        $certificate = Arr::only($options['tls'] ?? [], ['local_cert', 'local_pk', 'passphrase']);
 
         if ($transport === 'tcp' && $certificate) {
             throw new InvalidArgumentException('TLS client certificates require an encrypted connection.');
         }
 
         if ($transport !== 'tcp') {
-            $options['ssl'] = [
+            $validateCert = $options['validate_cert'] ?? true;
+
+            $socketOptions['ssl'] = [
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
                 ...$certificate,
             ];
         }
 
+        $proxy = $options['proxy'] ?? [];
+
         if (! isset($proxy['socket'])) {
-            return $options;
+            return $socketOptions;
         }
 
-        $options[$key]['proxy'] = $proxy['socket'];
-        $options[$key]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
+        $socketOptions[$key]['proxy'] = $proxy['socket'];
+        $socketOptions[$key]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
 
         if (isset($proxy['username'])) {
             $auth = base64_encode($proxy['username'].':'.$proxy['password']);
 
-            $options[$key]['header'] = ["Proxy-Authorization: Basic $auth"];
+            $socketOptions[$key]['header'] = ["Proxy-Authorization: Basic $auth"];
         }
 
-        return $options;
+        return $socketOptions;
     }
 
     /**
