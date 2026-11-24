@@ -101,6 +101,8 @@ class FakeStream implements StreamInterface
     {
         $this->connection = compact('transport', 'host', 'port', 'timeout', 'options');
 
+        $this->meta['crypto']['protocol'] = in_array($transport, ['ssl', 'tls']) ? 'TLS' : '';
+
         return true;
     }
 
@@ -207,6 +209,8 @@ class FakeStream implements StreamInterface
      */
     public function setSocketSetCrypto(bool $enabled, ?int $method): bool|int
     {
+        $this->meta['crypto']['protocol'] = $enabled ? 'TLS' : '';
+
         return true;
     }
 

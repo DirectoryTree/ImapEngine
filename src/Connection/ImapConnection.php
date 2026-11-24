@@ -13,6 +13,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
@@ -24,6 +25,8 @@ use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
+use Illuminate\Support\Arr;
+use InvalidArgumentException;
 use LogicException;
 use Throwable;
 
@@ -99,16 +102,28 @@ class ImapConnection implements ConnectionInterface
             $this->newParser($this->stream)
         );
 
+        $socketOptions = $this->getDefaultSocketOptions(
+            $transport,
+            $options['proxy'] ?? [],
+            $options['validate_cert'] ?? true
+        );
+
+        $certificate = Arr::only($options['tls'] ?? [], ['local_cert', 'local_pk', 'passphrase']);
+
+        if ($certificate) {
+            if ($transport === 'tcp') {
+                throw new InvalidArgumentException('TLS client certificates require an encrypted connection.');
+            }
+
+            $socketOptions['ssl'] = array_merge($socketOptions['ssl'] ?? [], $certificate);
+        }
+
         $this->stream->open(
             $transport === 'starttls' ? 'tcp' : $transport,
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $this->getDefaultSocketOptions(
-                $transport,
-                $options['proxy'] ?? [],
-                $options['validate_cert'] ?? true
-            )
+            $socketOptions
         );
 
         $this->assertNextResponse(
@@ -136,8 +151,8 @@ class ImapConnection implements ConnectionInterface
             'starttls', 'tcp' => 'tcp',
         };
 
-        if (in_array($transport, ['ssl', 'tls'])) {
-            $options[$key] = [
+        if ($transport !== 'tcp') {
+            $options['ssl'] = [
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
             ];
@@ -198,9 +213,34 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function authenticate(string $user, string $token): TaggedResponse
+    public function authenticate(string $user, ?string $token = null, ImapAuthMechanism $mechanism = ImapAuthMechanism::XOAuth2): TaggedResponse
     {
-        $this->send('AUTHENTICATE', ['XOAUTH2', Str::credentials($user, $token)], $tag);
+        switch ($mechanism) {
+            case ImapAuthMechanism::XOAuth2:
+                if (is_null($token)) {
+                    throw new InvalidArgumentException('XOAUTH2 authentication requires a token.');
+                }
+
+                $this->send('AUTHENTICATE', [$mechanism->value, Str::credentials($user, $token)], $tag);
+
+                break;
+
+            case ImapAuthMechanism::External:
+                if (empty($this->stream->meta()['crypto']['protocol'])) {
+                    throw new LogicException('EXTERNAL authentication requires a TLS connection.');
+                }
+
+                $this->send('AUTHENTICATE', [$mechanism->value], $tag);
+
+                $this->assertContinuationResponse($this->result->command());
+
+                $this->write(base64_encode($user));
+
+                break;
+
+            default:
+                throw new LogicException("Unhandled IMAP authentication mechanism [{$mechanism->value}].");
+        }
 
         return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
             ImapCommandException::make($this->result->command()->redacted(), $response)
