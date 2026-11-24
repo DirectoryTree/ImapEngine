@@ -9,7 +9,6 @@ use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
 use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
-use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use Exception;
 use Throwable;
 
@@ -168,13 +167,6 @@ class Mailbox implements MailboxInterface
         $authentication = $this->config('authentication');
 
         if ($authentication === 'external') {
-            // The server may advertise different capabilities after authentication.
-            $capabilities = array_column($this->connection->capability()->data(), 'value');
-
-            if (! in_array('AUTH=EXTERNAL', array_map('strtoupper', $capabilities), true)) {
-                throw new ImapCapabilityException('IMAP server does not support AUTH=EXTERNAL.');
-            }
-
             $this->connection->authenticate($username, mechanism: ImapAuthMechanism::External);
         } elseif ($authentication === 'oauth') {
             $this->connection->authenticate($username, $this->config('password'), ImapAuthMechanism::XOAuth2);

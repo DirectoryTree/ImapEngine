@@ -2,7 +2,6 @@
 
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
-use DirectoryTree\ImapEngine\Exceptions\ImapCapabilityException;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionFailedException;
 use DirectoryTree\ImapEngine\Folder;
@@ -143,10 +142,8 @@ test('connect authenticates with a client certificate over STARTTLS', function (
     $stream->feed([
         '* OK Welcome to IMAP',
         'TAG1 OK Begin TLS negotiation',
-        '* CAPABILITY IMAP4rev1 AUTH=EXTERNAL',
-        'TAG2 OK CAPABILITY completed',
         '+',
-        'TAG3 OK Authenticated',
+        'TAG2 OK Authenticated',
     ]);
 
     $mailbox = Mailbox::make([
@@ -160,8 +157,7 @@ test('connect authenticates with a client certificate over STARTTLS', function (
 
     expect($mailbox->connected())->toBeTrue();
     $stream->assertWritten('TAG1 STARTTLS');
-    $stream->assertWritten('TAG2 CAPABILITY');
-    $stream->assertWritten('TAG3 AUTHENTICATE EXTERNAL');
+    $stream->assertWritten('TAG2 AUTHENTICATE EXTERNAL');
     $stream->assertWritten(base64_encode('foo@example.com'));
 });
 
@@ -169,8 +165,7 @@ test('connect closes the connection when the server does not support external au
     $stream = new FakeStream;
     $stream->feed([
         '* OK Welcome to IMAP',
-        '* CAPABILITY IMAP4rev1 AUTH=PLAIN',
-        'TAG1 OK CAPABILITY completed',
+        'TAG1 NO Unsupported authentication mechanism',
     ]);
 
     $mailbox = Mailbox::make([
@@ -179,9 +174,9 @@ test('connect closes the connection when the server does not support external au
     ]);
 
     expect(fn () => $mailbox->connect(new ImapConnection($stream)))
-        ->toThrow(ImapCapabilityException::class);
+        ->toThrow(ImapCommandException::class, 'Unsupported authentication mechanism');
     expect($mailbox->connected())->toBeFalse();
-    $stream->assertNotWritten('AUTHENTICATE');
+    $stream->assertWritten('TAG1 AUTHENTICATE EXTERNAL');
     $stream->assertNotWritten('LOGIN');
 });
 
