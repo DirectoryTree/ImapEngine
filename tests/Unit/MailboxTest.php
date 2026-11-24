@@ -115,6 +115,7 @@ test('connect presents a client certificate alongside password authentication', 
     $stream->feed(['* OK Welcome to IMAP', 'TAG1 OK Completed', 'TAG2 OK Completed']);
 
     $tls = [
+        'cafile' => '/path/to/ca.pem',
         'local_cert' => '/path/to/client.pem',
         'local_pk' => '/path/to/client.key',
         'passphrase' => 'secret',
@@ -124,16 +125,16 @@ test('connect presents a client certificate alongside password authentication', 
         'username' => 'foo',
         'password' => 'bar',
         'encryption' => $encryption,
-        'tls' => $tls,
+        'tls' => [...$tls, 'verify_peer' => false, 'verify_peer_name' => false],
     ]);
 
     $mailbox->connect(new ImapConnection($stream));
 
     $stream->assertWritten('LOGIN');
     expect($stream->options()['ssl'])->toBe([
+        ...$tls,
         'verify_peer' => true,
         'verify_peer_name' => true,
-        ...$tls,
     ]);
 })->with(['ssl', 'tls', 'starttls']);
 

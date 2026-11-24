@@ -111,7 +111,7 @@ test('connect rejects client certificates on a plaintext connection', function (
 
     expect(fn () => $connection->connect('imap.example.com', options: [
         'tls' => ['local_cert' => '/path/to/client.pem'],
-    ]))->toThrow(InvalidArgumentException::class, 'TLS client certificates require an encrypted connection.');
+    ]))->toThrow(InvalidArgumentException::class, 'TLS options require an encrypted connection.');
 
     expect($stream->opened())->toBeFalse();
 });

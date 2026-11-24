@@ -25,7 +25,6 @@ use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
-use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use LogicException;
 use Throwable;
@@ -135,19 +134,19 @@ class ImapConnection implements ConnectionInterface
             'starttls', 'tcp' => 'tcp',
         };
 
-        $certificate = Arr::only($options['tls'] ?? [], ['local_cert', 'local_pk', 'passphrase']);
+        $tls = $options['tls'] ?? [];
 
-        if ($transport === 'tcp' && $certificate) {
-            throw new InvalidArgumentException('TLS client certificates require an encrypted connection.');
+        if ($transport === 'tcp' && $tls) {
+            throw new InvalidArgumentException('TLS options require an encrypted connection.');
         }
 
         if ($transport !== 'tcp') {
             $validateCert = $options['validate_cert'] ?? true;
 
             $socketOptions['ssl'] = [
+                ...$tls,
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
-                ...$certificate,
             ];
         }
 
