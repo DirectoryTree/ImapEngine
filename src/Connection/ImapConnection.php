@@ -134,18 +134,8 @@ class ImapConnection implements ConnectionInterface
             'starttls', 'tcp' => 'tcp',
         };
 
-        $tls = $options['tls'] ?? [];
-
-        if ($transport !== 'tcp') {
-            $validateCert = $options['validate_cert'] ?? true;
-
-            $socketOptions['ssl'] = [
-                'verify_peer' => $validateCert,
-                'verify_peer_name' => $validateCert,
-                ...$tls,
-            ];
-        } elseif ($tls) {
-            throw new InvalidArgumentException('TLS options require an encrypted connection.');
+        if ($tlsOptions = $this->getTlsOptions($transport, $options)) {
+            $socketOptions['ssl'] = $tlsOptions;
         }
 
         if ($proxyOptions = $this->getProxyOptions($options['proxy'] ?? [])) {
@@ -153,6 +143,30 @@ class ImapConnection implements ConnectionInterface
         }
 
         return $socketOptions;
+    }
+
+    /**
+     * Get the TLS stream options for the given transport.
+     */
+    protected function getTlsOptions(string $transport, array $options): array
+    {
+        $tls = $options['tls'] ?? [];
+
+        if ($transport !== 'tcp') {
+            $validateCert = $options['validate_cert'] ?? true;
+
+            return [
+                'verify_peer' => $validateCert,
+                'verify_peer_name' => $validateCert,
+                ...$tls,
+            ];
+        }
+
+        if ($tls) {
+            throw new InvalidArgumentException('TLS options require an encrypted connection.');
+        }
+
+        return [];
     }
 
     /**
