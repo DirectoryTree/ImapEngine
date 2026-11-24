@@ -102,28 +102,17 @@ class ImapConnection implements ConnectionInterface
             $this->newParser($this->stream),
         );
 
-        $socketOptions = $this->getDefaultSocketOptions(
-            $transport,
-            $options['proxy'] ?? [],
-            $options['validate_cert'] ?? true,
-        );
-
-        $certificate = Arr::only($options['tls'] ?? [], ['local_cert', 'local_pk', 'passphrase']);
-
-        if ($certificate) {
-            if ($transport === 'tcp') {
-                throw new InvalidArgumentException('TLS client certificates require an encrypted connection.');
-            }
-
-            $socketOptions['ssl'] = array_merge($socketOptions['ssl'] ?? [], $certificate);
-        }
-
         $this->stream->open(
             $transport === 'starttls' ? 'tcp' : $transport,
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $socketOptions,
+            $this->getDefaultSocketOptions(
+                $transport,
+                $options['proxy'] ?? [],
+                $options['validate_cert'] ?? true,
+                $options['tls'] ?? [],
+            ),
         );
 
         $this->assertNextResponse(
@@ -142,7 +131,7 @@ class ImapConnection implements ConnectionInterface
      *
      * @param  'ssl'|'tls'|'starttls'|'tcp'  $transport
      */
-    protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true): array
+    protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true, array $tls = []): array
     {
         $options = [];
 
@@ -151,10 +140,17 @@ class ImapConnection implements ConnectionInterface
             'starttls', 'tcp' => 'tcp',
         };
 
+        $certificate = Arr::only($tls, ['local_cert', 'local_pk', 'passphrase']);
+
+        if ($transport === 'tcp' && $certificate) {
+            throw new InvalidArgumentException('TLS client certificates require an encrypted connection.');
+        }
+
         if ($transport !== 'tcp') {
             $options['ssl'] = [
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
+                ...$certificate,
             ];
         }
 
