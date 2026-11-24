@@ -136,10 +136,6 @@ class ImapConnection implements ConnectionInterface
 
         $tls = $options['tls'] ?? [];
 
-        if ($transport === 'tcp' && $tls) {
-            throw new InvalidArgumentException('TLS options require an encrypted connection.');
-        }
-
         if ($transport !== 'tcp') {
             $validateCert = $options['validate_cert'] ?? true;
 
@@ -148,6 +144,8 @@ class ImapConnection implements ConnectionInterface
                 'verify_peer_name' => $validateCert,
                 ...$tls,
             ];
+        } elseif ($tls) {
+            throw new InvalidArgumentException('TLS options require an encrypted connection.');
         }
 
         $proxy = $options['proxy'] ?? [];
