@@ -106,7 +106,7 @@ class ImapConnection implements ConnectionInterface
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $this->getDefaultSocketOptions($transport, $options),
+            $this->getSocketOptions($transport, $options),
         );
 
         $this->assertNextResponse(
@@ -125,7 +125,7 @@ class ImapConnection implements ConnectionInterface
      *
      * @param  'ssl'|'tls'|'starttls'|'tcp'  $transport
      */
-    protected function getDefaultSocketOptions(string $transport, array $options = []): array
+    protected function getSocketOptions(string $transport, array $options = []): array
     {
         $socketOptions = [];
 
