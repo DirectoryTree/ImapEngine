@@ -10,6 +10,7 @@ use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Support\MultipleItemsFoundException;
@@ -226,6 +227,13 @@ interface MessageQueryInterface
      * Get the messages matching the current query.
      */
     public function get(): MessageCollection;
+
+    /**
+     * Get the matching message UIDs for the current page in query order.
+     *
+     * @return Collection<int, int>
+     */
+    public function uids(): Collection;
 
     /**
      * Append a new message to the folder.

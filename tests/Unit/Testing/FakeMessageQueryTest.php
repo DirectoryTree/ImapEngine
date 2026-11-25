@@ -32,6 +32,18 @@ test('it returns message collection', function () {
     expect($collection)->toHaveCount(2);
 });
 
+test('it returns UIDs in the requested order and page', function () {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(2),
+        new FakeMessage(10),
+        new FakeMessage(1),
+    ]);
+
+    $query = $folder->messages()->newest()->limit(2, 2);
+
+    expect($query->uids()->all())->toBe([1]);
+});
+
 test('it iterates lazily in the requested UID order', function (string $order, array $uids) {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(10),
