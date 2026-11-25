@@ -78,6 +78,39 @@ test('serialization', function () {
         ->config()->toBe($mailbox->config());
 });
 
+test('serializing a mailbox clears connection state on restore', function () {
+    $mailbox = Mailbox::make(['host' => 'imap.example.com']);
+
+    $mailbox->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* CAPABILITY IMAP4rev1 IDLE',
+        'TAG3 OK CAPABILITY completed',
+    ]));
+
+    $inbox = new Folder($mailbox, 'INBOX');
+    $mailbox->select($inbox);
+
+    expect($mailbox->capabilities())->toBe(['IMAP4rev1', 'IDLE']);
+
+    $restored = unserialize(serialize($mailbox));
+
+    expect($mailbox->connected())->toBeTrue();
+    expect($restored->config())->toBe($mailbox->config());
+    expect($restored->connected())->toBeFalse();
+    expect($restored->selected($inbox))->toBeFalse();
+
+    $restored->connect(ImapConnection::fake([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 UIDPLUS',
+        'TAG2 OK CAPABILITY completed',
+    ]));
+
+    expect($restored->capabilities())->toBe(['IMAP4rev1', 'UIDPLUS']);
+});
+
 test('connect', function () {
     $mailbox = Mailbox::make();
 
