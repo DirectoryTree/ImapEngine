@@ -21,8 +21,10 @@ use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\Support\Str;
+use Generator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ItemNotFoundException;
+use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
 
 /**
@@ -110,15 +112,11 @@ class MessageQuery implements MessageQueryInterface
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void
     {
-        $startChunk = max($startChunk, 1);
-        $chunkSize = max($chunkSize, 1);
-
         $uids = $this->order($this->search());
         $total = $uids->count();
-        $totalChunks = (int) ceil($total / $chunkSize);
 
-        for ($page = $startChunk; $page <= $totalChunks; $page++) {
-            $messages = $this->load($uids->forPage($page, $chunkSize));
+        foreach ($this->chunkUids($uids, $chunkSize, $startChunk) as $page => $chunk) {
+            $messages = $this->load($chunk);
 
             $messages->total($total);
 
@@ -126,6 +124,27 @@ class MessageQuery implements MessageQueryInterface
                 break;
             }
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function lazy(int $chunkSize = 10): LazyCollection
+    {
+        return new LazyCollection(function () use ($chunkSize) {
+            $this->folder->select();
+
+            $uids = $this->order($this->sortKey ? $this->sort() : $this->search());
+
+            foreach ($this->chunkUids($uids, $chunkSize) as $chunk) {
+                // The caller may switch folders between batches.
+                $this->folder->select();
+
+                foreach ($this->load($chunk) as $message) {
+                    yield $message;
+                }
+            }
+        });
     }
 
     /**
@@ -357,6 +376,22 @@ class MessageQuery implements MessageQueryInterface
         $messages->total($uids->count());
 
         return $messages;
+    }
+
+    /**
+     * Yield each page of UIDs in their existing order.
+     *
+     * @param  Collection<array-key, string|int>  $uids
+     * @return Generator<int, Collection<array-key, string|int>>
+     */
+    protected function chunkUids(Collection $uids, int $chunkSize, int $startChunk = 1): Generator
+    {
+        $chunkSize = max($chunkSize, 1);
+        $totalChunks = (int) ceil($uids->count() / $chunkSize);
+
+        for ($page = max($startChunk, 1); $page <= $totalChunks; $page++) {
+            yield $page => $uids->forPage($page, $chunkSize);
+        }
     }
 
     /**

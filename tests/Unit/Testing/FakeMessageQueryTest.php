@@ -32,6 +32,22 @@ test('it returns message collection', function () {
     expect($collection)->toHaveCount(2);
 });
 
+test('it iterates lazily in the requested UID order', function (string $order, array $uids) {
+    $folder = new FakeFolder('INBOX', messages: [
+        new FakeMessage(10),
+        new FakeMessage(2),
+        new FakeMessage(1),
+    ]);
+
+    $messages = $folder->messages()->{$order}()->lazy(2)
+        ->map(fn (FakeMessage $message) => $message->uid());
+
+    expect($messages->all())->toBe($uids);
+})->with([
+    ['oldest', [1, 2, 10]],
+    ['newest', [10, 2, 1]],
+]);
+
 test('it counts messages correctly', function () {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),

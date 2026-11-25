@@ -12,6 +12,7 @@ use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use DirectoryTree\ImapEngine\QueriesMessages;
+use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
 
 class FakeMessageQuery implements MessageQueryInterface
@@ -115,6 +116,18 @@ class FakeMessageQuery implements MessageQueryInterface
 
             $page++;
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function lazy(int $chunkSize = 10): LazyCollection
+    {
+        return new LazyCollection(function () {
+            yield from $this->get()
+                ->sortBy(fn (MessageInterface $message) => $message->uid(), SORT_NUMERIC, $this->fetchOrder === 'desc')
+                ->values();
+        });
     }
 
     /**
