@@ -445,4 +445,20 @@ trait QueriesMessages
     {
         return $this->sortBy($key, 'desc');
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function exists(): bool
+    {
+        return $this->count() > 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function doesntExist(): bool
+    {
+        return ! $this->exists();
+    }
 }
