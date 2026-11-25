@@ -9,10 +9,16 @@ trait HasMailboxFingerprint
      */
     public function fingerprint(): string
     {
-        return hash('sha256', json_encode([
+        $account = [
             (string) $this->config('host'),
             (int) $this->config('port', 993),
-            (string) $this->config('username'),
-        ], JSON_THROW_ON_ERROR));
+            $username = (string) $this->config('username'),
+        ];
+
+        if ($this->config('authentication') === 'external' && $username === '') {
+            $account[] = $this->config('tls.local_cert');
+        }
+
+        return hash('sha256', json_encode($account, JSON_THROW_ON_ERROR));
     }
 }

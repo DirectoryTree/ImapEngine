@@ -5,6 +5,7 @@ namespace DirectoryTree\ImapEngine\Connection;
 use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\Responses\TaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
+use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use Generator;
@@ -49,11 +50,12 @@ interface ConnectionInterface
     /**
      * Send an "AUTHENTICATE" command.
      *
-     * Authenticate the current session.
+     * Authenticate with an OAuth token or an identity established by TLS.
+     * For EXTERNAL, pass an empty user to use the account from the certificate.
      *
      * @see https://datatracker.ietf.org/doc/html/rfc9051#name-authenticate-command
      */
-    public function authenticate(string $user, string $token): TaggedResponse;
+    public function authenticate(string $user, ?string $token = null, ImapAuthMechanism $mechanism = ImapAuthMechanism::XOAuth2): TaggedResponse;
 
     /**
      * Send a "STARTTLS" command.

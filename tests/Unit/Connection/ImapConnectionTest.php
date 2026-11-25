@@ -4,6 +4,7 @@ use DirectoryTree\ImapEngine\Collections\ResponseCollection;
 use DirectoryTree\ImapEngine\Connection\ImapConnection;
 use DirectoryTree\ImapEngine\Connection\ImapQueryBuilder;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
+use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
 use DirectoryTree\ImapEngine\Exceptions\ImapConnectionException;
@@ -101,6 +102,18 @@ test('connect success', function () {
     $connection->connect('imap.example.com', 143);
 
     expect($connection->connected())->toBeTrue();
+});
+
+test('connect rejects client certificates on a plaintext connection', function () {
+    $stream = new FakeStream;
+
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->connect('imap.example.com', options: [
+        'tls' => ['local_cert' => '/path/to/client.pem'],
+    ]))->toThrow(InvalidArgumentException::class, 'TLS options require an encrypted connection.');
+
+    expect($stream->opened())->toBeFalse();
 });
 
 test('connect failure', function () {
@@ -213,6 +226,52 @@ test('authenticate failure', function () {
 
     $connection->authenticate('foo', 'bar');
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 AUTHENTICATE [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
+
+test('external authentication sends the authorization identity after the continuation', function (string $user) {
+    $stream = new FakeStream;
+    $stream->feed(['* OK Welcome to IMAP', '+', 'TAG1 OK Authenticated']);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com', options: ['encryption' => 'tls']);
+
+    expect($connection->authenticate($user, mechanism: ImapAuthMechanism::External)->successful())->toBeTrue();
+
+    $stream->assertWritten("TAG1 AUTHENTICATE EXTERNAL\r\n");
+    $stream->assertWritten(base64_encode($user)."\r\n");
+})->with(['foo@example.com', '']);
+
+test('external authentication stops if the server rejects the mechanism', function () {
+    $stream = new FakeStream;
+    $stream->feed(['* OK Welcome to IMAP', 'TAG1 NO Unsupported mechanism']);
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com', options: ['encryption' => 'tls']);
+
+    expect(fn () => $connection->authenticate('foo', mechanism: ImapAuthMechanism::External))->toThrow(ImapCommandException::class);
+
+    $stream->assertNotWritten(base64_encode('foo'));
+});
+
+test('external authentication requires a TLS connection', function () {
+    $stream = new FakeStream;
+    $stream->feed('* OK Welcome to IMAP');
+
+    $connection = new ImapConnection($stream);
+    $connection->connect('imap.example.com');
+
+    expect(fn () => $connection->authenticate('foo', mechanism: ImapAuthMechanism::External))->toThrow(LogicException::class);
+
+    $stream->assertNotWritten('AUTHENTICATE');
+});
+
+test('authentication rejects a missing OAuth token', function () {
+    $stream = new FakeStream;
+    $connection = new ImapConnection($stream);
+
+    expect(fn () => $connection->authenticate('foo'))->toThrow(InvalidArgumentException::class);
+
+    $stream->assertNotWritten('AUTHENTICATE');
+});
 
 test('start tls success', function () {
     $stream = new FakeStream;

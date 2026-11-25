@@ -8,7 +8,9 @@ use DirectoryTree\ImapEngine\Connection\Loggers\EchoLogger;
 use DirectoryTree\ImapEngine\Connection\Loggers\FileLogger;
 use DirectoryTree\ImapEngine\Connection\Streams\ImapStream;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
 use Exception;
+use Throwable;
 
 class Mailbox implements MailboxInterface
 {
@@ -27,6 +29,7 @@ class Mailbox implements MailboxInterface
         'encryption' => 'ssl',
         'validate_cert' => true,
         'authentication' => 'plain',
+        'tls' => [],
         'proxy' => [
             'socket' => null,
             'username' => null,
@@ -152,15 +155,23 @@ class Mailbox implements MailboxInterface
             default => null,
         });
 
-        $this->connection->connect($this->config('host'), $this->config('port'), [
-            'proxy' => $this->config('proxy'),
-            'debug' => $this->config('debug'),
-            'timeout' => $this->config('timeout'),
-            'encryption' => $this->config('encryption'),
-            'validate_cert' => $this->config('validate_cert'),
-        ]);
+        try {
+            $this->connection->connect($this->config('host'), $this->config('port'), [
+                'tls' => $this->config('tls'),
+                'proxy' => $this->config('proxy'),
+                'debug' => $this->config('debug'),
+                'timeout' => $this->config('timeout'),
+                'encryption' => $this->config('encryption'),
+                'validate_cert' => $this->config('validate_cert'),
+            ]);
 
-        $this->authenticate();
+            $this->authenticate();
+        } catch (Throwable $e) {
+            $this->connection->disconnect();
+            $this->connection = null;
+
+            throw $e;
+        }
     }
 
     /**
@@ -168,10 +179,18 @@ class Mailbox implements MailboxInterface
      */
     protected function authenticate(): void
     {
-        if ($this->config('authentication') === 'oauth') {
+        $authentication = $this->config('authentication');
+
+        if ($authentication === 'external') {
             $this->connection->authenticate(
                 $this->config('username'),
-                $this->config('password')
+                mechanism: ImapAuthMechanism::External,
+            );
+        } elseif ($authentication === 'oauth') {
+            $this->connection->authenticate(
+                $this->config('username'),
+                $this->config('password'),
+                ImapAuthMechanism::XOAuth2,
             );
         } else {
             $this->connection->login(

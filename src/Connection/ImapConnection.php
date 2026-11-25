@@ -13,6 +13,7 @@ use DirectoryTree\ImapEngine\Connection\Responses\UntaggedResponse;
 use DirectoryTree\ImapEngine\Connection\Streams\FakeStream;
 use DirectoryTree\ImapEngine\Connection\Streams\StreamInterface;
 use DirectoryTree\ImapEngine\Connection\Tokens\Token;
+use DirectoryTree\ImapEngine\Enums\ImapAuthMechanism;
 use DirectoryTree\ImapEngine\Enums\ImapFetchIdentifier;
 use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Exceptions\ImapCommandException;
@@ -24,6 +25,7 @@ use DirectoryTree\ImapEngine\Exceptions\ImapStreamException;
 use DirectoryTree\ImapEngine\Support\Str;
 use Exception;
 use Generator;
+use InvalidArgumentException;
 use LogicException;
 use Throwable;
 
@@ -96,7 +98,7 @@ class ImapConnection implements ConnectionInterface
         }
 
         $this->setParser(
-            $this->newParser($this->stream)
+            $this->newParser($this->stream),
         );
 
         $this->stream->open(
@@ -104,17 +106,13 @@ class ImapConnection implements ConnectionInterface
             $host,
             $port,
             $options['timeout'] ?? 30,
-            $this->getDefaultSocketOptions(
-                $transport,
-                $options['proxy'] ?? [],
-                $options['validate_cert'] ?? true
-            )
+            $this->getSocketOptions($transport, $options),
         );
 
         $this->assertNextResponse(
             fn (Response $response) => $response instanceof UntaggedResponse,
             fn (UntaggedResponse $response) => $response->type()->is('OK'),
-            fn () => new ImapConnectionFailedException("Connection to $host:$port failed")
+            fn () => new ImapConnectionFailedException("Connection to $host:$port failed"),
         );
 
         if ($transport === 'starttls') {
@@ -127,33 +125,68 @@ class ImapConnection implements ConnectionInterface
      *
      * @param  'ssl'|'tls'|'starttls'|'tcp'  $transport
      */
-    protected function getDefaultSocketOptions(string $transport, array $proxy = [], bool $validateCert = true): array
+    protected function getSocketOptions(string $transport, array $options = []): array
     {
-        $options = [];
+        $socketOptions = [];
 
         $key = match ($transport) {
             'ssl', 'tls' => 'ssl',
             'starttls', 'tcp' => 'tcp',
         };
 
-        if (in_array($transport, ['ssl', 'tls'])) {
-            $options[$key] = [
+        if ($tlsOptions = $this->getTlsOptions($transport, $options)) {
+            $socketOptions['ssl'] = $tlsOptions;
+        }
+
+        if ($proxyOptions = $this->getProxyOptions($options['proxy'] ?? [])) {
+            $socketOptions[$key] = array_replace($socketOptions[$key] ?? [], $proxyOptions);
+        }
+
+        return $socketOptions;
+    }
+
+    /**
+     * Get the TLS stream options for the given transport.
+     */
+    protected function getTlsOptions(string $transport, array $options): array
+    {
+        $tls = $options['tls'] ?? [];
+
+        if ($transport !== 'tcp') {
+            $validateCert = $options['validate_cert'] ?? true;
+
+            return [
                 'verify_peer' => $validateCert,
                 'verify_peer_name' => $validateCert,
+                ...$tls,
             ];
         }
 
-        if (! isset($proxy['socket'])) {
-            return $options;
+        if ($tls) {
+            throw new InvalidArgumentException('TLS options require an encrypted connection.');
         }
 
-        $options[$key]['proxy'] = $proxy['socket'];
-        $options[$key]['request_fulluri'] = $proxy['request_fulluri'] ?? false;
+        return [];
+    }
+
+    /**
+     * Get the socket options for the configured proxy.
+     */
+    protected function getProxyOptions(array $proxy): array
+    {
+        if (! isset($proxy['socket'])) {
+            return [];
+        }
+
+        $options = [
+            'proxy' => $proxy['socket'],
+            'request_fulluri' => $proxy['request_fulluri'] ?? false,
+        ];
 
         if (isset($proxy['username'])) {
             $auth = base64_encode($proxy['username'].':'.$proxy['password']);
 
-            $options[$key]['header'] = ["Proxy-Authorization: Basic $auth"];
+            $options['header'] = ["Proxy-Authorization: Basic $auth"];
         }
 
         return $options;
@@ -198,9 +231,34 @@ class ImapConnection implements ConnectionInterface
     /**
      * {@inheritDoc}
      */
-    public function authenticate(string $user, string $token): TaggedResponse
+    public function authenticate(string $user, ?string $token = null, ImapAuthMechanism $mechanism = ImapAuthMechanism::XOAuth2): TaggedResponse
     {
-        $this->send('AUTHENTICATE', ['XOAUTH2', Str::credentials($user, $token)], $tag);
+        switch ($mechanism) {
+            case ImapAuthMechanism::XOAuth2:
+                if (is_null($token)) {
+                    throw new InvalidArgumentException('XOAUTH2 authentication requires a token.');
+                }
+
+                $this->send('AUTHENTICATE', [$mechanism->value, Str::credentials($user, $token)], $tag);
+
+                break;
+
+            case ImapAuthMechanism::External:
+                if (empty($this->stream->meta()['crypto']['protocol'])) {
+                    throw new LogicException('EXTERNAL authentication requires a TLS connection.');
+                }
+
+                $this->send('AUTHENTICATE', [$mechanism->value], $tag);
+
+                $this->assertContinuationResponse($this->result->command());
+
+                $this->write(base64_encode($user));
+
+                break;
+
+            default:
+                throw new LogicException("Unhandled IMAP authentication mechanism [{$mechanism->value}].");
+        }
 
         return $this->assertTaggedResponse($tag, fn (TaggedResponse $response) => (
             ImapCommandException::make($this->result->command()->redacted(), $response)

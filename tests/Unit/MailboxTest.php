@@ -20,6 +20,7 @@ test('config defaults', function () {
         'encryption' => 'ssl',
         'validate_cert' => true,
         'authentication' => 'plain',
+        'tls' => [],
         'proxy' => [
             'socket' => null,
             'username' => null,
@@ -45,6 +46,7 @@ test('config', function () {
         'encryption' => 'ssl',
         'validate_cert' => true,
         'authentication' => 'plain',
+        'tls' => [],
         'proxy' => [
             'socket' => null,
             'username' => null,
@@ -134,6 +136,103 @@ test('connect throws exception with bad response', function () {
     ]));
 })->throws(ImapCommandException::class, 'IMAP command "TAG1 LOGIN [redacted] [redacted]" failed. Response: "TAG1 BAD Authentication failed"');
 
+test('connect presents a client certificate alongside password authentication', function (string $encryption, bool $validateCert, array $overrides, bool $verifyPeer, bool $verifyPeerName) {
+    $stream = new class extends FakeStream
+    {
+        public function options(): array
+        {
+            return $this->connection['options'];
+        }
+    };
+
+    $stream->feed(['* OK Welcome to IMAP', 'TAG1 OK Completed', 'TAG2 OK Completed']);
+
+    $tls = [
+        'cafile' => '/path/to/ca.pem',
+        'local_cert' => '/path/to/client.pem',
+        'local_pk' => '/path/to/client.key',
+        'passphrase' => 'secret',
+    ];
+
+    $mailbox = Mailbox::make([
+        'username' => 'foo',
+        'password' => 'bar',
+        'encryption' => $encryption,
+        'validate_cert' => $validateCert,
+        'tls' => [...$tls, ...$overrides],
+    ]);
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    $stream->assertWritten('LOGIN');
+    expect($stream->options()['ssl'])->toBe([
+        'verify_peer' => $verifyPeer,
+        'verify_peer_name' => $verifyPeerName,
+        ...$tls,
+    ]);
+})->with(['ssl', 'tls', 'starttls'])->with([
+    'inherit both defaults' => [true, [], true, true],
+    'override peer verification' => [false, ['verify_peer' => true], true, false],
+    'override name verification' => [true, ['verify_peer_name' => false], true, false],
+]);
+
+test('connect authenticates with a client certificate over STARTTLS', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Begin TLS negotiation',
+        '+',
+        'TAG2 OK Authenticated',
+    ]);
+
+    $mailbox = Mailbox::make([
+        'encryption' => 'starttls',
+        'authentication' => 'external',
+        'username' => 'foo@example.com',
+        'tls' => ['local_cert' => '/path/to/client.pem'],
+    ]);
+
+    $mailbox->connect(new ImapConnection($stream));
+
+    expect($mailbox->connected())->toBeTrue();
+    $stream->assertWritten('TAG1 STARTTLS');
+    $stream->assertWritten('TAG2 AUTHENTICATE EXTERNAL');
+    $stream->assertWritten(base64_encode('foo@example.com'));
+});
+
+test('connect closes the connection when the server does not support external authentication', function () {
+    $stream = new FakeStream;
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 NO Unsupported authentication mechanism',
+    ]);
+
+    $mailbox = Mailbox::make([
+        'authentication' => 'external',
+        'tls' => ['local_cert' => '/path/to/client.pem'],
+    ]);
+
+    expect(fn () => $mailbox->connect(new ImapConnection($stream)))
+        ->toThrow(ImapCommandException::class, 'Unsupported authentication mechanism');
+    expect($mailbox->connected())->toBeFalse();
+    $stream->assertWritten('TAG1 AUTHENTICATE EXTERNAL');
+    $stream->assertNotWritten('LOGIN');
+});
+
+test('mailboxes identified by different client certificates have distinct fingerprints', function () {
+    $first = Mailbox::make([
+        'authentication' => 'external',
+        'tls' => ['local_cert' => '/path/to/first.pem'],
+    ]);
+
+    $second = Mailbox::make([
+        'authentication' => 'external',
+        'tls' => ['local_cert' => '/path/to/second.pem'],
+    ]);
+
+    expect($first->fingerprint())->not->toBe($second->fingerprint());
+});
+
 test('connect does not authenticate when the tls handshake fails', function (bool|int $result, string $authentication) {
     $stream = new class($result) extends FakeStream
     {
@@ -167,7 +266,7 @@ test('connect does not authenticate when the tls handshake fails', function (boo
     $stream->assertWritten('TAG1 STARTTLS');
     $stream->assertNotWritten('LOGIN');
     $stream->assertNotWritten('AUTHENTICATE');
-})->with([false, 0])->with(['plain', 'oauth']);
+})->with([false, 0])->with(['plain', 'oauth', 'external']);
 
 test('folders', function () {
     $mailbox = Mailbox::make();
