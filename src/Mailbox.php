@@ -69,6 +69,22 @@ class Mailbox implements MailboxInterface
     }
 
     /**
+     * Serialize the mailbox configuration without its active session.
+     */
+    public function __serialize(): array
+    {
+        return ['config' => $this->config];
+    }
+
+    /**
+     * Restore the mailbox configuration with a fresh session.
+     */
+    public function __unserialize(array $data): void
+    {
+        $this->config = $data['config'];
+    }
+
+    /**
      * Make a new mailbox instance.
      */
     public static function make(array $config = []): static
