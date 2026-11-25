@@ -78,7 +78,7 @@ test('serialization', function () {
         ->config()->toBe($mailbox->config());
 });
 
-test('serialization discards the mailbox session', function () {
+test('serializing a mailbox clears connection state on restore', function () {
     $mailbox = Mailbox::make(['host' => 'imap.example.com']);
 
     $mailbox->connect(ImapConnection::fake([

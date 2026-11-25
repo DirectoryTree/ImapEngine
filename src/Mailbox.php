@@ -69,7 +69,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * Serialize the mailbox configuration without its active session.
+     * Exclude the active connection from the serialized mailbox.
      */
     public function __serialize(): array
     {
@@ -77,7 +77,7 @@ class Mailbox implements MailboxInterface
     }
 
     /**
-     * Restore the mailbox configuration with a fresh session.
+     * Restore the mailbox configuration for a new connection.
      */
     public function __unserialize(array $data): void
     {
