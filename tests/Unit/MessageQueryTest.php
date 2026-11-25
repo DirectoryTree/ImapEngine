@@ -18,6 +18,8 @@ use DirectoryTree\ImapEngine\Folder;
 use DirectoryTree\ImapEngine\Mailbox;
 use DirectoryTree\ImapEngine\MessageQuery;
 use Illuminate\Support\Collection;
+use Illuminate\Support\ItemNotFoundException;
+use Illuminate\Support\MultipleItemsFoundException;
 
 function query(?Mailbox $mailbox = null): MessageQuery
 {
@@ -54,6 +56,75 @@ test('existence checks use the current search criteria', function (string $respo
     'matching messages' => ['* SEARCH 42', true],
     'no matches' => ['* SEARCH', false],
 ]);
+
+test('sole returns the only message still available to fetch', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* SEARCH 1 2 3',
+        'TAG3 OK SEARCH completed',
+        'TAG4 OK FETCH completed',
+        '* 1 FETCH (UID 3 RFC822.SIZE 100)',
+        'TAG5 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $messages = (new Folder($mailbox, 'INBOX'))->messages()->unseen()->oldest()->withSize()->limit(1, 2);
+
+    expect($messages->sole()->uid())->toBe(3);
+    expect($messages->getLimit())->toBe(1);
+    expect($messages->getPage())->toBe(2);
+    $stream->assertWritten('TAG3 UID SEARCH UNSEEN');
+});
+
+test('sole throws when there are no matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* SEARCH',
+        'TAG3 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $messages = (new Folder($mailbox, 'INBOX'))->messages()->withSize();
+
+    expect(fn () => $messages->sole())->toThrow(ItemNotFoundException::class);
+    $stream->assertNotWritten('UID FETCH');
+});
+
+test('sole throws after finding two matching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* SEARCH 1 2 3',
+        'TAG3 OK SEARCH completed',
+        '* 1 FETCH (UID 1 RFC822.SIZE 100)',
+        '* 2 FETCH (UID 2 RFC822.SIZE 200)',
+        'TAG4 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $messages = (new Folder($mailbox, 'INBOX'))->messages()->oldest()->withSize();
+
+    expect(fn () => $messages->sole())->toThrow(MultipleItemsFoundException::class);
+    $stream->assertWritten('TAG4 UID FETCH 1:2 (RFC822.SIZE)');
+    $stream->assertNotWritten('UID FETCH');
+});
 
 test('passthru', function () {
     $query = query();
