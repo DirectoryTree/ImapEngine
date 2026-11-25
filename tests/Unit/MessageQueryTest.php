@@ -794,6 +794,81 @@ test('chunk fetches metadata for each sorted page', function () {
     $stream->assertWritten('TAG4 UID FETCH 100 (RFC822.SIZE)');
 });
 
+test('lazy defers fetching and stops when iteration stops', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        'TAG3 OK SELECT completed',
+        'TAG4 OK SELECT completed',
+        '* SEARCH 3 1 2',
+        'TAG5 OK SEARCH completed',
+        '* 1 FETCH (UID 1 RFC822.SIZE 10)',
+        '* 2 FETCH (UID 2 RFC822.SIZE 20)',
+        'TAG6 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $inbox = new Folder($mailbox, 'INBOX');
+    $archive = new Folder($mailbox, 'Archive');
+    $messages = $inbox->messages()->oldest()->withSize()->lazy(2);
+
+    $archive->select();
+    $stream->assertNotWritten('UID SEARCH');
+    $stream->assertNotWritten('UID FETCH');
+
+    expect($messages->first()->uid())->toBe(1);
+    $stream->assertWritten('TAG4 SELECT "INBOX"');
+    $stream->assertWritten('TAG5 UID SEARCH ALL');
+    $stream->assertWritten('TAG6 UID FETCH 1:2 (RFC822.SIZE)');
+    $stream->assertNotWritten('UID FETCH');
+});
+
+test('lazy preserves server sort order across batches when messages disappear', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '* SORT 50 2 100',
+        'TAG4 OK SORT completed',
+        '* 1 FETCH (UID 50 RFC822.SIZE 500)',
+        'TAG5 OK FETCH completed',
+        'TAG6 OK SELECT completed',
+        'TAG7 OK SELECT completed',
+        'TAG8 OK FETCH completed',
+        '* 2 FETCH (UID 100 RFC822.SIZE 1000)',
+        'TAG9 OK FETCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $inbox = new Folder($mailbox, 'INBOX');
+    $archive = new Folder($mailbox, 'Archive');
+    $uids = $inbox->messages()->sortBy('date')->withSize()->lazy(1)
+        ->map(function ($message) use ($archive) {
+            if ($message->uid() === 50) {
+                $archive->select();
+            }
+
+            return $message->uid();
+        });
+
+    expect($uids->all())->toBe([50, 100]);
+    $stream->assertWritten('TAG4 UID SORT (DATE) UTF-8 ALL');
+    $stream->assertWritten('TAG7 SELECT "INBOX"');
+    $stream->assertWritten('TAG8 UID FETCH 2 (RFC822.SIZE)');
+    $stream->assertWritten('TAG9 UID FETCH 100 (RFC822.SIZE)');
+});
+
 test('chunk skips unavailable pages without changing pagination', function (string $search, int $startChunk) {
     $stream = new FakeStream;
     $stream->open();

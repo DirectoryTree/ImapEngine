@@ -10,6 +10,7 @@ use DirectoryTree\ImapEngine\Enums\ImapSortKey;
 use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
+use Illuminate\Support\LazyCollection;
 
 /**
  * @mixin ImapQueryBuilder
@@ -220,6 +221,13 @@ interface MessageQueryInterface
      * Execute a callback over each chunk of messages.
      */
     public function chunk(callable $callback, int $chunkSize = 10, int $startChunk = 1): void;
+
+    /**
+     * Iterate over matching messages, fetching them in chunks.
+     *
+     * @return LazyCollection<int, MessageInterface>
+     */
+    public function lazy(int $chunkSize = 10): LazyCollection;
 
     /**
      * Paginate the current query.
