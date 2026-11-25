@@ -75,7 +75,17 @@ class MessageQuery implements MessageQueryInterface
      */
     public function get(): MessageCollection
     {
-        return $this->process($this->sortKey ? $this->sort() : $this->search());
+        return $this->process($this->matchingUids());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function uids(): Collection
+    {
+        return $this->pageUids($this->matchingUids())
+            ->values()
+            ->map(fn (string|int $uid) => (int) $uid);
     }
 
     /**
@@ -369,13 +379,19 @@ class MessageQuery implements MessageQueryInterface
      */
     protected function process(Collection $uids): MessageCollection
     {
-        $selected = $this->order($uids)->forPage($this->page, $this->limit);
-
-        $messages = $this->load($selected);
+        $messages = $this->load($this->pageUids($uids));
 
         $messages->total($uids->count());
 
         return $messages;
+    }
+
+    /**
+     * Get the UIDs for the current page in query order.
+     */
+    protected function pageUids(Collection $uids): Collection
+    {
+        return $this->order($uids)->forPage($this->page, $this->limit);
     }
 
     /**
@@ -524,6 +540,14 @@ class MessageQuery implements MessageQueryInterface
                 ],
             ];
         })->all();
+    }
+
+    /**
+     * Look up matching UIDs using the configured search or server-side sort.
+     */
+    protected function matchingUids(): Collection
+    {
+        return $this->sortKey ? $this->sort() : $this->search();
     }
 
     /**

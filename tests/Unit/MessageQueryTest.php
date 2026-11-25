@@ -768,6 +768,50 @@ test('get still sorts identifiers before pagination', function (string $order, a
     ['desc', [10, 2]],
 ]);
 
+test('uids returns the requested page in UID order without fetching messages', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* SEARCH 50 2 100 1 10',
+        'TAG3 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = (new Folder($mailbox, 'INBOX'))->messages()->unseen()->withBody()->oldest()->limit(2, 2);
+
+    expect($query->uids()->all())->toBe([10, 50]);
+    $stream->assertWritten('TAG3 UID SEARCH UNSEEN');
+    $stream->assertNotWritten('UID FETCH');
+});
+
+test('uids preserves server sort order', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '* SORT 50 2 100 1 10',
+        'TAG4 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = (new Folder($mailbox, 'INBOX'))->messages()->sortBy('date')->limit(2, 2);
+
+    expect($query->uids()->all())->toBe([100, 1]);
+    $stream->assertWritten('TAG4 UID SORT (DATE) UTF-8 ALL');
+    $stream->assertNotWritten('UID FETCH');
+});
+
 test('get preserves server sort order before pagination', function () {
     $stream = new FakeStream;
     $stream->open();
