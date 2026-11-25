@@ -11,7 +11,9 @@ use DirectoryTree\ImapEngine\Pagination\Cursor;
 use DirectoryTree\ImapEngine\Pagination\CursorPaginator;
 use DirectoryTree\ImapEngine\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\ItemNotFoundException;
 use Illuminate\Support\LazyCollection;
+use Illuminate\Support\MultipleItemsFoundException;
 
 /**
  * @mixin ImapQueryBuilder
@@ -212,6 +214,14 @@ interface MessageQueryInterface
      * Get the first message in the resulting collection or throw an exception.
      */
     public function firstOrFail(): MessageInterface;
+
+    /**
+     * Get the sole message matching the current search criteria.
+     *
+     * @throws ItemNotFoundException
+     * @throws MultipleItemsFoundException
+     */
+    public function sole(): MessageInterface;
 
     /**
      * Get the messages matching the current query.

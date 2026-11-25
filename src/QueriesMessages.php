@@ -461,4 +461,12 @@ trait QueriesMessages
     {
         return ! $this->exists();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function sole(): MessageInterface
+    {
+        return $this->lazy(2)->sole();
+    }
 }
