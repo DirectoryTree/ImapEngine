@@ -27,6 +27,34 @@ function query(?Mailbox $mailbox = null): MessageQuery
     );
 }
 
+test('existence checks use the current search criteria', function (string $response, bool $exists) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        'TAG2 OK SELECT completed',
+        $response,
+        'TAG3 OK SEARCH completed',
+        $response,
+        'TAG4 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $messages = (new Folder($mailbox, 'INBOX'))->messages()->unseen()->withBody();
+
+    expect($messages->exists())->toBe($exists);
+    expect($messages->doesntExist())->toBe(! $exists);
+    $stream->assertWritten('TAG3 UID SEARCH UNSEEN');
+    $stream->assertWritten('TAG4 UID SEARCH UNSEEN');
+    $stream->assertNotWritten('UID FETCH');
+})->with([
+    'matching messages' => ['* SEARCH 42', true],
+    'no matches' => ['* SEARCH', false],
+]);
+
 test('passthru', function () {
     $query = query();
 

@@ -192,6 +192,16 @@ interface MessageQueryInterface
     public function count(): int;
 
     /**
+     * Determine if any messages match the current search criteria.
+     */
+    public function exists(): bool;
+
+    /**
+     * Determine if no messages match the current search criteria.
+     */
+    public function doesntExist(): bool;
+
+    /**
      * Get the first message in the resulting collection.
      */
     public function first(): ?MessageInterface;

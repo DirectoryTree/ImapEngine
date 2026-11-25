@@ -44,6 +44,19 @@ test('it counts messages correctly', function () {
     expect($query->count())->toBe(3);
 });
 
+test('it checks whether the folder has messages', function () {
+    $folder = new FakeFolder('INBOX');
+    $messages = $folder->messages();
+
+    expect($messages->exists())->toBeFalse();
+    expect($messages->doesntExist())->toBeTrue();
+
+    $folder->addMessage(new FakeMessage(1));
+
+    expect($messages->exists())->toBeTrue();
+    expect($messages->doesntExist())->toBeFalse();
+});
+
 test('it returns first message', function () {
     $folder = new FakeFolder('INBOX', messages: [
         new FakeMessage(1),
