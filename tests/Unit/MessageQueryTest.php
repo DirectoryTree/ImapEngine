@@ -131,6 +131,86 @@ test('passthru', function () {
 
     expect($query->toImap())->toBe('');
     expect($query->isEmpty())->toBeTrue();
+    expect($query->subject('hello')->toImapTokens())->toBe(['SUBJECT "hello"']);
+    expect($query->getWheres()[0]['value'])->toBe('hello');
+});
+
+test('search and sort execute query token overrides', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '* SORT',
+        'TAG4 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $builder = new class extends ImapQueryBuilder
+    {
+        public function toImapTokens(): array
+        {
+            return [...parent::toImapTokens(), 'UNSEEN'];
+        }
+    };
+
+    $query = new MessageQuery(new Folder($mailbox, 'test'), $builder);
+    $query->where(fn ($nested) => $nested->seen())->count();
+    $query->sortBy('date')->get();
+
+    $stream->assertWritten("TAG2 UID SEARCH SEEN UNSEEN UNSEEN\r\n");
+    $stream->assertWritten("TAG4 UID SORT (DATE) UTF-8 SEEN UNSEEN UNSEEN\r\n");
+});
+
+test('search and sort preserve literals in query token overrides', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '+ Ready for subject',
+        '+ Ready for body',
+        '* SEARCH',
+        'TAG2 OK SEARCH completed',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG3 OK CAPABILITY completed',
+        '+ Ready for subject',
+        '+ Ready for body',
+        '* SORT',
+        'TAG4 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $builder = new class extends ImapQueryBuilder
+    {
+        public function toImapTokens(): array
+        {
+            return [...parent::toImapTokens(), 'UNSEEN'];
+        }
+    };
+
+    $query = new MessageQuery(new Folder($mailbox, 'test'), $builder);
+    $query->subject('café')->orWhere('body', "line {3}\r\nend");
+
+    expect($query->toImap())->toBe("OR (SUBJECT {5}\r\ncafé) (BODY {13}\r\nline {3}\r\nend) UNSEEN");
+    $query->count();
+    $query->sortBy('date')->get();
+
+    $stream->assertWritten("TAG2 UID SEARCH CHARSET UTF-8 OR (SUBJECT {5}\r\n");
+    $stream->assertWritten("café) (BODY {13}\r\n");
+    $stream->assertWritten("line {3}\r\nend) UNSEEN\r\n");
+
+    $stream->assertWritten("TAG4 UID SORT (DATE) UTF-8 OR (SUBJECT {5}\r\n");
+    $stream->assertWritten("café) (BODY {13}\r\n");
+    $stream->assertWritten("line {3}\r\nend) UNSEEN\r\n");
 });
 
 test('where', function () {
@@ -466,6 +546,37 @@ test('uid range to infinity searches with numeric upper bound', function () {
     $stream->assertWritten('TAG2 UID SEARCH UID 42:4294967295');
 });
 
+test('search preserves literal values inside nested criteria', function (string $subject, string $charset) {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '+ Ready for literal data',
+        '+ Ready for literal data',
+        '* SEARCH 1',
+        'TAG2 OK SEARCH completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    $query = query($mailbox)
+        ->body("first\nsecond")
+        ->orWhere('subject', $subject)
+        ->header('Message-ID', '0');
+
+    expect($query->toImap())->toBe("OR (BODY {12}\r\nfirst\nsecond) (SUBJECT {10}\r\n{$subject}) HEADER MESSAGE-ID \"0\"");
+    expect($query->count())->toBe(1);
+
+    $stream->assertWritten("TAG2 UID SEARCH {$charset}OR (BODY {12}\r\n");
+    $stream->assertWritten("first\nsecond) (SUBJECT {10}\r\n");
+    $stream->assertWritten("{$subject}) HEADER MESSAGE-ID \"0\"\r\n");
+})->with([
+    'ASCII' => ["third\rline", ''],
+    'UTF-8' => ["café\rline", 'CHARSET UTF-8 '],
+]);
+
 test('unmarkFlagged unflags all matching messages', function () {
     $stream = new FakeStream;
     $stream->open();
@@ -637,6 +748,28 @@ test('sortBy sends correct sort command with ascending order', function () {
     query($mailbox)->sortBy('date')->get();
 
     $stream->assertWritten('TAG3 UID SORT (DATE) UTF-8 ALL');
+});
+
+test('sort sends literal search values using its existing charset', function () {
+    $stream = new FakeStream;
+    $stream->open();
+    $stream->feed([
+        '* OK Welcome to IMAP',
+        'TAG1 OK Logged in',
+        '* CAPABILITY IMAP4rev1 SORT',
+        'TAG2 OK CAPABILITY completed',
+        '+ Ready for literal data',
+        '* SORT',
+        'TAG3 OK SORT completed',
+    ]);
+
+    $mailbox = Mailbox::make();
+    $mailbox->connect(new ImapConnection($stream));
+
+    expect(query($mailbox)->text('café')->sortBy('date')->get())->toBeEmpty();
+
+    $stream->assertWritten("TAG3 UID SORT (DATE) UTF-8 TEXT {5}\r\n");
+    $stream->assertWritten("café\r\n");
 });
 
 test('sortBy sends correct sort command with descending order', function () {
